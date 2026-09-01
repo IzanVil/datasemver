@@ -26,6 +26,7 @@ and it needs no schema registry, no database and no service running.
 - [Configuration: rules in YAML](#configuration-rules-in-yaml)
 - [Python API](#python-api)
 - [GitHub Action](#github-action)
+- [Web dashboard](#web-dashboard)
 - [Project structure](#project-structure)
 - [Contributing](#contributing)
 - [License](#license)
@@ -398,6 +399,34 @@ comment step is skipped for them; the report is still in the job summary. And a 
 large enough to be stored in Git LFS needs `lfs: true` on the checkout step, otherwise the
 base version is a pointer file rather than data.
 
+## Web dashboard
+
+A FastAPI backend and a dependency-free frontend live in [`web/`](web). Upload two
+versions of a dataset, or pick two versions from a directory, and read the bump, the
+classified changes, the column comparison and the changelog entry in the browser.
+
+```bash
+pip install -r requirements-web.txt
+uvicorn web.backend.main:app --reload
+```
+
+Then open <http://127.0.0.1:8000>; the backend serves the frontend, so that is the only
+command. The history view scans `./datasets/` by default, grouping files named
+`customers_v1.csv`, `customers_v2.csv` and so on.
+
+The dashboard is a client of the library, not a fork of it: it calls `analyze()` and
+returns the same report the CLI prints with `--json`.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/diff \
+  -F "old=@tests/fixtures/old.csv" \
+  -F "new=@tests/fixtures/new.csv" \
+  -F "current_version=1.4.2"
+```
+
+Endpoints, configuration and the dataset naming convention are documented in
+[web/README.md](web/README.md).
+
 ## Project structure
 
 ```
@@ -421,6 +450,8 @@ datasemver/
 docs/rules.md             rule catalogue
 examples/                 alternative rule profiles
 scripts/                  CI helper that analyses the datasets a branch touches
+web/                      FastAPI backend and static frontend for the dashboard
+datasets/                 sample versioned datasets for the dashboard history view
 .github/workflows/        the pull request workflow
 tests/                    pytest suite and dataset fixtures
 demo.cast                 asciinema recording used in the demo above

@@ -66,6 +66,7 @@ datasemver = ["rules/*.yaml", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = [
     "--cov=datasemver",
     "--cov=web",

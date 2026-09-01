@@ -479,4 +479,13 @@ pre {
   .form-footer .button {
     width: 100%;
   }
+
+  .history-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-controls .button {
+    width: 100%;
+  }
 }

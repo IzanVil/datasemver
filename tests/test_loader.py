@@ -5,6 +5,7 @@ from datasemver.core.differ import diff_schemas
 from datasemver.formats.loader import (
     DatasetReadError,
     UnsupportedFormatError,
+    detect_delimiter,
     load_frame,
     load_parquet,
     load_schema,
@@ -186,13 +187,76 @@ def test_tab_separated_file(tmp_path):
     assert canonical_dtype(frame["score"]) == "float64"
 
 
-def test_semicolon_file_is_read_as_a_single_column(tmp_path):
+def test_semicolon_delimiter_is_detected(tmp_path):
     path = tmp_path / "data.csv"
     path.write_text("id;name\n1;ana\n2;bruno\n", encoding="utf-8")
 
     frame = load_frame(path)
 
-    assert list(frame.columns) == ["id;name"]
+    assert list(frame.columns) == ["id", "name"]
+    assert frame["name"].tolist() == ["ana", "bruno"]
+
+
+def test_pipe_delimiter_is_detected(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id|name|score\n1|ana|10\n2|bruno|11\n", encoding="utf-8")
+
+    assert list(load_frame(path).columns) == ["id", "name", "score"]
+
+
+def test_tab_delimiter_inside_a_csv_extension(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id\tname\n1\tana\n2\tbruno\n", encoding="utf-8")
+
+    assert list(load_frame(path).columns) == ["id", "name"]
+
+
+def test_delimiters_inside_quoted_values_do_not_win(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text(
+        'id,name\n1,"Ruiz; Ana"\n2,"Diaz; Bruno"\n',
+        encoding="utf-8",
+    )
+
+    frame = load_frame(path)
+
+    assert list(frame.columns) == ["id", "name"]
+    assert frame["name"].tolist() == ["Ruiz; Ana", "Diaz; Bruno"]
+
+
+def test_a_single_column_file_falls_back_to_the_comma(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id\n1\n2\n", encoding="utf-8")
+
+    assert list(load_frame(path).columns) == ["id"]
+
+
+def test_an_inconsistent_candidate_is_ignored(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id;name\n1;ana;extra\n2;bruno\n", encoding="utf-8")
+
+    assert detect_delimiter(path) == ","
+
+
+def test_delimiter_detection_of_an_empty_file(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("", encoding="utf-8")
+
+    assert detect_delimiter(path) == ","
+
+
+def test_the_comma_wins_a_tie(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("a,b;c\n1,2;3\n", encoding="utf-8")
+
+    assert detect_delimiter(path) == ","
+
+
+def test_tsv_extension_forces_the_tab(tmp_path):
+    path = tmp_path / "data.tsv"
+    path.write_text("id,with,commas\tname\n1,2,3\tana\n", encoding="utf-8")
+
+    assert list(load_frame(path).columns) == ["id,with,commas", "name"]
 
 
 def test_duplicate_headers_are_disambiguated(tmp_path):
@@ -340,3 +404,12 @@ def test_parquet_without_pyarrow_explains_itself(tmp_path, monkeypatch):
 
     with pytest.raises(DatasetReadError, match="pyarrow"):
         load_parquet(path)
+
+
+def test_delimiter_detection_only_samples_the_first_lines(tmp_path):
+    path = tmp_path / "data.csv"
+    header_and_rows = ["id;name"] + [f"{index};name{index}" for index in range(50)]
+    path.write_text("\n".join(header_and_rows) + "\n", encoding="utf-8")
+
+    assert detect_delimiter(path) == ";"
+    assert len(load_frame(path)) == 50

@@ -11,6 +11,9 @@ from datasemver.core.models import DatasetSchema
 from datasemver.formats.utils import infer_types, profile_frame
 
 CSV_EXTENSIONS = {".csv", ".tsv"}
+DELIMITER_CANDIDATES = (",", ";", "\t", "|")
+DEFAULT_DELIMITER = ","
+SNIFF_LINES = 20
 JSON_EXTENSIONS = {".json", ".jsonl", ".ndjson"}
 PARQUET_EXTENSIONS = {".parquet", ".pq"}
 SUPPORTED_EXTENSIONS = CSV_EXTENSIONS | JSON_EXTENSIONS | PARQUET_EXTENSIONS
@@ -106,8 +109,55 @@ def _holds_mappings(series: pd.Series) -> bool:
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
-    separator = "\t" if path.suffix.lower() == ".tsv" else ","
+    separator = "\t" if path.suffix.lower() == ".tsv" else detect_delimiter(path)
     return pd.read_csv(path, sep=separator, keep_default_na=True)
+
+
+def detect_delimiter(path: str | Path, default: str = DEFAULT_DELIMITER) -> str:
+    """Guess the delimiter of a delimited text file from its first lines.
+
+    A candidate only wins if it appears in the header and splits every sampled line into
+    the same number of fields, which rules out characters that merely happen to occur
+    inside values. Ties keep the order of `DELIMITER_CANDIDATES`, so a comma wins over a
+    semicolon when both describe the file equally well.
+    """
+    lines = _sample_lines(Path(path))
+    if not lines:
+        return default
+
+    best = default
+    best_count = 0
+    for candidate in DELIMITER_CANDIDATES:
+        counts = [_count_outside_quotes(line, candidate) for line in lines]
+        if counts[0] == 0 or len(set(counts)) > 1:
+            continue
+        if counts[0] > best_count:
+            best, best_count = candidate, counts[0]
+    return best
+
+
+def _sample_lines(path: Path) -> list[str]:
+    with path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
+        lines = []
+        for line in handle:
+            stripped = line.strip("\r\n")
+            if stripped:
+                lines.append(stripped)
+            if len(lines) == SNIFF_LINES:
+                break
+    return lines
+
+
+def _count_outside_quotes(line: str, delimiter: str) -> int:
+    """Count delimiters that are not inside a quoted field."""
+    count = 0
+    quoted = False
+    for character in line:
+        if character == '"':
+            quoted = not quoted
+        elif character == delimiter and not quoted:
+            count += 1
+    return count
 
 
 def _read_json(path: Path) -> pd.DataFrame:

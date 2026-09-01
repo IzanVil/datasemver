@@ -1,0 +1,6 @@
+[
+  {"id": 1, "user": {"name": "Ana Ruiz", "city": "Madrid"}, "score": 71.5, "active": "true"},
+  {"id": 2, "user": {"name": "Bruno Diaz", "city": "Sevilla"}, "score": 64.0, "active": "false"},
+  {"id": 3, "user": {"name": "Carla Mota", "city": "Madrid"}, "score": 88.25, "active": "true"},
+  {"id": 4, "user": {"name": "Diego Sanz", "city": "Bilbao"}, "score": 55.75, "active": "true"}
+]

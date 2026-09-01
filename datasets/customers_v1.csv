@@ -1,0 +1,9 @@
+id,name,email,phone,age,score,legacy_code
+1,Ana Ruiz,ana@example.com,600123456,34,71.5,LG-001
+2,Bruno Diaz,bruno@example.com,600123457,41,64.0,LG-002
+3,Carla Mota,,600123458,29,88.25,LG-003
+4,Diego Sanz,diego@example.com,600123459,52,55.75,LG-004
+5,Elena Prat,,600123460,38,79.0,LG-005
+6,Fabio Leon,fabio@example.com,600123461,45,62.5,LG-006
+7,Gema Soto,gema@example.com,600123462,31,90.0,LG-007
+8,Hugo Vela,hugo@example.com,600123463,27,68.75,LG-008

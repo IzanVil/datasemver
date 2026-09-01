@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DataSemver dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <h1>DataSemver</h1>
+        <p>Compare two versions of a dataset and see the version bump they deserve.</p>
+        <nav class="tabs" role="tablist">
+          <button class="tab is-active" role="tab" data-view="compare">Compare</button>
+          <button class="tab" role="tab" data-view="history">History</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section id="view-compare" class="view">
+        <form id="compare-form" class="card">
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Previous version</span>
+              <input type="file" name="old" required />
+            </label>
+            <label class="field">
+              <span class="field-label">New version</span>
+              <input type="file" name="new" required />
+            </label>
+            <label class="field">
+              <span class="field-label">Current version</span>
+              <input type="text" name="current_version" value="0.0.0" pattern="\d+\.\d+\.\d+" />
+            </label>
+            <label class="field">
+              <span class="field-label">Rules <span class="muted">(optional YAML)</span></span>
+              <input type="file" name="rules" accept=".yaml,.yml" />
+            </label>
+          </div>
+          <div class="form-footer">
+            <p class="hint" id="upload-hint"></p>
+            <button type="submit" class="button">Compare</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="view-history" class="view is-hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>Datasets directory</h2>
+            <code id="history-path" class="muted"></code>
+          </div>
+          <div id="history-list" class="history-list"></div>
+        </div>
+      </section>
+
+      <p id="status" class="status is-hidden"></p>
+
+      <section id="result" class="result is-hidden">
+        <div class="card summary">
+          <div class="summary-headline">
+            <span id="bump-badge" class="badge">none</span>
+            <div>
+              <p class="summary-versions">
+                <span id="version-from"></span>
+                <span class="arrow">&rarr;</span>
+                <strong id="version-to"></strong>
+              </p>
+              <p id="summary-sources" class="muted"></p>
+            </div>
+          </div>
+          <dl class="summary-stats">
+            <div><dt>Rows</dt><dd id="stat-rows"></dd></div>
+            <div><dt>Columns</dt><dd id="stat-columns"></dd></div>
+            <div><dt>Changes</dt><dd id="stat-changes"></dd></div>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>Changes</h2></div>
+          <div class="table-scroll">
+            <table id="changes-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Rule</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>Columns</h2></div>
+          <div class="table-scroll">
+            <table id="columns-table">
+              <thead>
+                <tr>
+                  <th>Column</th>
+                  <th>Status</th>
+                  <th>Type</th>
+                  <th>Nulls</th>
+                  <th>Cardinality</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Changelog</h2>
+            <button type="button" class="button button-ghost" id="copy-changelog">Copy</button>
+          </div>
+          <pre id="changelog"></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>DataSemver <span id="meta-version"></span></span>
+      <a href="/docs">API docs</a>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

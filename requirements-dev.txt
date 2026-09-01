@@ -1,0 +1,6 @@
+-r requirements.txt
+
+pytest-cov>=4
+httpx>=0.27
+build>=1
+twine>=5

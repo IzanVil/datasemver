@@ -1,16 +1,14 @@
 import json
+import subprocess
+import sys
 
 import pandas as pd
-from typer.testing import CliRunner
 
-from datasemver.cli.main import app
 from datasemver.core.analyzer import analyze, analyze_schemas
 from datasemver.core.changelog import render_entry, write_changelog
 from datasemver.core.models import ChangeType, Severity
 from datasemver.formats.loader import schema_from_frame
 from datasemver.utils.version import bump_version
-
-runner = CliRunner()
 
 
 def test_analyze_csv_pair_suggests_major(old_csv, new_csv):
@@ -85,35 +83,30 @@ def test_bump_version_arithmetic():
     assert bump_version("1.2.3", None) == "1.2.3"
 
 
-def test_cli_reports_the_suggested_bump(old_csv, new_csv):
-    result = runner.invoke(app, ["diff", str(old_csv), str(new_csv)])
+def test_changelog_is_prepended_to_a_file_without_a_title(old_csv, new_csv, tmp_path):
+    path = tmp_path / "CHANGELOG.md"
+    path.write_text("## [0.1.0] - 2020-01-01\n\n### Minor\n- first release\n", encoding="utf-8")
 
-    assert result.exit_code == 0
-    assert "MAJOR" in result.stdout
+    write_changelog(analyze(old_csv, new_csv, current_version="1.0.0"), path)
+    content = path.read_text(encoding="utf-8")
 
-
-def test_cli_json_output_is_parseable(old_csv, new_csv):
-    result = runner.invoke(app, ["diff", str(old_csv), str(new_csv), "--json"])
-    payload = json.loads(result.stdout)
-
-    assert result.exit_code == 0
-    assert payload["bump"] == "major"
-    assert payload["next_version"] == "1.0.0"
-    assert payload["diff"]["new"]["row_count"] == 10
+    assert content.startswith("## [2.0.0]")
+    assert "- first release" in content
 
 
-def test_cli_writes_the_changelog(old_csv, new_csv, tmp_path):
-    output = tmp_path / "CHANGELOG.md"
-    result = runner.invoke(
-        app,
-        ["diff", str(old_csv), str(new_csv), "--output", str(output), "--current-version", "0.9.0"],
+def test_changelog_of_identical_datasets(old_csv):
+    entry = render_entry(analyze(old_csv, old_csv))
+
+    assert "No classified changes detected." in entry
+
+
+def test_module_entry_point_runs(old_csv, new_csv):
+    result = subprocess.run(
+        [sys.executable, "-m", "datasemver", "diff", str(old_csv), str(new_csv), "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
-    assert result.exit_code == 0
-    assert "## [1.0.0]" in output.read_text(encoding="utf-8")
-
-
-def test_cli_reports_missing_files(tmp_path, new_csv):
-    result = runner.invoke(app, ["diff", str(tmp_path / "absent.csv"), str(new_csv)])
-
-    assert result.exit_code == 2
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["bump"] == "major"

@@ -9,6 +9,8 @@ from web.backend.config import Settings  # noqa: E402
 from web.backend.history import scan_datasets  # noqa: E402
 from web.backend.main import app  # noqa: E402
 
+pytestmark = pytest.mark.web
+
 
 @pytest.fixture
 def client():
@@ -134,3 +136,158 @@ def test_history_diff_refuses_path_traversal(client, datasets_dir):
     response = client.get("/api/history/..%2F..%2Fetc/diff?old=1&new=2")
 
     assert response.status_code == 404
+
+
+def test_upload_over_the_size_limit(client, old_csv, new_csv, tmp_path, monkeypatch):
+    settings = Settings(
+        datasets_dir=tmp_path,
+        max_upload_bytes=10,
+        frontend_dir=tmp_path / "frontend",
+    )
+    monkeypatch.setattr("web.backend.main.get_settings", lambda: settings)
+
+    response = upload(client, old_csv, new_csv)
+
+    assert response.status_code == 413
+
+
+def test_empty_upload_is_rejected(client, old_csv, tmp_path):
+    empty = tmp_path / "empty.csv"
+    empty.write_text("", encoding="utf-8")
+
+    response = upload(client, empty, old_csv)
+
+    assert response.status_code == 400
+    assert "empty" in response.json()["detail"]
+
+
+def test_broken_rules_file_is_rejected(client, old_csv, new_csv, tmp_path):
+    rules = tmp_path / "broken.yaml"
+    rules.write_text("major:\n  - column_exploded\n", encoding="utf-8")
+
+    with old_csv.open("rb") as old, new_csv.open("rb") as new, rules.open("rb") as rule_file:
+        response = client.post(
+            "/api/diff",
+            files={
+                "old": (old_csv.name, old, "text/csv"),
+                "new": (new_csv.name, new, "text/csv"),
+                "rules": (rules.name, rule_file, "application/yaml"),
+            },
+        )
+
+    assert response.status_code == 400
+
+
+def test_rules_upload_must_be_yaml(client, old_csv, new_csv):
+    with old_csv.open("rb") as old, new_csv.open("rb") as new, new_csv.open("rb") as rule_file:
+        response = client.post(
+            "/api/diff",
+            files={
+                "old": (old_csv.name, old, "text/csv"),
+                "new": (new_csv.name, new, "text/csv"),
+                "rules": ("rules.csv", rule_file, "text/csv"),
+            },
+        )
+
+    assert response.status_code == 400
+
+
+def test_corrupt_upload_is_rejected(client, old_csv, tmp_path):
+    broken = tmp_path / "broken.parquet"
+    broken.write_bytes(b"not a parquet file")
+
+    response = upload(client, broken, old_csv)
+
+    assert response.status_code == 400
+
+
+def test_history_ignores_directories_and_hidden_files(tmp_path, old_csv):
+    directory = tmp_path / "datasets"
+    (directory / "nested").mkdir(parents=True)
+    (directory / ".hidden_v1.csv").write_bytes(old_csv.read_bytes())
+    (directory / "customers_v1.csv").write_bytes(old_csv.read_bytes())
+
+    history = scan_datasets(directory)
+
+    assert [group["name"] for group in history.model_dump()["datasets"]] == ["customers"]
+    assert history.ignored == []
+
+
+def test_history_sorts_versions_numerically(tmp_path, old_csv):
+    directory = tmp_path / "datasets"
+    directory.mkdir()
+    for version in ("1", "2", "10"):
+        (directory / f"customers_v{version}.csv").write_bytes(old_csv.read_bytes())
+
+    versions = [item.version for item in scan_datasets(directory).datasets[0].versions]
+
+    assert versions == ["1", "2", "10"]
+
+
+def test_history_reads_dotted_and_dashed_names(tmp_path, old_csv):
+    directory = tmp_path / "datasets"
+    directory.mkdir()
+    (directory / "sales.v2.1.csv").write_bytes(old_csv.read_bytes())
+    (directory / "sales-v2.2.csv").write_bytes(old_csv.read_bytes())
+
+    group = scan_datasets(directory).datasets[0]
+
+    assert group.name == "sales"
+    assert [item.version for item in group.versions] == ["2.1", "2.2"]
+    assert group.latest.version == "2.2"
+
+
+def test_history_diff_pads_the_version_from_the_filename(client, datasets_dir):
+    payload = client.get("/api/history/customers/diff?old=1&new=2&current_version=3.4.5").json()
+
+    assert payload["current_version"] == "3.4.5"
+    assert payload["next_version"] == "4.0.0"
+
+
+def test_frontend_is_served(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "DataSemver" in response.text
+
+
+def test_mounting_a_missing_frontend_is_a_no_op(tmp_path):
+    from fastapi import FastAPI
+
+    from web.backend.main import mount_frontend
+
+    application = FastAPI()
+    mount_frontend(
+        application,
+        Settings(
+            datasets_dir=tmp_path,
+            max_upload_bytes=1024,
+            frontend_dir=tmp_path / "absent",
+        ),
+    )
+
+    assert [route.path for route in application.routes if route.path == "/"] == []
+
+
+def test_history_ignores_files_without_a_version(tmp_path, old_csv):
+    directory = tmp_path / "datasets"
+    directory.mkdir()
+    (directory / "customers.csv").write_bytes(old_csv.read_bytes())
+    (directory / "customers_v1.csv").write_bytes(old_csv.read_bytes())
+
+    history = scan_datasets(directory)
+
+    assert [group.name for group in history.datasets] == ["customers"]
+    assert history.ignored == ["customers.csv"]
+
+
+def test_a_missing_file_becomes_a_404():
+    from fastapi import HTTPException
+
+    from web.backend.main import as_http_error
+
+    with pytest.raises(HTTPException) as error:
+        with as_http_error():
+            raise FileNotFoundError("dataset not found: gone.csv")
+
+    assert error.value.status_code == 404

@@ -1,6 +1,6 @@
 # DataSemver
 
-[![CI](https://github.com/IzanVil/datamserver/actions/workflows/ci.yml/badge.svg)](https://github.com/IzanVil/datamserver/actions/workflows/ci.yml)
+[![Tests](https://github.com/IzanVil/datamserver/actions/workflows/tests.yml/badge.svg)](https://github.com/IzanVil/datamserver/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/IzanVil/datamserver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datamserver)
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)

@@ -174,3 +174,169 @@ def test_unsupported_extension(tmp_path):
 def test_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_frame(tmp_path / "absent.csv")
+
+
+def test_tab_separated_file(tmp_path):
+    path = tmp_path / "data.tsv"
+    path.write_text("id\tname\tscore\n1\tana\t10.5\n2\tbruno\t11.0\n", encoding="utf-8")
+
+    frame = load_frame(path)
+
+    assert list(frame.columns) == ["id", "name", "score"]
+    assert canonical_dtype(frame["score"]) == "float64"
+
+
+def test_semicolon_file_is_read_as_a_single_column(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id;name\n1;ana\n2;bruno\n", encoding="utf-8")
+
+    frame = load_frame(path)
+
+    assert list(frame.columns) == ["id;name"]
+
+
+def test_duplicate_headers_are_disambiguated(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id,score,score\n1,10,20\n2,11,21\n", encoding="utf-8")
+
+    schema = load_schema(path)
+
+    assert schema.column_names == ["id", "score", "score.1"]
+    assert schema.columns["score"].mean == pytest.approx(10.5)
+    assert schema.columns["score.1"].mean == pytest.approx(20.5)
+
+
+def test_missing_values_are_counted_as_nulls(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id,email,score\n1,,10\n2,b@x.com,\n3,c@x.com,12\n4,,13\n", encoding="utf-8")
+
+    schema = load_schema(path)
+
+    assert schema.columns["email"].null_ratio == pytest.approx(0.5)
+    assert schema.columns["score"].null_ratio == pytest.approx(0.25)
+    assert schema.columns["score"].dtype == "float64"
+
+
+def test_column_of_only_nulls(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id,note\n1,\n2,\n", encoding="utf-8")
+
+    stats = load_schema(path).columns["note"]
+
+    assert stats.null_ratio == 1.0
+    assert stats.cardinality == 0
+    assert stats.mean is None
+    assert stats.categories is None
+
+
+def test_deeply_nested_json(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text(
+        '[{"id": 1, "user": {"address": {"city": "Madrid", "zip": "28004"}}},'
+        ' {"id": 2, "user": {"address": {"city": "Bilbao", "zip": "48001"}}}]',
+        encoding="utf-8",
+    )
+
+    frame = load_frame(path)
+
+    assert sorted(frame.columns) == ["id", "user.address.city", "user.address.zip"]
+
+
+def test_json_records_with_missing_keys(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text('[{"id": 1, "plan": "pro"}, {"id": 2}]', encoding="utf-8")
+
+    schema = load_schema(path)
+
+    assert schema.columns["plan"].null_ratio == pytest.approx(0.5)
+
+
+def test_json_object_is_read_as_a_single_row(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text('{"id": 1, "score": 10}', encoding="utf-8")
+
+    assert len(load_frame(path)) == 1
+
+
+def test_empty_json_array(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text("[]", encoding="utf-8")
+
+    schema = load_schema(path)
+
+    assert schema.row_count == 0
+    assert schema.column_names == []
+
+
+def test_empty_file_is_rejected(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_frame(path)
+
+
+def test_header_only_csv(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("id,name\n", encoding="utf-8")
+
+    schema = load_schema(path)
+
+    assert schema.row_count == 0
+    assert schema.columns["id"].null_ratio == 0.0
+
+
+def test_malformed_json_is_rejected(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text("{not json at all", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_frame(path)
+
+
+def test_parquet_preserves_datetimes(tmp_path):
+    path = tmp_path / "events.parquet"
+    frame = pd.DataFrame({"seen_at": pd.to_datetime(["2026-01-01", "2026-02-01"])})
+    frame.to_parquet(path)
+
+    assert canonical_dtype(load_frame(path)["seen_at"]) == "datetime64"
+
+
+def test_parquet_with_nulls(tmp_path):
+    path = tmp_path / "scores.parquet"
+    pd.DataFrame({"score": [1.0, None, 3.0, None]}).to_parquet(path)
+
+    stats = load_schema(path).columns["score"]
+
+    assert stats.null_ratio == pytest.approx(0.5)
+    assert stats.mean == pytest.approx(2.0)
+
+
+def test_date_like_strings_that_do_not_parse_stay_strings(tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("seen_at\n2024-13-45\n2024-99-01\n", encoding="utf-8")
+
+    assert load_schema(path).columns["seen_at"].dtype == "string"
+
+
+def test_empty_json_file_is_read_as_an_empty_dataset(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text("   ", encoding="utf-8")
+
+    schema = load_schema(path)
+
+    assert schema.row_count == 0
+    assert schema.column_names == []
+
+
+def test_parquet_without_pyarrow_explains_itself(tmp_path, monkeypatch):
+    path = tmp_path / "data.parquet"
+    pd.DataFrame({"id": [1]}).to_parquet(path)
+
+    def raise_import_error(*args, **kwargs):
+        raise ImportError("no pyarrow")
+
+    monkeypatch.setattr(pd, "read_parquet", raise_import_error)
+
+    with pytest.raises(DatasetReadError, match="pyarrow"):
+        load_parquet(path)

@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from datasemver.core.differ import DiffConfig, diff_schemas
 from datasemver.core.models import ChangeType, ColumnStatus
@@ -155,3 +156,121 @@ def test_rename_threshold_is_configurable():
 
     assert not default.of_type(ChangeType.COLUMN_RENAMED)
     assert permissive.of_type(ChangeType.COLUMN_RENAMED)[0].column == "tag"
+
+
+def test_bool_to_int_is_a_compatible_widening():
+    diff = diff_frames(
+        pd.DataFrame({"flag": [True, False, True]}),
+        pd.DataFrame({"flag": [1, 0, 1]}),
+    )
+
+    assert [change.column for change in diff.of_type(ChangeType.TYPE_CHANGED_COMPATIBLE)] == ["flag"]
+    assert not diff.of_type(ChangeType.TYPE_CHANGED_INCOMPATIBLE)
+
+
+def test_numeric_to_string_is_incompatible():
+    diff = diff_frames(
+        pd.DataFrame({"zip": [8001, 28004]}),
+        pd.DataFrame({"zip": ["08001", "28004-A"]}),
+    )
+
+    assert diff.of_type(ChangeType.TYPE_CHANGED_INCOMPATIBLE)
+
+
+def test_rename_keeps_comparing_the_column():
+    old = pd.DataFrame({"user_name": ["ana", "ana", "bruno", "bruno"]})
+    new = pd.DataFrame({"username": [1, 1, 2, 2]})
+
+    diff = diff_frames(old, new, config=DiffConfig(rename_threshold=0.4))
+
+    assert diff.of_type(ChangeType.COLUMN_RENAMED)[0].column == "username"
+    assert diff.of_type(ChangeType.TYPE_CHANGED_INCOMPATIBLE)[0].column == "username"
+
+
+def test_each_removed_column_is_paired_at_most_once():
+    old = pd.DataFrame({"user_name": ["ana", "bruno", "ana", "bruno"]})
+    new = pd.DataFrame(
+        {
+            "username": ["ana", "bruno", "ana", "bruno"],
+            "user_names": ["ana", "bruno", "ana", "bruno"],
+        }
+    )
+
+    diff = diff_frames(old, new)
+    renames = diff.of_type(ChangeType.COLUMN_RENAMED)
+
+    assert len(renames) == 1
+    assert [change.column for change in diff.of_type(ChangeType.COLUMN_ADDED)] == ["user_names"]
+
+
+def test_added_column_reports_its_null_ratio():
+    diff = diff_frames(
+        pd.DataFrame({"id": [1, 2, 3, 4]}),
+        pd.DataFrame({"id": [1, 2, 3, 4], "note": ["a", None, None, None]}),
+    )
+
+    change = diff.of_type(ChangeType.COLUMN_ADDED)[0]
+
+    assert change.metrics["null_ratio"] == pytest.approx(0.75)
+    assert change.details["dtype"] == "string"
+
+
+def test_empty_dataset_gaining_rows():
+    old = schema_from_frame(pd.DataFrame({"id": [], "name": []}), "old")
+    new = schema_from_frame(pd.DataFrame({"id": [1, 2], "name": ["ana", "bruno"]}), "new")
+
+    diff = diff_schemas(old, new)
+
+    assert diff.of_type(ChangeType.ROW_COUNT_INCREASED)[0].metrics["increase_pct"] == 200.0
+
+
+def test_two_empty_datasets_report_nothing():
+    empty = schema_from_frame(pd.DataFrame({"id": [], "name": []}), "empty")
+
+    assert diff_schemas(empty, empty).changes == []
+
+
+def test_every_row_removed():
+    diff = diff_frames(pd.DataFrame({"id": [1, 2, 3]}), pd.DataFrame({"id": []}))
+
+    assert diff.of_type(ChangeType.ROW_COUNT_DECREASED)[0].metrics["decrease_pct"] == 100.0
+
+
+def test_column_that_becomes_entirely_null():
+    diff = diff_frames(
+        pd.DataFrame({"email": ["a@x.com", "b@x.com"]}),
+        pd.DataFrame({"email": [None, None]}),
+    )
+
+    assert diff.of_type(ChangeType.NULLS_INTRODUCED)[0].metrics["delta_pct"] == 100.0
+
+
+def test_null_change_below_the_tolerance_is_ignored():
+    old = pd.DataFrame({"email": [f"user{index}@x.com" for index in range(200)]})
+    new = old.copy()
+    new.loc[0, "email"] = None
+
+    diff = diff_frames(old, new)
+
+    assert not diff.of_type(ChangeType.NULLS_INTRODUCED)
+
+
+def test_category_removed_is_reported():
+    diff = diff_frames(
+        pd.DataFrame({"country": ["ES", "FR", "IT", "ES", "FR", "IT"]}),
+        pd.DataFrame({"country": ["ES", "FR", "ES", "FR", "ES", "FR"]}),
+    )
+
+    change = diff.of_type(ChangeType.CATEGORY_REMOVED)[0]
+
+    assert change.details["categories"] == ["IT"]
+    assert change.metrics["removed_count"] == 1.0
+
+
+def test_repeated_integers_are_not_treated_as_a_key():
+    diff = diff_frames(
+        pd.DataFrame({"level": [1, 1, 2, 2, 3, 3]}),
+        pd.DataFrame({"level": [2, 2, 3, 3, 4, 4]}),
+    )
+
+    assert diff.of_type(ChangeType.DISTRIBUTION_SHIFT) or diff.of_type(ChangeType.MINOR_STAT_CHANGE)

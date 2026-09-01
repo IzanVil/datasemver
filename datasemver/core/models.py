@@ -21,16 +21,20 @@ class Severity(str, Enum):
         return _SEVERITY_RANK[self]
 
     def __lt__(self, other: object) -> bool:
-        return self.rank < other.rank if isinstance(other, Severity) else NotImplemented
+        rank = _rank_of(other)
+        return NotImplemented if rank is None else self.rank < rank
 
     def __le__(self, other: object) -> bool:
-        return self.rank <= other.rank if isinstance(other, Severity) else NotImplemented
+        rank = _rank_of(other)
+        return NotImplemented if rank is None else self.rank <= rank
 
     def __gt__(self, other: object) -> bool:
-        return self.rank > other.rank if isinstance(other, Severity) else NotImplemented
+        rank = _rank_of(other)
+        return NotImplemented if rank is None else self.rank > rank
 
     def __ge__(self, other: object) -> bool:
-        return self.rank >= other.rank if isinstance(other, Severity) else NotImplemented
+        rank = _rank_of(other)
+        return NotImplemented if rank is None else self.rank >= rank
 
 
 _SEVERITY_RANK: dict[Severity, int] = {
@@ -38,6 +42,23 @@ _SEVERITY_RANK: dict[Severity, int] = {
     Severity.MINOR: 1,
     Severity.MAJOR: 2,
 }
+
+
+def _rank_of(value: object) -> int | None:
+    """Rank of a severity or of its name, so comparisons never fall back to string order.
+
+    Returns None for types that are not severities at all, which lets Python raise the
+    usual TypeError; a string that is not a severity name raises it here instead of being
+    compared alphabetically.
+    """
+    if isinstance(value, Severity):
+        return value.rank
+    if isinstance(value, str):
+        try:
+            return Severity(value).rank
+        except ValueError as error:
+            raise TypeError(f"{value!r} is not a severity") from error
+    return None
 
 
 class ChangeType(str, Enum):

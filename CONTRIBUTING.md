@@ -34,11 +34,13 @@ pytest -k rename -v         # a single behaviour
 pytest -q --tb=short        # quieter output while iterating
 ```
 
-Coverage, if you want the report locally:
+Coverage runs by default: `pytest` measures `datasemver` and `web`, prints the missing
+lines and writes `coverage.xml`. The run fails below 85%; it currently sits above 99%.
 
 ```bash
-pip install pytest-cov
-pytest --cov=datasemver --cov-report=term-missing
+pytest --cov-report=html    # browsable report in htmlcov/
+pytest --no-cov             # skip the measurement while iterating
+pytest -m "not web"         # skip the dashboard tests
 ```
 
 The suite is fast and hermetic: no network, no fixtures written outside `tmp_path`. Keep it

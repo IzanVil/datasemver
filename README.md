@@ -220,8 +220,11 @@ datasemver rules examples/lenient_rules.yaml
 ```
 
 Formats are detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`
-and `.pq`. Nested JSON objects and Parquet structs are flattened with a `.` separator, so
-`{"user": {"name": "..."}}` is profiled as the column `user.name`. The command exits with
+and `.pq`. The delimiter of a `.csv` is detected from its first lines — comma, semicolon,
+tab and pipe are recognised, and a character that only appears inside quoted values does
+not win — while `.tsv` always uses the tab. Nested JSON objects and Parquet structs are
+flattened with a `.` separator, so `{"user": {"name": "..."}}` is profiled as the column
+`user.name`. The command exits with
 `2` on a missing file, an unsupported extension, an unreadable dataset or an invalid rules
 file.
 
@@ -463,6 +466,7 @@ datasemver/
 │   └── version.py        semantic version arithmetic
 └── cli/main.py           typer entry point
 
+CHANGELOG.md              the project's own versions
 docs/rules.md             rule catalogue
 examples/                 alternative rule profiles
 scripts/                  CI helper that analyses the datasets a branch touches
@@ -474,6 +478,8 @@ demo.cast                 asciinema recording used in the demo above
 ```
 
 ## Contributing
+
+Released versions are described in [CHANGELOG.md](CHANGELOG.md).
 
 Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the
 development setup, the test workflow and the style expected in a patch. Everyone taking

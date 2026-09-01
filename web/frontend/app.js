@@ -182,7 +182,8 @@ function renderReport(report) {
   dom.badge.dataset.bump = bump;
   dom.versionFrom.textContent = report.current_version;
   dom.versionTo.textContent = report.next_version;
-  dom.sources.textContent = `${report.old_source} → ${report.new_source}`;
+  dom.sources.textContent = `${basename(report.old_source)} → ${basename(report.new_source)}`;
+  dom.sources.title = `${report.old_source} → ${report.new_source}`;
 
   const { old: previous, new: current } = report.diff;
   dom.statRows.textContent = `${previous.row_count} → ${current.row_count}`;
@@ -309,6 +310,10 @@ function rank(severity) {
 
 function percent(value) {
   return value === null || value === undefined ? "—" : `${(value * 100).toFixed(1)}%`;
+}
+
+function basename(path) {
+  return path.split("/").pop() || path;
 }
 
 function formatBytes(bytes) {

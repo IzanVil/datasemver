@@ -89,7 +89,8 @@ noise is what makes the bump untrustworthy.
 Releases are built and published by
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml). The flow is:
 
-1. Bump the version in `pyproject.toml` and `datasemver/__init__.py`; both must match.
+1. Bump the version in `pyproject.toml` and `datasemver/__init__.py`; both must match, and
+   move the `Unreleased` section of `CHANGELOG.md` under the new version.
 2. Commit, then tag: `git tag -a v0.1.0 -m "DataSemver 0.1.0"` and push the tag.
 3. Publish a GitHub release pointing at that tag. The workflow builds the sdist and the
    wheel, checks the metadata with `twine`, refuses to continue when the tag and the

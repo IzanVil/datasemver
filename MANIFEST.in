@@ -1,0 +1,22 @@
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include requirements.txt
+include requirements-web.txt
+include datasemver/py.typed
+include datasemver/rules/*.yaml
+
+recursive-include docs *.md
+recursive-include examples *.yaml
+recursive-include tests *.py *.csv *.json *.parquet
+
+prune .github
+prune web
+prune datasets
+prune scripts
+exclude demo.cast
+exclude tests/test_web.py
+
+global-exclude *.py[cod]
+global-exclude __pycache__

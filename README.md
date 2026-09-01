@@ -1,7 +1,7 @@
 # DataSemver
 
-[![CI](https://github.com/IzanVIl/datamserver/actions/workflows/ci.yml/badge.svg)](https://github.com/IzanVIl/datamserver/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/IzanVIl/datamserver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVIl/datamserver)
+[![CI](https://github.com/IzanVil/datamserver/actions/workflows/ci.yml/badge.svg)](https://github.com/IzanVil/datamserver/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/IzanVil/datamserver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datamserver)
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -40,24 +40,40 @@ and reviewable, so a dataset release can be discussed the same way a library rel
 
 ## Installation
 
-From source (recommended while the package is unreleased):
-
-```bash
-git clone https://github.com/IzanVIl/datamserver.git
-cd datamserver
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
-
-From PyPI, once published:
+From PyPI:
 
 ```bash
 pip install datasemver
 ```
 
-Requires Python 3.10 or newer. Runtime dependencies: `pandas`, `pyarrow`, `pydantic`,
-`pyyaml`, `typer` and `rich`.
+As a standalone command, without touching your environment:
+
+```bash
+pipx install datasemver
+```
+
+From source, for development or to run the dashboard:
+
+```bash
+git clone https://github.com/IzanVil/datamserver.git
+cd datamserver
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+| Extra | Installs | For |
+| --- | --- | --- |
+| _(none)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | The library and the `datasemver` command |
+| `dev` | `pytest`, `httpx` | Running the test suite |
+| `web` | `fastapi`, `uvicorn`, `python-multipart` | The [web dashboard](#web-dashboard) |
+
+```bash
+pip install "datasemver[web]"
+```
+
+Requires Python 3.10 or newer. The package ships typed (`py.typed`), so type checkers see
+the annotations of every public function.
 
 ## Quick start
 

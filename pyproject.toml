@@ -1,16 +1,41 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "datasemver"
-version = "0.0.1"
+version = "0.1.0"
 description = "Semantic versioning for datasets: diff two dataset versions and get the bump they deserve."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Izan Vilchez", email = "izanvilchez6@gmail.com" }]
-keywords = ["semver", "datasets", "data-versioning", "changelog", "data-quality"]
+maintainers = [{ name = "Izan Vilchez", email = "izanvilchez6@gmail.com" }]
+keywords = [
+    "semver",
+    "datasets",
+    "data-versioning",
+    "changelog",
+    "data-quality",
+    "schema-diff",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
 dependencies = [
     "pandas>=1.5",
     "pyarrow>=10",
@@ -24,6 +49,12 @@ dependencies = [
 dev = ["pytest>=7", "httpx>=0.27"]
 web = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "python-multipart>=0.0.9"]
 
+[project.urls]
+Homepage = "https://github.com/IzanVil/datamserver"
+Repository = "https://github.com/IzanVil/datamserver"
+Documentation = "https://github.com/IzanVil/datamserver/blob/main/README.md"
+Issues = "https://github.com/IzanVil/datamserver/issues"
+
 [project.scripts]
 datasemver = "datasemver.cli.main:app"
 
@@ -31,7 +62,7 @@ datasemver = "datasemver.cli.main:app"
 include = ["datasemver*"]
 
 [tool.setuptools.package-data]
-datasemver = ["rules/*.yaml"]
+datasemver = ["rules/*.yaml", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

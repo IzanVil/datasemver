@@ -7,7 +7,7 @@ is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## Development setup
 
 ```bash
-git clone https://github.com/IzanVIl/datamserver.git
+git clone https://github.com/IzanVil/datamserver.git
 cd datamserver
 python -m venv .venv
 source .venv/bin/activate
@@ -81,6 +81,42 @@ Most contributions fall into this shape. The path through the code is:
 
 Detections should be quiet by default: a rule that fires on every dataset is noise, and
 noise is what makes the bump untrustworthy.
+
+## Releasing
+
+Releases are built and published by
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml). The flow is:
+
+1. Bump the version in `pyproject.toml` and `datasemver/__init__.py`; both must match.
+2. Commit, then tag: `git tag -a v0.1.0 -m "DataSemver 0.1.0"` and push the tag.
+3. Publish a GitHub release pointing at that tag. The workflow builds the sdist and the
+   wheel, checks the metadata with `twine`, refuses to continue when the tag and the
+   version in `pyproject.toml` disagree, installs the wheel in a clean environment to
+   confirm the `datasemver` command works, and uploads to PyPI.
+
+Running it by hand from the Actions tab publishes to TestPyPI by default, and to PyPI when
+the `pypi` target is chosen.
+
+The workflow expects two repository secrets, `PYPI_API_TOKEN` and `TEST_PYPI_API_TOKEN`,
+and two environments named `pypi` and `testpypi` to attach them to. Scope each token to
+the `datasemver` project once it exists on the index.
+
+Building locally, which is worth doing before tagging:
+
+```bash
+pip install build twine
+python -m build
+python -m twine check dist/*
+
+python -m venv /tmp/verify
+/tmp/verify/bin/pip install dist/datasemver-*.whl
+/tmp/verify/bin/datasemver --help
+```
+
+`MANIFEST.in` decides what lands in the sdist: the package, its bundled rules, the docs,
+the example rule profiles and the test suite. The dashboard under `web/`, the sample
+`datasets/` and the CI helper in `scripts/` are deliberately left out, since they are part
+of the repository rather than of the library.
 
 ## Reporting issues
 

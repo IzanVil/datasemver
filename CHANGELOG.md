@@ -20,6 +20,9 @@ This project follows [Semantic Versioning](https://semver.org).
   the title attribute.
 - `pytest --collect-only` no longer reports 0% coverage and a failing total for a run that
   never happened.
+- Workflows moved to the action majors that run on Node 24: `checkout@v7`,
+  `setup-python@v7`, `github-script@v9`, `upload-artifact@v7`, `download-artifact@v8` and
+  `codecov-action@v7`.
 - The dashboard tests are collected by the `pytest` console script, not only by
   `python -m pytest`: the repository root reaches `sys.path` through `pythonpath` instead
   of relying on the current directory, which is what broke the test workflow on every

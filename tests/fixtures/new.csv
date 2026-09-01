@@ -1,0 +1,11 @@
+id,name,email,phone,age,score,country
+1,Ana Ruiz,ana@example.com,+34 600 123 456,34,71.5,ES
+2,Bruno Diaz,bruno@example.com,+34 600 123 457,41,64.0,ES
+3,Carla Mota,carla@example.com,+34 600 123 458,29,88.25,PT
+4,Diego Sanz,diego@example.com,+34 600 123 459,52,55.75,ES
+5,Elena Prat,elena@example.com,+34 600 123 460,38,79.0,FR
+6,Fabio Leon,fabio@example.com,+34 600 123 461,45,62.5,IT
+7,Gema Soto,gema@example.com,+34 600 123 462,31,90.0,ES
+8,Hugo Vela,hugo@example.com,+34 600 123 463,27,68.75,PT
+9,Iria Mora,iria@example.com,+34 600 123 464,36,74.0,ES
+10,Jon Aguirre,jon@example.com,+34 600 123 465,49,58.5,FR

@@ -1,0 +1,5 @@
+{"id": 1, "user": {"name": "Ana Ruiz", "city": "Madrid"}, "score": 71.5, "active": "true", "plan": "pro"}
+{"id": 2, "user": {"name": "Bruno Diaz", "city": "Sevilla"}, "score": 64.0, "active": "false", "plan": "free"}
+{"id": 3, "user": {"name": "Carla Mota", "city": "Valencia"}, "score": 88.25, "active": "true", "plan": "pro"}
+{"id": 4, "user": {"name": "Diego Sanz", "city": "Bilbao"}, "score": 55.75, "active": "true", "plan": "free"}
+{"id": 5, "user": {"name": "Elena Prat", "city": "Madrid"}, "score": 79.0, "active": "true", "plan": "pro"}

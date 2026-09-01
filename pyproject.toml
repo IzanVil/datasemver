@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datasemver"
+version = "0.0.1"
+description = "Semantic versioning for datasets: diff two dataset versions and get the bump they deserve."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Izan Vilchez", email = "izanvilchez6@gmail.com" }]
+keywords = ["semver", "datasets", "data-versioning", "changelog", "data-quality"]
+dependencies = [
+    "pandas>=1.5",
+    "pyarrow>=10",
+    "pydantic>=2",
+    "pyyaml>=6",
+    "typer>=0.9",
+    "rich>=13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+datasemver = "datasemver.cli.main:app"
+
+[tool.setuptools.packages.find]
+include = ["datasemver*"]
+
+[tool.setuptools.package-data]
+datasemver = ["rules/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

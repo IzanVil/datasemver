@@ -1,0 +1,20 @@
+major:
+  - column_removed
+  - column_renamed
+  - type_changed_incompatible
+  - type_changed_compatible
+  - distribution_shift
+  - category_removed
+  - row_count_decrease_greater_than: 5
+  - null_ratio_increase_greater_than: 0
+
+minor:
+  - column_added
+  - new_category_added
+  - row_count_increased
+  - row_count_decreased
+  - cardinality_changed
+
+patch:
+  - nulls_fixed
+  - minor_stat_change

@@ -20,6 +20,10 @@ This project follows [Semantic Versioning](https://semver.org).
   the title attribute.
 - `pytest --collect-only` no longer reports 0% coverage and a failing total for a run that
   never happened.
+- The dashboard tests are collected by the `pytest` console script, not only by
+  `python -m pytest`: the repository root reaches `sys.path` through `pythonpath` instead
+  of relying on the current directory, which is what broke the test workflow on every
+  Python version.
 
 ## [0.1.0] - 2026-09-02
 

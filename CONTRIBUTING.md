@@ -47,12 +47,14 @@ The dashboard tests import `web`, which is not an installed package; `pythonpath
 in `pyproject.toml` puts the repository root on the path so both `pytest` and
 `python -m pytest` find it.
 
-The suite is fast and hermetic: no network, no fixtures written outside `tmp_path`. Keep it
-that way. Dataset fixtures live in `tests/fixtures/` and are shared through the fixtures
-declared in `tests/conftest.py`; prefer building small dataframes inline when a test needs
-a specific shape, and only add a file fixture when the format itself is under test. The
-Parquet fixtures hold the same rows as `old.csv` and `new.csv`, which is what lets the
-suite assert that both formats produce identical reports; regenerate them with
+The suite is fast and hermetic: no network, no fixtures written outside `tmp_path`, and no
+environment read without `monkeypatch.setenv`, which is how the tests for the
+`DATASEMVER_CSV_DELIMITER` override keep the rest of the run untouched. Keep it that way.
+Dataset fixtures live in `tests/fixtures/` and are shared through the fixtures declared in
+`tests/conftest.py`; prefer building small dataframes inline when a test needs a specific
+shape, and only add a file fixture when the format itself is under test. The Parquet
+fixtures hold the same rows as `old.csv` and `new.csv`, which is what lets the suite assert
+that both formats produce identical reports; regenerate them with
 `pandas.DataFrame.to_parquet` if the CSV pair ever changes.
 
 ## Code style

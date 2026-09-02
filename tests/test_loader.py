@@ -3,8 +3,10 @@ import pytest
 
 from datasemver.core.differ import diff_schemas
 from datasemver.formats.loader import (
+    DELIMITER_ENV_VAR,
     DatasetReadError,
     UnsupportedFormatError,
+    csv_delimiter,
     detect_delimiter,
     load_frame,
     load_parquet,
@@ -257,6 +259,47 @@ def test_tsv_extension_forces_the_tab(tmp_path):
     path.write_text("id,with,commas\tname\n1,2,3\tana\n", encoding="utf-8")
 
     assert list(load_frame(path).columns) == ["id,with,commas", "name"]
+
+
+def test_the_environment_overrides_the_detected_delimiter(tmp_path, monkeypatch):
+    path = tmp_path / "data.csv"
+    path.write_text("id;name\n1;ana\n2;bruno\n", encoding="utf-8")
+    monkeypatch.setenv(DELIMITER_ENV_VAR, ",")
+
+    assert list(load_frame(path).columns) == ["id;name"]
+
+
+def test_the_environment_overrides_the_tab_forced_by_a_tsv(tmp_path, monkeypatch):
+    path = tmp_path / "data.tsv"
+    path.write_text("id;name\n1;ana\n", encoding="utf-8")
+    monkeypatch.setenv(DELIMITER_ENV_VAR, ";")
+
+    assert list(load_frame(path).columns) == ["id", "name"]
+
+
+def test_a_tab_override_is_written_as_an_escape(tmp_path, monkeypatch):
+    path = tmp_path / "data.csv"
+    path.write_text("id,with,commas\tname\n1,2,3\tana\n", encoding="utf-8")
+    monkeypatch.setenv(DELIMITER_ENV_VAR, "\\t")
+
+    assert list(load_frame(path).columns) == ["id,with,commas", "name"]
+
+
+def test_an_empty_override_means_unset(tmp_path, monkeypatch):
+    path = tmp_path / "data.csv"
+    path.write_text("id;name\n1;ana\n", encoding="utf-8")
+    monkeypatch.setenv(DELIMITER_ENV_VAR, "")
+
+    assert csv_delimiter(path) == ";"
+
+
+def test_an_override_of_several_characters_is_rejected(tmp_path, monkeypatch):
+    path = tmp_path / "data.csv"
+    path.write_text("id,name\n1,ana\n", encoding="utf-8")
+    monkeypatch.setenv(DELIMITER_ENV_VAR, "::")
+
+    with pytest.raises(DatasetReadError, match=DELIMITER_ENV_VAR):
+        load_frame(path)
 
 
 def test_duplicate_headers_are_disambiguated(tmp_path):

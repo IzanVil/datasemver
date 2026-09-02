@@ -1,7 +1,10 @@
 import json
+import re
+from pathlib import Path
 
 from typer.testing import CliRunner
 
+import datasemver
 from datasemver.cli.main import app
 
 runner = CliRunner()
@@ -137,3 +140,17 @@ def test_without_arguments_the_help_is_shown():
 
     assert "Usage" in result.stdout
     assert "diff" in result.stdout
+
+
+def test_the_declared_version_matches_the_packaging_metadata():
+    """`__version__` and `pyproject.toml` drift apart silently; the release flow needs both.
+
+    Parsed with a regex rather than `tomllib`, which the supported 3.10 does not ship.
+    """
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    declared = re.search(r'(?m)^version = "([^"]+)"', pyproject)
+
+    assert declared is not None
+    assert datasemver.__version__ == declared.group(1)

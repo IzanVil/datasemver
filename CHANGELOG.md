@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-02
+
 ### Minor
 - CSV delimiter detection: `,`, `;`, tab and `|` are recognised from the first lines of
   the file, so a semicolon-separated export no longer loads as a single column. A
@@ -30,6 +32,9 @@ This project follows [Semantic Versioning](https://semver.org).
   `python -m pytest`: the repository root reaches `sys.path` through `pythonpath` instead
   of relying on the current directory, which is what broke the test workflow on every
   Python version.
+- Every project link pointed at `datamserver`, the repository's name before it was
+  renamed. The README badges, the clone snippets and the four URLs in the package metadata
+  now name `datasemver`, so the PyPI page no longer leans on a GitHub redirect.
 
 ## [0.1.0] - 2026-09-02
 
@@ -78,6 +83,7 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/IzanVil/datasemver/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/IzanVil/datasemver/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/IzanVil/datasemver/releases/tag/v0.0.1

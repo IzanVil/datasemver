@@ -13,6 +13,9 @@ This project follows [Semantic Versioning](https://semver.org).
   the file, so a semicolon-separated export no longer loads as a single column. A
   candidate only wins if it appears in the header and splits every sampled line into the
   same number of fields, and `.tsv` still forces the tab.
+- `DATASEMVER_CSV_DELIMITER` forces a single delimiter and skips the detection, the tab
+  included and written as `\t`. It overrides the tab of a `.tsv` too, an empty value means
+  unset, and anything longer than one character is an error rather than a silent fallback.
 
 ### Patch
 - The dashboard lays out its history controls consistently on narrow screens, and the

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,8 @@ from datasemver.formats.utils import infer_types, profile_frame
 CSV_EXTENSIONS = {".csv", ".tsv"}
 DELIMITER_CANDIDATES = (",", ";", "\t", "|")
 DEFAULT_DELIMITER = ","
+DELIMITER_ENV_VAR = "DATASEMVER_CSV_DELIMITER"
+ESCAPED_DELIMITERS = {"\\t": "\t"}
 SNIFF_LINES = 20
 JSON_EXTENSIONS = {".json", ".jsonl", ".ndjson"}
 PARQUET_EXTENSIONS = {".parquet", ".pq"}
@@ -109,8 +112,36 @@ def _holds_mappings(series: pd.Series) -> bool:
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
-    separator = "\t" if path.suffix.lower() == ".tsv" else detect_delimiter(path)
-    return pd.read_csv(path, sep=separator, keep_default_na=True)
+    return pd.read_csv(path, sep=csv_delimiter(path), keep_default_na=True)
+
+
+def csv_delimiter(path: str | Path) -> str:
+    """Resolve the delimiter a delimited text file should be read with.
+
+    An explicit `DATASEMVER_CSV_DELIMITER` wins over everything, including the tab that a
+    `.tsv` extension otherwise forces; write a tab as the two characters `\\t`, which an
+    environment variable can carry, and leave the variable empty to mean unset. Without an
+    override, `.tsv` is a tab and any other extension is sniffed by `detect_delimiter`.
+    """
+    override = _delimiter_override()
+    if override is not None:
+        return override
+    if Path(path).suffix.lower() == ".tsv":
+        return "\t"
+    return detect_delimiter(path)
+
+
+def _delimiter_override() -> str | None:
+    raw = os.environ.get(DELIMITER_ENV_VAR)
+    if not raw:
+        return None
+
+    delimiter = ESCAPED_DELIMITERS.get(raw, raw)
+    if len(delimiter) != 1:
+        raise DatasetReadError(
+            f"{DELIMITER_ENV_VAR} must be a single character, got {raw!r}"
+        )
+    return delimiter
 
 
 def detect_delimiter(path: str | Path, default: str = DEFAULT_DELIMITER) -> str:

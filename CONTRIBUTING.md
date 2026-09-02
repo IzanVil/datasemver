@@ -7,8 +7,8 @@ is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## Development setup
 
 ```bash
-git clone https://github.com/IzanVil/datamserver.git
-cd datamserver
+git clone https://github.com/IzanVil/datasemver.git
+cd datasemver
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"

@@ -1,7 +1,7 @@
 # DataSemver
 
-[![Tests](https://github.com/IzanVil/datamserver/actions/workflows/tests.yml/badge.svg)](https://github.com/IzanVil/datamserver/actions/workflows/tests.yml)
-[![Coverage](https://codecov.io/gh/IzanVil/datamserver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datamserver)
+[![Tests](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml/badge.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/IzanVil/datasemver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datasemver)
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -55,8 +55,8 @@ pipx install datasemver
 From source, for development or to run the dashboard:
 
 ```bash
-git clone https://github.com/IzanVil/datamserver.git
-cd datamserver
+git clone https://github.com/IzanVil/datasemver.git
+cd datasemver
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"

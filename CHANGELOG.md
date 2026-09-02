@@ -75,6 +75,6 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datamserver/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/IzanVil/datamserver/compare/v0.0.1...v0.1.0
-[0.0.1]: https://github.com/IzanVil/datamserver/releases/tag/v0.0.1
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/IzanVil/datasemver/compare/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/IzanVil/datasemver/releases/tag/v0.0.1

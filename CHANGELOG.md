@@ -8,6 +8,15 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- Spanish README in `README.es.md`, a full translation kept section for section with the
+  English one so a link into either has a counterpart in the other. Recorded CLI output,
+  rule identifiers, YAML and workflows stay untranslated, and a link that still leads to
+  English-only material says so.
+- Both READMEs corrected where they had drifted: the `dev` extra installs `pytest-cov`,
+  `.github/workflows/` holds three workflows rather than one, and the changelog is its own
+  section instead of a line under Contributing.
+
 ## [0.2.0] - 2026-09-02
 
 ### Minor

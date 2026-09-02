@@ -6,6 +6,8 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+**English** · [Español](README.es.md)
+
 **Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.**
 
 DataSemver compares two versions of a CSV, JSON or Parquet dataset, classifies every
@@ -28,6 +30,7 @@ and it needs no schema registry, no database and no service running.
 - [GitHub Action](#github-action)
 - [Web dashboard](#web-dashboard)
 - [Project structure](#project-structure)
+- [Changelog](#changelog)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -65,7 +68,7 @@ pip install -e ".[dev]"
 | Extra | Installs | For |
 | --- | --- | --- |
 | _(none)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | The library and the `datasemver` command |
-| `dev` | `pytest`, `httpx` | Running the test suite |
+| `dev` | `pytest`, `pytest-cov`, `httpx` | Running the test suite and measuring coverage |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | The [web dashboard](#web-dashboard) |
 
 ```bash
@@ -473,14 +476,19 @@ examples/                 alternative rule profiles
 scripts/                  CI helper that analyses the datasets a branch touches
 web/                      FastAPI backend and static frontend for the dashboard
 datasets/                 sample versioned datasets for the dashboard history view
-.github/workflows/        the pull request workflow
+.github/workflows/        pull request analysis, the test matrix and the release
 tests/                    pytest suite and dataset fixtures
 demo.cast                 asciinema recording used in the demo above
 ```
 
-## Contributing
+## Changelog
 
-Released versions are described in [CHANGELOG.md](CHANGELOG.md).
+Every released version is described in [CHANGELOG.md](CHANGELOG.md), which uses the same
+vocabulary the tool applies to datasets: **Major** for changes that break what consumers
+already depend on, **Minor** for new capability that leaves existing contracts intact,
+**Patch** for fixes that keep the same meaning.
+
+## Contributing
 
 Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the
 development setup, the test workflow and the style expected in a patch. Everyone taking

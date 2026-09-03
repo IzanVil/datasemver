@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datasemver"
-version = "0.2.0"
+version = "0.2.1"
 description = "Semantic versioning for datasets: diff two dataset versions and get the bump they deserve."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -4,9 +4,9 @@
 [![Coverage](https://codecov.io/gh/IzanVil/datasemver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datasemver)
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/IzanVil/datasemver/blob/main/LICENSE)
 
-**English** · [Español](README.es.md)
+**English** · [Español](https://github.com/IzanVil/datasemver/blob/main/README.es.md)
 
 **Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.**
 
@@ -151,26 +151,18 @@ datasemver diff old.csv new.csv --current-version "$(cat VERSION)" --output CHAN
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/000000.svg)](https://asciinema.org/a/000000)
-
-The recording lives in [`demo.cast`](demo.cast) and can be replayed locally:
+A recording of the CLI lives in [`demo.cast`](https://github.com/IzanVil/datasemver/blob/main/demo.cast) and replays locally:
 
 ```bash
 pip install asciinema
 asciinema play demo.cast
 ```
 
-To publish it and get a real badge, upload the cast and replace the two `000000`
-placeholders above with the ID that the upload returns:
-
-```bash
-asciinema upload demo.cast
-```
-
-Re-recording it after a change in the CLI output:
+Re-record it after a change in the CLI output, then upload it to get a shareable player:
 
 ```bash
 asciinema rec demo.cast --overwrite --cols 90 --rows 40
+asciinema upload demo.cast
 ```
 
 ## Semantic versioning for data
@@ -268,8 +260,8 @@ severity, which then acts as the fallback. Unknown rule names, unknown severitie
 thresholds on rules that do not accept one are rejected with an error instead of being
 ignored.
 
-The full catalogue of rules, metrics and thresholds is in [docs/rules.md](docs/rules.md).
-Two ready-made profiles ship in [`examples/`](examples): `strict_rules.yaml` and
+The full catalogue of rules, metrics and thresholds is in [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md).
+Two ready-made profiles ship in [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples): `strict_rules.yaml` and
 `lenient_rules.yaml`.
 
 ## Python API
@@ -302,7 +294,7 @@ report = analyze_schemas(
 
 ## GitHub Action
 
-[`.github/workflows/datasemver.yml`](.github/workflows/datasemver.yml) runs DataSemver on
+[`.github/workflows/datasemver.yml`](https://github.com/IzanVil/datasemver/blob/main/.github/workflows/datasemver.yml) runs DataSemver on
 every pull request and posts the result as a comment. It compares each dataset the branch
 touches against its version in the base branch, and rewrites the same comment on every push
 instead of stacking new ones.
@@ -327,7 +319,7 @@ Suggested bump for this branch: **MAJOR**
 </details>
 ```
 
-The work happens in [`scripts/run_datasemver_on_pr.py`](scripts/run_datasemver_on_pr.py),
+The work happens in [`scripts/run_datasemver_on_pr.py`](https://github.com/IzanVil/datasemver/blob/main/scripts/run_datasemver_on_pr.py),
 so the workflow stays a thin wrapper and the same analysis can be run by hand:
 
 ```bash
@@ -424,7 +416,7 @@ base version is a pointer file rather than data.
 
 ## Web dashboard
 
-A FastAPI backend and a dependency-free frontend live in [`web/`](web). Upload two
+A FastAPI backend and a dependency-free frontend live in [`web/`](https://github.com/IzanVil/datasemver/tree/main/web). Upload two
 versions of a dataset, or pick two versions from a directory, and read the bump, the
 classified changes, the column comparison and the changelog entry in the browser.
 
@@ -448,7 +440,7 @@ curl -X POST http://127.0.0.1:8000/api/diff \
 ```
 
 Endpoints, configuration and the dataset naming convention are documented in
-[web/README.md](web/README.md).
+[web/README.md](https://github.com/IzanVil/datasemver/blob/main/web/README.md).
 
 ## Project structure
 
@@ -483,16 +475,16 @@ demo.cast                 asciinema recording used in the demo above
 
 ## Changelog
 
-Every released version is described in [CHANGELOG.md](CHANGELOG.md), which uses the same
+Every released version is described in [CHANGELOG.md](https://github.com/IzanVil/datasemver/blob/main/CHANGELOG.md), which uses the same
 vocabulary the tool applies to datasets: **Major** for changes that break what consumers
 already depend on, **Minor** for new capability that leaves existing contracts intact,
 **Patch** for fixes that keep the same meaning.
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md) for the
 development setup, the test workflow and the style expected in a patch. Everyone taking
-part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+part is expected to follow the [Code of Conduct](https://github.com/IzanVil/datasemver/blob/main/CODE_OF_CONDUCT.md).
 
 ```bash
 pip install -e ".[dev]"
@@ -501,4 +493,4 @@ pytest
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/IzanVil/datasemver/blob/main/LICENSE).

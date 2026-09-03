@@ -81,6 +81,8 @@ jobs:
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
+          # a re-run of an already published version is a no-op, not a failure
+          skip-existing: true
 
   publish-pypi:
     name: Publish to PyPI
@@ -102,3 +104,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+          # a re-run of an already published version is a no-op, not a failure
+          skip-existing: true

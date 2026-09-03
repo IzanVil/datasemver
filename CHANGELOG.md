@@ -8,7 +8,19 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-03
+
 ### Patch
+- The PyPI project page is built from `README.md`, where every link was relative and
+  therefore dead once rendered off GitHub: `LICENSE`, `CONTRIBUTING.md`, `docs/rules.md`,
+  `web/README.md` and nine others resolved against `pypi.org` and found nothing. All of
+  them are absolute now, which works on both sites.
+- The demo section led with an asciinema badge pointing at the `000000` placeholder, a
+  guaranteed 404 image at the top of the page every visitor sees first. It is gone until
+  there is a cast to point at; the instructions to record and upload one remain.
+- Publishing a version that is already on the index is a no-op rather than a failed job.
+  Re-running the workflow after a successful upload used to fail on `400 File already
+  exists`, which reads as a broken release when nothing is wrong.
 - Spanish README in `README.es.md`, a full translation kept section for section with the
   English one so a link into either has a counterpart in the other. Recorded CLI output,
   rule identifiers, YAML and workflows stay untranslated, and a link that still leads to
@@ -92,7 +104,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/IzanVil/datasemver/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/IzanVil/datasemver/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/IzanVil/datasemver/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/IzanVil/datasemver/releases/tag/v0.0.1

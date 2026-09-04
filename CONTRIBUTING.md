@@ -57,6 +57,21 @@ fixtures hold the same rows as `old.csv` and `new.csv`, which is what lets the s
 that both formats produce identical reports; regenerate them with
 `pandas.DataFrame.to_parquet` if the CSV pair ever changes.
 
+## README captures
+
+The terminal images in both READMEs are real runs, exported from the console the CLI prints
+through rather than drawn by hand. Regenerate them whenever the CLI output changes, so the
+images do not quietly drift from the tool:
+
+```bash
+python scripts/capture_cli.py
+```
+
+It writes `docs/assets/*.svg` from rich, then rasterises them to the `*.png` the READMEs
+link, using whichever of `firefox`, `chromium` or `rsvg-convert` is on PATH. Without one of
+those the SVGs are still refreshed and the PNGs are left alone. The images are referenced by
+absolute URL and are deliberately kept out of the sdist.
+
 ## Code style
 
 - **PEP 8**, 100 character lines, four space indentation.

@@ -1,4 +1,8 @@
+<div align="center">
+
 # DataSemver
+
+**Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.**
 
 [![Tests](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml/badge.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/IzanVil/datasemver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datasemver)
@@ -8,12 +12,22 @@
 
 **English** · [Español](https://github.com/IzanVil/datasemver/blob/main/README.es.md)
 
-**Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.**
+</div>
 
 DataSemver compares two versions of a CSV, JSON or Parquet dataset, classifies every
 difference it finds according to a configurable rule set, and returns the semantic version
 bump plus a ready-to-commit changelog entry. It is a CLI first, a Python library second,
 and it needs no schema registry, no database and no service running.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-diff.png" width="880"
+       alt="Terminal showing datasemver diff: a MAJOR bump from 0.0.0 to 1.0.0, a column table marking country added, phone modified and legacy_code removed, a changes table classifying seven changes by severity, and the generated changelog entry.">
+</p>
+
+<p align="center">
+  <sub><code>datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv</code> — a removed column and an
+  <code>int64</code> that became a <code>string</code> make this a breaking release.</sub>
+</p>
 
 ---
 
@@ -81,8 +95,15 @@ the annotations of every public function.
 ## Quick start
 
 ```bash
-datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv
+pip install datasemver
+datasemver diff old.csv new.csv --current-version 1.4.2
 ```
+
+That prints the panel, the column comparison and the classified changes shown above, and
+exits `0`. Nothing is written unless you ask for it.
+
+<details>
+<summary>The same run as selectable text</summary>
 
 ```
 ╭───────────── DataSemver ──────────────╮
@@ -122,6 +143,8 @@ datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv
 │          │                           │ (1.72%)                                       │
 └──────────┴───────────────────────────┴───────────────────────────────────────────────┘
 ```
+
+</details>
 
 Without `--output`, the changelog entry is printed at the end of the run:
 
@@ -224,6 +247,17 @@ Parquet structs are flattened with a `.` separator, so `{"user": {"name": "..."}
 profiled as the column `user.name`. The command exits with `2` on a missing file, an
 unsupported extension, an unreadable dataset or an invalid rules file.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-delimiter.png" width="880"
+       alt="Terminal showing datasemver diff on two semicolon-delimited CSV files: five columns correctly split into id, cliente, pais, importe and estado, a new canal column, and a MINOR bump from 1.4.2 to 1.5.0.">
+</p>
+
+<p align="center">
+  <sub>A semicolon-delimited export, where every <code>importe</code> also contains a comma.
+  The comma never reaches the header, so the semicolon wins and the file loads as five
+  columns instead of one.</sub>
+</p>
+
 Types are inferred for the text formats, where a column of `"12"` values is read as
 `int64`. Parquet carries its own schema and is trusted as it stands, so a column stored as
 a string stays a string even when every value looks numeric. Comparing a CSV against the
@@ -254,7 +288,14 @@ patch:
 ```
 
 Pass it with `--rules custom.yaml` to replace the defaults, and check how it was parsed
-with `datasemver rules custom.yaml`. Threshold rules such as
+with `datasemver rules custom.yaml`, which prints the rule set exactly as the engine
+understood it:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-rules.png" width="760"
+       alt="Terminal showing datasemver rules: the bundled default rule set printed as three colour-coded severity groups, six rules under major, seven under minor and three under patch.">
+</p>
+ Threshold rules such as
 `row_count_decrease_greater_than` pair naturally with their plain counterpart in a lower
 severity, which then acts as the fallback. Unknown rule names, unknown severities and
 thresholds on rules that do not accept one are rejected with an error instead of being

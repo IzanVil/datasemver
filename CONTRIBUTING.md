@@ -126,6 +126,27 @@ Most contributions fall into this shape. The path through the code is:
 Detections should be quiet by default: a rule that fires on every dataset is noise, and
 noise is what makes the bump untrustworthy.
 
+## Actions and dependencies
+
+Every action is pinned to a commit SHA, with the version it corresponds to in a trailing
+comment:
+
+```yaml
+uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+```
+
+A tag is a movable pointer: whoever controls `v7` controls what runs in CI, and the code
+that runs there can read the repository and, in the publish workflow, reach a PyPI token. A
+SHA cannot move. Dependabot advances the pins and the comments together every Monday, so
+they stay current rather than merely frozen, and it raises the dependency floors in
+`pyproject.toml` when an advisory lands against one.
+
+If you add a step, pin it the same way:
+
+```bash
+gh api repos/<owner>/<action>/commits/<tag> --jq .sha
+```
+
 ## Releasing
 
 Releases are built and published by

@@ -1,0 +1,35 @@
+version: 2
+
+# The dependency floors in pyproject were raised by hand once, after an audit found a
+# critical advisory sitting under `pyarrow>=10`. Doing that by hand does not scale and does
+# not repeat: this is what keeps it from drifting back.
+
+updates:
+  # Actions are pinned to commit SHAs, which is what makes a tag unable to move underneath
+  # the workflow. A pinned SHA is also a frozen SHA, so something has to advance it, and
+  # Dependabot rewrites the pin and the version comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: deps
+    # A floor only has to move when the version underneath it is vulnerable or gone, so
+    # routine version bumps are noise here; a security advisory is not, and Dependabot
+    # raises those regardless of this filter.
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        patterns: ["ruff", "mypy", "types-*", "pytest*", "build", "twine"]

@@ -17,9 +17,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from datasemver import __version__, analyze
-from datasemver.core.analyzer import DEFAULT_VERSION
+from datasemver.core.analyzer import DEFAULT_VERSION, analyze_schemas
 from datasemver.core.models import AnalysisReport
-from datasemver.formats.loader import SUPPORTED_EXTENSIONS
+from datasemver.formats.loader import SUPPORTED_EXTENSIONS, load_frame, schema_from_frame
 from datasemver.rules.engine import RuleError
 from datasemver.utils.version import InvalidVersionError
 
@@ -34,6 +34,7 @@ app = FastAPI(
 
 ANALYSIS_ERRORS = (ValueError, RuleError, InvalidVersionError)
 CHUNK_BYTES = 1024 * 1024
+MAX_NAME_CHARS = 120
 
 
 class Meta(BaseModel):
@@ -79,7 +80,13 @@ async def diff_uploads(
                 rules, workdir / "rules", settings, allowed={".yaml", ".yml"}
             )
 
-        return run_analysis(old_path, new_path, current_version, rules_path)
+        return run_analysis(
+            old_path,
+            new_path,
+            current_version,
+            rules_path,
+            names=(reported_name(old), reported_name(new)),
+        )
 
 
 @app.get("/api/history", response_model=History, tags=["history"])
@@ -166,10 +173,33 @@ def run_analysis(
     new: Path,
     current_version: str,
     rules: Path | None,
+    names: tuple[str, str] | None = None,
 ) -> AnalysisReport:
-    """Call the library and translate its errors into HTTP responses."""
+    """Call the library and translate its errors into HTTP responses.
+
+    `names` reports an upload under the name it arrived with. The file on disk is named by
+    the server, deliberately, so that nothing a caller sends reaches a path; without this
+    the report would say `old.csv` no matter what the reader actually uploaded.
+    """
     with as_http_error():
-        return analyze(old, new, rules=rules, current_version=current_version)
+        if names is None:
+            return analyze(old, new, rules=rules, current_version=current_version)
+        return analyze_schemas(
+            schema_from_frame(load_frame(old), source=names[0]),
+            schema_from_frame(load_frame(new), source=names[1]),
+            rules=rules,
+            current_version=current_version,
+        )
+
+
+def reported_name(upload: UploadFile) -> str:
+    """The name to show an upload under: never a path, never unbounded.
+
+    `Path(...).name` drops every directory component, so a filename dressed up as a path
+    reports as its last segment. The result is only ever rendered, never opened.
+    """
+    name = Path(upload.filename or "").name.strip()
+    return name[:MAX_NAME_CHARS] or "uploaded"
 
 
 @contextmanager

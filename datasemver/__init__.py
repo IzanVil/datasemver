@@ -3,6 +3,6 @@
 from datasemver.core.analyzer import analyze
 from datasemver.core.models import AnalysisReport, ChangeType, DiffResult, Severity
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 __all__ = ["analyze", "AnalysisReport", "ChangeType", "DiffResult", "Severity", "__version__"]

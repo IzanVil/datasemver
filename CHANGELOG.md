@@ -8,6 +8,11 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-04
+
+Security release. Anyone on an earlier version should upgrade: the floors those releases
+declare still resolve to a pyarrow carrying CVE-2023-47248.
+
 ### Patch
 - Every dependency floor that admitted a known-vulnerable version has been raised; no
   version any of them now allows carries a published advisory. `pyarrow>=10` admitted
@@ -143,7 +148,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/IzanVil/datasemver/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/IzanVil/datasemver/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/IzanVil/datasemver/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/IzanVil/datasemver/compare/v0.1.0...v0.2.0

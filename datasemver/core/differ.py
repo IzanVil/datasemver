@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from datasemver.core.models import (
@@ -167,7 +168,7 @@ def _detect_renames(
     return renames
 
 
-def _row_count_changes(old: DatasetSchema, new: DatasetSchema):
+def _row_count_changes(old: DatasetSchema, new: DatasetSchema) -> Iterator[Change]:
     if old.row_count == new.row_count:
         return
 
@@ -184,18 +185,22 @@ def _row_count_changes(old: DatasetSchema, new: DatasetSchema):
     if delta > 0:
         yield Change(
             type=ChangeType.ROW_COUNT_INCREASED,
-            description=f"Row count grew from {old.row_count} to {new.row_count} (+{percentage:.2f}%)",
+            description=(
+                f"Row count grew from {old.row_count} to {new.row_count} (+{percentage:.2f}%)"
+            ),
             metrics=metrics | {"increase_pct": percentage},
         )
     else:
         yield Change(
             type=ChangeType.ROW_COUNT_DECREASED,
-            description=f"Row count fell from {old.row_count} to {new.row_count} (-{percentage:.2f}%)",
+            description=(
+                f"Row count fell from {old.row_count} to {new.row_count} (-{percentage:.2f}%)"
+            ),
             metrics=metrics | {"decrease_pct": percentage},
         )
 
 
-def _column_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
+def _column_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     yield from _type_changes(old, new)
     yield from _null_changes(old, new, config)
     yield from _category_changes(old, new)
@@ -203,7 +208,7 @@ def _column_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
     yield from _cardinality_changes(old, new, config)
 
 
-def _type_changes(old: ColumnStats, new: ColumnStats):
+def _type_changes(old: ColumnStats, new: ColumnStats) -> Iterator[Change]:
     if old.dtype == new.dtype:
         return
 
@@ -224,7 +229,7 @@ def _type_changes(old: ColumnStats, new: ColumnStats):
         )
 
 
-def _null_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
+def _null_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     delta = new.null_ratio - old.null_ratio
     if abs(delta) < config.null_ratio_tolerance:
         return
@@ -239,7 +244,8 @@ def _null_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
             type=ChangeType.NULLS_FIXED,
             column=new.name,
             description=(
-                f"Column '{new.name}' nulls dropped from {old.null_ratio:.1%} to {new.null_ratio:.1%}"
+                f"Column '{new.name}' nulls dropped from {old.null_ratio:.1%} "
+                f"to {new.null_ratio:.1%}"
             ),
             metrics=metrics,
         )
@@ -254,7 +260,7 @@ def _null_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
         )
 
 
-def _category_changes(old: ColumnStats, new: ColumnStats):
+def _category_changes(old: ColumnStats, new: ColumnStats) -> Iterator[Change]:
     if old.categories is None or new.categories is None:
         return
 
@@ -280,7 +286,7 @@ def _category_changes(old: ColumnStats, new: ColumnStats):
         )
 
 
-def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
+def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     if not (old.is_numeric and new.is_numeric):
         return
     if old.mean is None or new.mean is None:
@@ -329,7 +335,9 @@ def _is_sequential_key(stats: ColumnStats) -> bool:
     return stats.cardinality == int(stats.maximum - stats.minimum) + 1
 
 
-def _cardinality_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig):
+def _cardinality_changes(
+    old: ColumnStats, new: ColumnStats, config: DiffConfig
+) -> Iterator[Change]:
     if old.categories is not None and new.categories is not None:
         return
     if abs(new.uniqueness - old.uniqueness) < config.cardinality_tolerance:

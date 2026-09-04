@@ -53,7 +53,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=9.0.3", "pytest-cov>=4", "httpx>=0.27"]  # CVE-2025-71176, tmpdir handling
+dev = [
+    "pytest>=9.0.3",  # CVE-2025-71176, tmpdir handling
+    "pytest-cov>=4",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML>=6",
+]
 web = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
@@ -83,6 +90,7 @@ pythonpath = ["."]
 addopts = [
     "--cov=datasemver",
     "--cov=web",
+    "--cov=scripts",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=xml",
 ]
@@ -90,9 +98,59 @@ markers = [
     "web: tests that exercise the dashboard backend and need the web extra",
 ]
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# Markdown is prose, not source. The formatter reflows the Python blocks inside the
+# READMEs, where the alignment is a reading decision rather than a style violation.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+# The style CONTRIBUTING asks for, made checkable: pycodestyle and pyflakes for the basics,
+# then the rules that catch what review keeps having to catch by hand.
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import order
+    "B",         # bugbear
+    "UP",        # pyupgrade
+    "SIM",       # simplify
+    "C4",        # comprehensions
+    "RET",       # returns
+    "PTH",       # pathlib over os.path
+    "RUF",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `File(...)` and `Form(...)` in a default is how FastAPI declares a parameter; the call is
+# the framework's marker object, not a mutable default evaluated once by mistake.
+"web/backend/main.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["datasemver", "web", "scripts"]
+# The package ships py.typed, so the annotations it advertises have to hold up.
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+# Neither ships type information, and stubbing them here would be guesswork.
+module = ["pandas.*", "pyarrow.*"]
+ignore_missing_imports = true
+
 [tool.coverage.run]
 branch = true
-omit = ["*/__main__.py"]
+omit = [
+    "*/__main__.py",
+    # Regenerates the README images by driving a headless browser. It is maintenance
+    # tooling rather than product: it ships in no distribution, and when it breaks the
+    # images simply are not rebuilt, which is visible immediately. Covering it would mean
+    # asserting against a mocked browser, which asserts nothing about the images.
+    "scripts/capture_cli.py",
+]
 
 [tool.coverage.report]
 fail_under = 85

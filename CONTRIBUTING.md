@@ -72,6 +72,27 @@ link, using whichever of `firefox`, `chromium` or `rsvg-convert` is on PATH. Wit
 those the SVGs are still refreshed and the PNGs are left alone. The images are referenced by
 absolute URL and are deliberately kept out of the sdist.
 
+## Checks
+
+Four gates run in CI and all four run locally:
+
+```bash
+pytest                 # 190 tests, coverage floor 85%
+ruff check .           # lint
+ruff format --check .  # formatting
+mypy                   # types
+```
+
+`ruff format .` writes the changes rather than reporting them. Markdown is excluded from
+both ruff commands: the Python blocks inside the READMEs are aligned for reading, not to a
+formatter's rules.
+
+Everything the style section below asks for is checked by one of these, which is the point
+of having them. Two deliberate exceptions live in `pyproject.toml`: `File(...)` and
+`Form(...)` in a parameter default are how FastAPI declares uploads rather than a mutable
+default by mistake, and `scripts/capture_cli.py` is left out of coverage because covering a
+script that drives a headless browser would mean asserting against a mocked browser.
+
 ## Code style
 
 - **PEP 8**, 100 character lines, four space indentation.

@@ -5,4 +5,4 @@ from datasemver.core.models import AnalysisReport, ChangeType, DiffResult, Sever
 
 __version__ = "0.2.4"
 
-__all__ = ["analyze", "AnalysisReport", "ChangeType", "DiffResult", "Severity", "__version__"]
+__all__ = ["AnalysisReport", "ChangeType", "DiffResult", "Severity", "__version__", "analyze"]

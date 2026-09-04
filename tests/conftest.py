@@ -1,3 +1,8 @@
+from pathlib import Path
+
+import pytest
+
+
 def pytest_configure(config):
     """Turn coverage off when nothing runs, so a collection does not report 0% and fail.
 
@@ -12,10 +17,6 @@ def pytest_configure(config):
         config.option.no_cov = True
         config.option.no_cov_should_warn = False
 
-
-from pathlib import Path
-
-import pytest
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

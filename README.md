@@ -473,6 +473,22 @@ Then open <http://127.0.0.1:8000>; the backend serves the frontend, so that is t
 command. The history view scans `./datasets/` by default, grouping files named
 `customers_v1.csv`, `customers_v2.csv` and so on.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-report.png" width="880"
+       alt="The dashboard after comparing two versions of a customer dataset: a MAJOR badge beside 1.4.2 arrow 2.0.0, tiles reading 40 to 48 rows, 8 to 8 columns and 6 changes, and a table listing each change with its severity, rule and description.">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-columns.png" width="880"
+       alt="Further down the same report: a column table marking country added, legacy_code removed and phone modified from int64 to string with nulls and cardinality for each, and below it the generated changelog entry with a copy button.">
+</p>
+
+<p align="center">
+  <sub>The same comparison the CLI prints above, read in the browser: the bump and the
+  classified changes first, then the column-by-column table and the changelog entry, ready
+  to copy.</sub>
+</p>
+
 The dashboard is a client of the library, not a fork of it: it calls `analyze()` and
 returns the same report the CLI prints with `--json`.
 

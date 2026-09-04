@@ -484,6 +484,22 @@ Después abre <http://127.0.0.1:8000>; el backend sirve el frontend, así que es
 comando. La vista de histórico escanea `./datasets/` por defecto, agrupando ficheros
 llamados `customers_v1.csv`, `customers_v2.csv` y así sucesivamente.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-report.png" width="880"
+       alt="El panel tras comparar dos versiones de un dataset de clientes: una insignia MAJOR junto a 1.4.2 flecha 2.0.0, indicadores de 40 a 48 filas, 8 a 8 columnas y 6 cambios, y una tabla con cada cambio, su severidad, su regla y su descripción.">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-columns.png" width="880"
+       alt="Más abajo en el mismo informe: una tabla de columnas que marca country como añadida, legacy_code como eliminada y phone como modificada de int64 a string, con nulos y cardinalidad de cada una, y debajo la entrada de changelog generada con un botón de copiar.">
+</p>
+
+<p align="center">
+  <sub>La misma comparación que imprime la CLI, leída en el navegador: primero el salto y los
+  cambios clasificados, después la tabla columna a columna y la entrada de changelog lista
+  para copiar.</sub>
+</p>
+
 El panel es un cliente de la librería, no una copia bifurcada: llama a `analyze()` y
 devuelve el mismo informe que imprime la CLI con `--json`.
 

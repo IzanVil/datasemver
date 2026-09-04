@@ -8,6 +8,14 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- Both READMEs show the dashboard. It was the only interface the project described entirely
+  on trust: the bump and the classified changes, then the column table and the changelog
+  entry with its copy button. The comparison is the one the CLI capture already uses, so the
+  two interfaces in the page describe the same diff rather than two unrelated ones. Taken by
+  hand — a headless capture of a page that renders its report from a fetch is more machinery
+  than it earns — and `CONTRIBUTING` says how to retake them.
+
 ## [0.2.5] - 2026-09-05
 
 ### Minor

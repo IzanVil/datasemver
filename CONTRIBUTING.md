@@ -72,6 +72,12 @@ link, using whichever of `firefox`, `chromium` or `rsvg-convert` is on PATH. Wit
 those the SVGs are still refreshed and the PNGs are left alone. The images are referenced by
 absolute URL and are deliberately kept out of the sdist.
 
+The two dashboard images (`dashboard-report.png`, `dashboard-columns.png`) are taken by hand
+in a browser, since a headless capture of a page that renders its report from a fetch is
+more machinery than it earns. Retake them from `~/…/clientes_v1.csv` against
+`clientes_v2.csv` at version `1.4.2`, which is the comparison the CLI capture already shows,
+so both interfaces in the README describe the same diff.
+
 ## Checks
 
 Four gates run in CI and all four run locally:

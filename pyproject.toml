@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datasemver"
-version = "0.2.4"
+version = "0.2.5"
 description = "Semantic versioning for datasets: diff two dataset versions and get the bump they deserve."
 # The project page has to stand on its own: the repository it would otherwise link
 # to and pull images from is not always public, and a broken page outlives that.
@@ -80,17 +80,21 @@ Issues = "https://github.com/IzanVil/datasemver/issues"
 datasemver = "datasemver.cli.main:app"
 
 [tool.setuptools.packages.find]
-include = ["datasemver*"]
+include = ["datasemver*", "datasemver_web*"]
 
 [tool.setuptools.package-data]
 datasemver = ["rules/*.yaml", "py.typed"]
+# The frontend is not Python and would be left out of the wheel otherwise, which is what
+# made `pip install "datasemver[web]"` install the dashboard's dependencies and none of the
+# dashboard.
+datasemver_web = ["frontend/*.html", "frontend/*.css", "frontend/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = [
     "--cov=datasemver",
-    "--cov=web",
+    "--cov=datasemver_web",
     "--cov=scripts",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=xml",
@@ -125,11 +129,11 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # `File(...)` and `Form(...)` in a default is how FastAPI declares a parameter; the call is
 # the framework's marker object, not a mutable default evaluated once by mistake.
-"web/backend/main.py" = ["B008"]
+"datasemver_web/backend/main.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["datasemver", "web", "scripts"]
+files = ["datasemver", "datasemver_web", "scripts"]
 # The package ships py.typed, so the annotations it advertises have to hold up.
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

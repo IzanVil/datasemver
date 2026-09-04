@@ -161,8 +161,9 @@ report = analyze_schemas(
 
 ## Also in the box
 
-- A **web dashboard** — FastAPI backend, no-build frontend — under the `web` extra. It is a
-  local tool with no authentication: keep it on the loopback interface.
+- A **web dashboard** — FastAPI backend, no-build frontend — under the `web` extra, run
+  with `uvicorn datasemver_web.backend.main:app`. It is a local tool with no
+  authentication: keep it on the loopback interface.
 - A **GitHub Action** that analyses the datasets a pull request touches and posts the
   suggested bump as a comment, rewritten on each push.
 - Two ready-made rule profiles, strict and lenient, and a full catalogue of rules, metrics

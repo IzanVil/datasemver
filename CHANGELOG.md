@@ -26,9 +26,6 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [0.2.1] - 2026-09-03
 
-Tagged, but superseded before it reached PyPI: 0.2.2 is the first release to follow 0.2.0
-on the index.
-
 ### Patch
 - The PyPI project page is built from `README.md`, where every link was relative and
   therefore dead once rendered off GitHub: `LICENSE`, `CONTRIBUTING.md`, `docs/rules.md`,

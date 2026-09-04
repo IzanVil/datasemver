@@ -8,6 +8,20 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-09-04
+
+### Patch
+- The PyPI project page is built from its own `README.pypi.md` and no longer depends on the
+  repository being public. `README.md` embeds terminal captures and links to `LICENSE`,
+  `docs/rules.md` and the Spanish edition, all served by GitHub; whenever the repository is
+  private those answer 404, and the package page — which stays public whatever the
+  repository does — showed broken images and dead links with no way to know anyone was
+  looking. The captures and the cross-links stay in `README.md`, where GitHub renders them.
+- The `Documentation` project URL is gone. It deep-linked to a file in the repository, so
+  it was the one sidebar entry that promised documentation and delivered a 404 whenever the
+  repository was private. What it pointed at is now the project page itself. `Homepage`,
+  `Repository` and `Issues` stay: a package should say where its source lives.
+
 ## [0.2.3] - 2026-09-04
 
 Security release. Anyone on an earlier version should upgrade: the floors those releases
@@ -148,7 +162,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/IzanVil/datasemver/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/IzanVil/datasemver/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/IzanVil/datasemver/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/IzanVil/datasemver/compare/v0.2.0...v0.2.1

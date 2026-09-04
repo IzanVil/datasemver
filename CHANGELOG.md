@@ -9,6 +9,15 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Patch
+- Every action in every workflow is pinned to a commit SHA rather than a version tag, all
+  seventeen references. A tag is a movable pointer, so `actions/checkout@v7` meant whoever
+  controls that tag decides what runs in CI — where the code can read the repository and,
+  in the publish workflow, reach a PyPI token. The version each SHA corresponds to stays in
+  a trailing comment so the file is still readable.
+- Dependabot watches both the actions and the Python dependencies, weekly. The floors in
+  `pyproject.toml` were raised by hand once, after an audit found a critical advisory under
+  `pyarrow>=10`; doing that by hand neither scales nor repeats, and a pinned SHA is also a
+  frozen SHA, so something has to advance it.
 - `scripts/run_datasemver_on_pr.py` has tests, and coverage measures it. It is 195
   statements holding the whole of the GitHub Action, it was the most externally visible
   code in the project, and it had none: the 99% figure was measured over `datasemver` and

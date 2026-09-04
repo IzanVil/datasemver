@@ -16,6 +16,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, overload
 
 MARKER = "<!-- datasemver-report -->"
 DATASET_EXTENSIONS = (".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq")
@@ -107,8 +108,20 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+@overload
+def git(*args: str, text: Literal[True]) -> str: ...
+
+
+@overload
+def git(*args: str, text: Literal[False] = False) -> bytes: ...
+
+
 def git(*args: str, text: bool = False) -> str | bytes:
-    """Run a git command and return its output, raising GitError on failure."""
+    """Run a git command and return its output, raising GitError on failure.
+
+    The overloads above tie the return type to `text`, so a caller that asks for text is
+    not handed bytes by the type checker and left to find out at runtime.
+    """
     result = subprocess.run(
         ["git", *args],
         capture_output=True,
@@ -116,8 +129,8 @@ def git(*args: str, text: bool = False) -> str | bytes:
         check=False,
     )
     if result.returncode != 0:
-        message = result.stderr.strip() if text else result.stderr.decode("utf-8", "replace").strip()
-        raise GitError(f"git {' '.join(args)} failed: {message}")
+        stderr = result.stderr if text else result.stderr.decode("utf-8", "replace")
+        raise GitError(f"git {' '.join(args)} failed: {stderr.strip()}")
     return result.stdout
 
 
@@ -329,7 +342,7 @@ def write_github_output(**values: str) -> None:
     path = os.environ.get("GITHUB_OUTPUT")
     if not path:
         return
-    with open(path, "a", encoding="utf-8") as handle:
+    with Path(path).open("a", encoding="utf-8") as handle:
         for key, value in values.items():
             handle.write(f"{key}={value}\n")
 
@@ -338,7 +351,7 @@ def append_step_summary(body: str) -> None:
     path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not path:
         return
-    with open(path, "a", encoding="utf-8") as handle:
+    with Path(path).open("a", encoding="utf-8") as handle:
         handle.write(body)
 
 

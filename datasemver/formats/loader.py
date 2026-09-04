@@ -78,7 +78,7 @@ def schema_from_frame(frame: pd.DataFrame, source: str) -> DatasetSchema:
     """Profile an already loaded dataframe."""
     return DatasetSchema(
         source=source,
-        row_count=int(len(frame)),
+        row_count=len(frame),
         columns=profile_frame(frame),
     )
 
@@ -138,9 +138,7 @@ def _delimiter_override() -> str | None:
 
     delimiter = ESCAPED_DELIMITERS.get(raw, raw)
     if len(delimiter) != 1:
-        raise DatasetReadError(
-            f"{DELIMITER_ENV_VAR} must be a single character, got {raw!r}"
-        )
+        raise DatasetReadError(f"{DELIMITER_ENV_VAR} must be a single character, got {raw!r}")
     return delimiter
 
 

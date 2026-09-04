@@ -207,6 +207,6 @@ def test_severity_compares_by_impact_not_by_name():
 
 def test_severity_cannot_be_compared_to_other_types():
     with pytest.raises(TypeError):
-        Severity.MAJOR < 3
+        _ = Severity.MAJOR < 3
     with pytest.raises(TypeError):
-        Severity.MAJOR >= "not-a-severity"
+        _ = Severity.MAJOR >= "not-a-severity"

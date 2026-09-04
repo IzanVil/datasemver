@@ -37,12 +37,24 @@ THEME = TerminalTheme(
     (16, 19, 26),
     (226, 232, 240),
     [
-        (16, 19, 26), (239, 133, 120), (92, 191, 162), (223, 173, 92),
-        (126, 179, 215), (197, 152, 224), (126, 204, 204), (200, 208, 220),
+        (16, 19, 26),
+        (239, 133, 120),
+        (92, 191, 162),
+        (223, 173, 92),
+        (126, 179, 215),
+        (197, 152, 224),
+        (126, 204, 204),
+        (200, 208, 220),
     ],
     [
-        (70, 80, 95), (244, 160, 148), (124, 209, 184), (235, 196, 132),
-        (158, 201, 228), (214, 180, 235), (158, 220, 220), (230, 236, 245),
+        (70, 80, 95),
+        (244, 160, 148),
+        (124, 209, 184),
+        (235, 196, 132),
+        (158, 201, 228),
+        (214, 180, 235),
+        (158, 220, 220),
+        (230, 236, 245),
     ],
 )
 
@@ -179,8 +191,14 @@ def _rasterise(tool: Rasteriser, svg: Path) -> None:
         )
         flag = "--headless" if tool.name == "firefox" else "--headless=new"
         subprocess.run(
-            [tool.path, flag, "--screenshot", str(png),
-             f"--window-size={round(width)},{round(height) + 1}", f"file://{wrapper}"],
+            [
+                tool.path,
+                flag,
+                "--screenshot",
+                str(png),
+                f"--window-size={round(width)},{round(height) + 1}",
+                f"file://{wrapper}",
+            ],
             check=False,
             capture_output=True,
         )

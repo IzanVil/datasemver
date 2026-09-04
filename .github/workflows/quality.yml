@@ -1,0 +1,64 @@
+name: Quality
+
+# CONTRIBUTING asks for PEP 8, a 100 character line and a type hint on every signature.
+# Until this workflow existed, nothing checked any of it, and the package advertised
+# py.typed without anything verifying the annotations it promises.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install "ruff>=0.6"
+
+      - name: Lint
+        run: ruff check --output-format=github .
+
+      - name: Check formatting
+        run: ruff format --check --diff .
+
+  types:
+    name: Type check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      # The real dependencies are installed rather than stubbed: mypy can only judge the
+      # calls into pandas, pydantic and typer against what those packages actually declare.
+      - name: Install the package and the type checker
+        run: |
+          pip install -e ".[dev,web]"
+
+      - name: Type check
+        run: mypy

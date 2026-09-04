@@ -164,7 +164,8 @@ def test_bool_to_int_is_a_compatible_widening():
         pd.DataFrame({"flag": [1, 0, 1]}),
     )
 
-    assert [change.column for change in diff.of_type(ChangeType.TYPE_CHANGED_COMPATIBLE)] == ["flag"]
+    compatible = diff.of_type(ChangeType.TYPE_CHANGED_COMPATIBLE)
+    assert [change.column for change in compatible] == ["flag"]
     assert not diff.of_type(ChangeType.TYPE_CHANGED_INCOMPATIBLE)
 
 

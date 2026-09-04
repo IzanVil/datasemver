@@ -147,9 +147,7 @@ def test_the_declared_version_matches_the_packaging_metadata():
 
     Parsed with a regex rather than `tomllib`, which the supported 3.10 does not ship.
     """
-    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
-        encoding="utf-8"
-    )
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
     declared = re.search(r'(?m)^version = "([^"]+)"', pyproject)
 
     assert declared is not None

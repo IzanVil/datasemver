@@ -93,7 +93,7 @@ def _as_datetime(series: pd.Series) -> pd.Series | None:
 
 def profile_column(series: pd.Series, name: str) -> ColumnStats:
     """Compute the statistics DataSemver compares between dataset versions."""
-    total = int(len(series))
+    total = len(series)
     non_null = series.dropna()
     stats = ColumnStats(
         name=name,

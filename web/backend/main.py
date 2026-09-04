@@ -7,6 +7,7 @@ The dashboard is a client of the library: it uploads or locates two dataset file
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from datasemver.core.models import AnalysisReport
 from datasemver.formats.loader import SUPPORTED_EXTENSIONS
 from datasemver.rules.engine import RuleError
 from datasemver.utils.version import InvalidVersionError
+
 from .config import Settings, get_settings
 from .history import DatasetNotFoundError, History, resolve_file, scan_datasets
 
@@ -171,7 +173,7 @@ def run_analysis(
 
 
 @contextmanager
-def as_http_error():
+def as_http_error() -> Iterator[None]:
     """Turn the library's input errors into 400 responses."""
     try:
         yield
@@ -183,7 +185,7 @@ def as_http_error():
 
 def _as_semver(version: str) -> str:
     """Pad a directory version such as `2` or `2.1` into a full semantic version."""
-    parts = (version.split(".") + ["0", "0"])[:3]
+    parts = [*version.split("."), "0", "0"][:3]
     return ".".join(parts)
 
 

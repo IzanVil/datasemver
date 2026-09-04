@@ -8,6 +8,28 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- `scripts/run_datasemver_on_pr.py` has tests, and coverage measures it. It is 195
+  statements holding the whole of the GitHub Action, it was the most externally visible
+  code in the project, and it had none: the 99% figure was measured over `datasemver` and
+  `web` only, so it reported nothing about the part users copy into their own repositories.
+  Thirty-two tests now run it against a real git repository built in `tmp_path` — refs,
+  blobs, sidecar versions and a genuine `datasemver diff` subprocess — rather than against
+  a mocked `git`, which would have hidden exactly the behaviours worth pinning. It sits at
+  98%, and the project total is 99% with it included.
+- Two of those behaviours turned out to be undocumented and are now fixed in tests: a
+  deleted dataset is never detected, because `--diff-filter=ACMRT` excludes deletions, and
+  the sidecar version is read from the base ref rather than from the branch.
+- A `Quality` workflow runs ruff and mypy. `CONTRIBUTING` asked for PEP 8, a 100 character
+  line and a type hint on every signature, and nothing checked any of it; the package
+  advertised `py.typed` with nothing verifying the annotations it promises. Both claims are
+  now enforced on every push and pull request.
+- Fixing what those found: seven generators in `core/differ.py` and one context manager in
+  the dashboard had no return annotation, `git()` in the CI helper returned `str | bytes`
+  with callers assuming one or the other — it is overloaded on the `text` flag now, so the
+  five call sites type-check — imports in `tests/conftest.py` sat below a function
+  definition, and a handful of lines ran past the column limit the guide sets.
+
 ## [0.2.4] - 2026-09-04
 
 ### Patch

@@ -5,12 +5,12 @@ import pytest
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from web.backend.config import Settings  # noqa: E402
-from web.backend.history import scan_datasets  # noqa: E402
-import web.backend.main as main  # noqa: E402
-from web.backend.main import app  # noqa: E402
+import web.backend.main as main
+from web.backend.config import Settings
+from web.backend.history import scan_datasets
+from web.backend.main import app
 
 pytestmark = pytest.mark.web
 
@@ -42,7 +42,10 @@ def upload(client, old_path, new_path, **data):
     with old_path.open("rb") as old, new_path.open("rb") as new:
         return client.post(
             "/api/diff",
-            files={"old": (old_path.name, old, "text/csv"), "new": (new_path.name, new, "text/csv")},
+            files={
+                "old": (old_path.name, old, "text/csv"),
+                "new": (new_path.name, new, "text/csv"),
+            },
             data=data,
         )
 
@@ -336,8 +339,7 @@ def test_a_missing_file_becomes_a_404():
 
     from web.backend.main import as_http_error
 
-    with pytest.raises(HTTPException) as error:
-        with as_http_error():
-            raise FileNotFoundError("dataset not found: gone.csv")
+    with pytest.raises(HTTPException) as error, as_http_error():
+        raise FileNotFoundError("dataset not found: gone.csv")
 
     assert error.value.status_code == 404

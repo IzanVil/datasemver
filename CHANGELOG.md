@@ -9,6 +9,12 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Patch
+- The dashboard reports an upload under the name it arrived with. It said
+  `old.csv → new.csv` for every comparison, whatever the reader had actually sent, because
+  the server names the file on disk and the report took its source from that path. The name
+  travels alongside now rather than through the filesystem: nothing a caller sends reaches a
+  path, the name has its directory components dropped and its length capped, and it is only
+  ever rendered.
 - Both READMEs show the dashboard. It was the only interface the project described entirely
   on trust: the bump and the classified changes, then the column table and the changelog
   entry with its copy button. The comparison is the one the CLI capture already uses, so the

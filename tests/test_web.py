@@ -157,6 +157,55 @@ def test_upload_over_the_size_limit(client, old_csv, new_csv, tmp_path, monkeypa
     assert response.status_code == 413
 
 
+def test_the_report_names_the_uploaded_files(client, old_csv, new_csv, tmp_path, monkeypatch):
+    """The server names the file on disk, so the report has to be told what to call it."""
+    settings = Settings(
+        datasets_dir=tmp_path,
+        max_upload_bytes=1024 * 1024,
+        frontend_dir=tmp_path / "frontend",
+    )
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
+
+    with old_csv.open("rb") as old, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={
+                "old": ("clientes_v1.csv", old, "text/csv"),
+                "new": ("clientes_v2.csv", new, "text/csv"),
+            },
+            data={"current_version": "1.4.2"},
+        )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["old_source"] == "clientes_v1.csv"
+    assert body["new_source"] == "clientes_v2.csv"
+    assert body["next_version"] == "2.0.0"
+
+
+def test_a_name_dressed_as_a_path_reports_as_its_last_segment():
+    """The name is rendered, never opened, but it should not look like a path either."""
+
+    class _Upload:
+        filename = "../../etc/passwd.csv"
+
+    assert main.reported_name(_Upload()) == "passwd.csv"
+
+
+def test_an_endless_name_is_capped():
+    class _Upload:
+        filename = "a" * 5000 + ".csv"
+
+    assert len(main.reported_name(_Upload())) == main.MAX_NAME_CHARS
+
+
+def test_a_nameless_upload_still_reports_something():
+    class _Upload:
+        filename = None
+
+    assert main.reported_name(_Upload()) == "uploaded"
+
+
 def test_an_oversized_upload_stops_at_the_limit(client, tmp_path, monkeypatch):
     """The limit has to bound what reaches disk, not just what is accepted afterwards.
 

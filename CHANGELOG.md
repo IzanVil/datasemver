@@ -8,6 +8,17 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- Both READMEs open with a real terminal capture of `datasemver diff` instead of asking the
+  reader to imagine the output, and carry two more: the semicolon-delimited CSV that proves
+  the delimiter detection, and `datasemver rules` printing the parsed rule set. The full run
+  is still there as selectable text, folded into a `<details>` so it stays greppable.
+- `scripts/capture_cli.py` regenerates those images from real CLI runs, by swapping the
+  console the CLI prints through for a recording one. They cannot drift into showing output
+  the tool no longer produces without someone editing them by hand.
+- The sdist now carries `README.es.md`. The capture PNGs stay out of it, since the READMEs
+  reference them by absolute URL.
+
 ## [0.2.1] - 2026-09-03
 
 ### Patch

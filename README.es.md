@@ -1,4 +1,8 @@
+<div align="center">
+
 # DataSemver
+
+**Tus datos han cambiado. DataSemver te dice si eso es un patch, un minor o una versión que rompe.**
 
 [![Tests](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml/badge.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/IzanVil/datasemver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datasemver)
@@ -8,13 +12,23 @@
 
 [English](https://github.com/IzanVil/datasemver/blob/main/README.md) · **Español**
 
-**Tus datos han cambiado. DataSemver te dice si eso es un patch, un minor o una versión que rompe.**
+</div>
 
 DataSemver compara dos versiones de un dataset CSV, JSON o Parquet, clasifica cada
 diferencia que encuentra según un conjunto de reglas configurable, y devuelve el salto de
 versión semántica junto con una entrada de changelog lista para commitear. Es una CLI
 primero y una librería de Python después, y no necesita registro de esquemas, ni base de
 datos, ni ningún servicio corriendo.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-diff.png" width="880"
+       alt="Terminal con datasemver diff: un salto MAJOR de 0.0.0 a 1.0.0, una tabla de columnas que marca country como añadida, phone como modificada y legacy_code como eliminada, una tabla que clasifica siete cambios por severidad, y la entrada de changelog generada.">
+</p>
+
+<p align="center">
+  <sub><code>datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv</code> — una columna eliminada
+  y un <code>int64</code> convertido en <code>string</code> hacen de esto una versión que rompe.</sub>
+</p>
 
 ---
 
@@ -83,8 +97,15 @@ verificadores de tipos ven las anotaciones de cada función pública.
 ## Inicio rápido
 
 ```bash
-datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv
+pip install datasemver
+datasemver diff old.csv new.csv --current-version 1.4.2
 ```
+
+Eso imprime el panel, la comparación de columnas y los cambios clasificados que se ven
+arriba, y sale con `0`. No escribe nada salvo que se lo pidas.
+
+<details>
+<summary>La misma ejecución como texto seleccionable</summary>
 
 ```
 ╭───────────── DataSemver ──────────────╮
@@ -124,6 +145,8 @@ datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv
 │          │                           │ (1.72%)                                       │
 └──────────┴───────────────────────────┴───────────────────────────────────────────────┘
 ```
+
+</details>
 
 Sin `--output`, la entrada de changelog se imprime al final de la ejecución:
 
@@ -230,6 +253,17 @@ y los structs de Parquet se aplanan con un separador `.`, de modo que
 si falta el fichero, la extensión no está soportada, el dataset no se puede leer o el
 fichero de reglas es inválido.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-delimiter.png" width="880"
+       alt="Terminal con datasemver diff sobre dos CSV separados por punto y coma: cinco columnas correctamente separadas en id, cliente, pais, importe y estado, una columna canal nueva, y un salto MINOR de 1.4.2 a 1.5.0.">
+</p>
+
+<p align="center">
+  <sub>Una exportación separada por punto y coma, donde cada <code>importe</code> contiene además
+  una coma. La coma nunca llega a la cabecera, así que gana el punto y coma y el fichero se
+  carga como cinco columnas en lugar de una.</sub>
+</p>
+
 Los tipos se infieren en los formatos de texto, donde una columna de valores `"12"` se lee
 como `int64`. Parquet lleva su propio esquema y se respeta tal cual, así que una columna
 almacenada como cadena sigue siendo cadena aunque todos los valores parezcan numéricos.
@@ -261,7 +295,14 @@ patch:
 ```
 
 Pásalo con `--rules custom.yaml` para sustituir los valores por defecto, y comprueba cómo
-se ha interpretado con `datasemver rules custom.yaml`. Las reglas con umbral como
+se ha interpretado con `datasemver rules custom.yaml`, que imprime el conjunto de reglas tal
+y como lo ha entendido el motor:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-rules.png" width="760"
+       alt="Terminal con datasemver rules: el conjunto de reglas por defecto impreso en tres grupos de severidad con color, seis reglas en major, siete en minor y tres en patch.">
+</p>
+ Las reglas con umbral como
 `row_count_decrease_greater_than` se emparejan de forma natural con su equivalente sin
 umbral en una severidad inferior, que entonces actúa como respaldo. Los nombres de regla
 desconocidos, las severidades desconocidas y los umbrales sobre reglas que no los aceptan

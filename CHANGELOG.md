@@ -8,6 +8,12 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- Python 3.14 is tested and declared. The suite already passed on it, and every runtime
+  dependency resolves there: pandas and pyarrow ship cp314 wheels, and pydantic is a
+  universal wheel over a `pydantic-core` that has one. The matrix, the classifiers and the
+  badge in all three READMEs say 3.10 to 3.14 now.
+
 ### Patch
 - Every action in every workflow is pinned to a commit SHA rather than a version tag, all
   seventeen references. A tag is a movable pointer, so `actions/checkout@v7` meant whoever

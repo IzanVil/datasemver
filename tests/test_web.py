@@ -1,3 +1,5 @@
+import io
+
 import pytest
 
 pytest.importorskip("fastapi")
@@ -7,6 +9,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from web.backend.config import Settings  # noqa: E402
 from web.backend.history import scan_datasets  # noqa: E402
+import web.backend.main as main  # noqa: E402
 from web.backend.main import app  # noqa: E402
 
 pytestmark = pytest.mark.web
@@ -149,6 +152,53 @@ def test_upload_over_the_size_limit(client, old_csv, new_csv, tmp_path, monkeypa
     response = upload(client, old_csv, new_csv)
 
     assert response.status_code == 413
+
+
+def test_an_oversized_upload_stops_at_the_limit(client, tmp_path, monkeypatch):
+    """The limit has to bound what reaches disk, not just what is accepted afterwards.
+
+    Checking the size once the copy finished made it advisory: the whole body landed first,
+    so a large enough upload filled the volume whatever the limit said.
+    """
+    limit = 64 * 1024
+    settings = Settings(
+        datasets_dir=tmp_path,
+        max_upload_bytes=limit,
+        frontend_dir=tmp_path / "frontend",
+    )
+    monkeypatch.setattr("web.backend.main.get_settings", lambda: settings)
+
+    written = []
+    original = main._copy_within_limit
+    monkeypatch.setattr(
+        main,
+        "_copy_within_limit",
+        lambda upload, path, cap: written.append(original(upload, path, cap)) or written[-1],
+    )
+
+    oversized = tmp_path / "big.csv"
+    oversized.write_bytes(b"id,name\n" + b"1,x\n" * (limit // 2))
+
+    response = upload(client, oversized, oversized)
+
+    assert response.status_code == 413
+    assert written, "the upload never reached the copy"
+    # a single byte past the limit is all it takes to know it was passed
+    assert max(written) == limit + 1
+    assert max(written) < oversized.stat().st_size
+
+
+def test_an_oversized_upload_leaves_nothing_behind(tmp_path):
+    """The partial write is removed, so a rejected upload costs no disk."""
+    target = tmp_path / "partial.csv"
+
+    class _Upload:
+        file = io.BytesIO(b"x" * 4096)
+
+    written = main._copy_within_limit(_Upload(), target, limit=1024)
+
+    assert written > 1024
+    assert not target.exists()
 
 
 def test_empty_upload_is_rejected(client, old_csv, tmp_path):

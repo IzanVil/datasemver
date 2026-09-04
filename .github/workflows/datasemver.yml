@@ -36,12 +36,19 @@ jobs:
 
       - name: Resolve the base ref
         id: base
+        # Values from the event reach the shell through the environment, never through
+        # ${{ }} interpolation: expanded inline they would be pasted into the script before
+        # bash parses it, so a ref named to look like shell would run as shell.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="origin/${{ github.base_ref }}"
-            git fetch --no-tags origin "${{ github.base_ref }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base="origin/$BASE_REF"
+            git fetch --no-tags origin "$BASE_REF"
           else
-            base="${{ github.event.before }}"
+            base="$BEFORE"
             if [ -z "$base" ] || ! git rev-parse --verify --quiet "$base^{commit}" > /dev/null; then
               base="HEAD^"
             fi
@@ -50,10 +57,13 @@ jobs:
 
       - name: Analyse the datasets that changed
         id: datasemver
+        env:
+          BASE_REF: ${{ steps.base.outputs.ref }}
+          REPORT_PATH: ${{ runner.temp }}/datasemver-report.md
         run: |
           python scripts/run_datasemver_on_pr.py \
-            --base-ref "${{ steps.base.outputs.ref }}" \
-            --output "${{ runner.temp }}/datasemver-report.md"
+            --base-ref "$BASE_REF" \
+            --output "$REPORT_PATH"
 
       - name: Comment on the pull request
         if: >-

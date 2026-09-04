@@ -4,9 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datasemver"
-version = "0.2.3"
+version = "0.2.4"
 description = "Semantic versioning for datasets: diff two dataset versions and get the bump they deserve."
-readme = "README.md"
+# The project page has to stand on its own: the repository it would otherwise link
+# to and pull images from is not always public, and a broken page outlives that.
+readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -64,7 +66,6 @@ web = [
 [project.urls]
 Homepage = "https://github.com/IzanVil/datasemver"
 Repository = "https://github.com/IzanVil/datasemver"
-Documentation = "https://github.com/IzanVil/datasemver/blob/main/README.md"
 Issues = "https://github.com/IzanVil/datasemver/issues"
 
 [project.scripts]

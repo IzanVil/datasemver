@@ -8,6 +8,29 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- Every dependency floor that admitted a known-vulnerable version has been raised; no
+  version any of them now allows carries a published advisory. `pyarrow>=10` admitted
+  CVE-2023-47248, rated critical: arbitrary code execution while reading a malicious
+  Parquet file. Reading data nobody vouched for is the point of this library, so the floor
+  is now `>=23.0.1`, the first release clear of that, of CVE-2024-52338 and of
+  CVE-2026-25087, and one that still ships wheels for every supported Python.
+  `python-multipart>=0.0.9` admitted eight advisories including CVE-2026-24486, an
+  arbitrary file write, and four denial-of-service issues; it is the parser every dashboard
+  upload passes through, and the floor is now `>=0.0.31`. Also `pydantic>=2.4`
+  (CVE-2024-3772, ReDoS), `pytest>=9.0.3` (CVE-2025-71176) and the build requirement
+  `setuptools>=83`, where CVE-2026-59890 let a `MANIFEST.in` exclusion be bypassed in an
+  sdist — this package uses those exclusions to decide what ships. The requirements files
+  carry the same floors.
+- The dashboard's upload limit is applied while the body is written rather than once it has
+  landed. It was advisory before: a 14 MB upload against a 1 MB limit wrote all 14 MB to
+  disk and was then rejected, so the cap bounded what was accepted but not what a request
+  could cost. A rejected upload now writes one byte past the limit and is deleted.
+- The pull request workflow passes event values to the shell through the environment
+  instead of `${{ }}` interpolation, which pastes them in before bash parses the script.
+- `SECURITY.md`: how to report privately, what parsing a dataset does and does not do, and
+  why the dashboard belongs on the loopback interface.
+
 ## [0.2.2] - 2026-09-04
 
 ### Patch

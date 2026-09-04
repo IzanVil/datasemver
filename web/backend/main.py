@@ -6,7 +6,6 @@ The dashboard is a client of the library: it uploads or locates two dataset file
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -32,6 +31,7 @@ app = FastAPI(
 )
 
 ANALYSIS_ERRORS = (ValueError, RuleError, InvalidVersionError)
+CHUNK_BYTES = 1024 * 1024
 
 
 class Meta(BaseModel):
@@ -124,17 +124,39 @@ async def store_upload(
 
     path = destination.with_suffix(suffix)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("wb") as handle:
-        shutil.copyfileobj(upload.file, handle, length=1024 * 1024)
+    written = _copy_within_limit(upload, path, settings.max_upload_bytes)
 
-    if path.stat().st_size > settings.max_upload_bytes:
+    if written > settings.max_upload_bytes:
         raise HTTPException(
             status_code=413,
             detail=f"'{upload.filename}' is larger than {settings.max_upload_mb} MB",
         )
-    if path.stat().st_size == 0:
+    if written == 0:
         raise HTTPException(status_code=400, detail=f"'{upload.filename}' is empty")
     return path
+
+
+def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:
+    """Write an upload to disk, stopping as soon as it is known to be over the limit.
+
+    Checking the size after the copy makes the limit advisory: the whole body reaches disk
+    first, so a large enough upload fills the volume no matter what the limit says. Reading
+    one chunk past the limit is enough to reject it, and is all that gets written.
+    """
+    written = 0
+    with path.open("wb") as handle:
+        while True:
+            # never read further past the limit than the one byte that proves it was passed
+            chunk = upload.file.read(min(CHUNK_BYTES, limit - written + 1))
+            if not chunk:
+                break
+            written += len(chunk)
+            handle.write(chunk)
+            if written > limit:
+                break
+    if written > limit:
+        path.unlink(missing_ok=True)
+    return written
 
 
 def run_analysis(

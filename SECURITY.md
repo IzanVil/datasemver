@@ -45,8 +45,8 @@ the port can read every dataset in that directory and spend CPU on analysis.
 Bind it to the loopback interface, which is uvicorn's default:
 
 ```bash
-uvicorn web.backend.main:app          # 127.0.0.1, correct
-uvicorn web.backend.main:app --host 0.0.0.0   # exposed, only behind something that authenticates
+uvicorn datasemver_web.backend.main:app          # 127.0.0.1, correct
+uvicorn datasemver_web.backend.main:app --host 0.0.0.0   # exposed, only behind something that authenticates
 ```
 
 Uploads are capped by `DATASEMVER_MAX_UPLOAD_MB` (25 MB by default) and the cap is applied

@@ -457,14 +457,17 @@ base version is a pointer file rather than data.
 
 ## Web dashboard
 
-A FastAPI backend and a dependency-free frontend live in [`web/`](https://github.com/IzanVil/datasemver/tree/main/web). Upload two
-versions of a dataset, or pick two versions from a directory, and read the bump, the
-classified changes, the column comparison and the changelog entry in the browser.
+A FastAPI backend and a dependency-free frontend live in [`datasemver_web/`](https://github.com/IzanVil/datasemver/tree/main/datasemver_web).
+Upload two versions of a dataset, or pick two versions from a directory, and read the
+bump, the classified changes, the column comparison and the changelog entry in the
+browser. It ships in the package, so it needs no checkout:
 
 ```bash
-pip install -r requirements-web.txt
-uvicorn web.backend.main:app --reload
+pip install "datasemver[web]"
+uvicorn datasemver_web.backend.main:app
 ```
+
+From a clone, `pip install -r requirements-web.txt` and add `--reload`.
 
 Then open <http://127.0.0.1:8000>; the backend serves the frontend, so that is the only
 command. The history view scans `./datasets/` by default, grouping files named
@@ -481,7 +484,7 @@ curl -X POST http://127.0.0.1:8000/api/diff \
 ```
 
 Endpoints, configuration and the dataset naming convention are documented in
-[web/README.md](https://github.com/IzanVil/datasemver/blob/main/web/README.md).
+[datasemver_web/README.md](https://github.com/IzanVil/datasemver/blob/main/datasemver_web/README.md).
 
 ## Project structure
 

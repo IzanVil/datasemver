@@ -7,10 +7,10 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient
 
-import web.backend.main as main
-from web.backend.config import Settings
-from web.backend.history import scan_datasets
-from web.backend.main import app
+import datasemver_web.backend.main as main
+from datasemver_web.backend.config import Settings
+from datasemver_web.backend.history import scan_datasets
+from datasemver_web.backend.main import app
 
 pytestmark = pytest.mark.web
 
@@ -34,7 +34,7 @@ def datasets_dir(tmp_path, old_csv, new_csv, monkeypatch):
         max_upload_bytes=1024 * 1024,
         frontend_dir=tmp_path / "frontend",
     )
-    monkeypatch.setattr("web.backend.main.get_settings", lambda: settings)
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
     return directory
 
 
@@ -150,7 +150,7 @@ def test_upload_over_the_size_limit(client, old_csv, new_csv, tmp_path, monkeypa
         max_upload_bytes=10,
         frontend_dir=tmp_path / "frontend",
     )
-    monkeypatch.setattr("web.backend.main.get_settings", lambda: settings)
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
 
     response = upload(client, old_csv, new_csv)
 
@@ -169,7 +169,7 @@ def test_an_oversized_upload_stops_at_the_limit(client, tmp_path, monkeypatch):
         max_upload_bytes=limit,
         frontend_dir=tmp_path / "frontend",
     )
-    monkeypatch.setattr("web.backend.main.get_settings", lambda: settings)
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
 
     written = []
     original = main._copy_within_limit
@@ -307,7 +307,7 @@ def test_frontend_is_served(client):
 def test_mounting_a_missing_frontend_is_a_no_op(tmp_path):
     from fastapi import FastAPI
 
-    from web.backend.main import mount_frontend
+    from datasemver_web.backend.main import mount_frontend
 
     application = FastAPI()
     mount_frontend(
@@ -337,7 +337,7 @@ def test_history_ignores_files_without_a_version(tmp_path, old_csv):
 def test_a_missing_file_becomes_a_404():
     from fastapi import HTTPException
 
-    from web.backend.main import as_http_error
+    from datasemver_web.backend.main import as_http_error
 
     with pytest.raises(HTTPException) as error, as_http_error():
         raise FileNotFoundError("dataset not found: gone.csv")

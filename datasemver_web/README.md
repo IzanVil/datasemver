@@ -30,15 +30,16 @@ source .venv/bin/activate
 pip install -e .
 pip install -r requirements-web.txt
 
-uvicorn web.backend.main:app --reload
+uvicorn datasemver_web.backend.main:app --reload
 ```
 
 Open <http://127.0.0.1:8000>. The backend serves the frontend itself, so that single
 command runs the whole dashboard; the interactive API docs are at
 <http://127.0.0.1:8000/docs>.
 
-Run it from the repository root, not from `web/backend/`: the app is a package
-(`web.backend.main`) and its imports resolve from there.
+The dashboard ships inside the `datasemver` distribution, so `pip install
+"datasemver[web]"` is enough to run it — the commands above are the checkout route, for
+working on it. Either way the app is addressed as `datasemver_web.backend.main`.
 
 ## Configuration
 
@@ -46,10 +47,10 @@ Run it from the repository root, not from `web/backend/`: the app is a package
 | --- | --- | --- |
 | `DATASEMVER_DATASETS_DIR` | `./datasets` | Directory scanned by the history view |
 | `DATASEMVER_MAX_UPLOAD_MB` | `25` | Size limit applied to every uploaded file |
-| `DATASEMVER_FRONTEND_DIR` | `web/frontend` | Static files served at `/` |
+| `DATASEMVER_FRONTEND_DIR` | `datasemver_web/frontend` | Static files served at `/` |
 
 ```bash
-DATASEMVER_DATASETS_DIR=/data/snapshots uvicorn web.backend.main:app --reload
+DATASEMVER_DATASETS_DIR=/data/snapshots uvicorn datasemver_web.backend.main:app --reload
 ```
 
 ## Endpoints

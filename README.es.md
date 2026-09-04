@@ -466,14 +466,19 @@ fichero puntero en lugar de datos.
 
 ## Panel web
 
-En [`web/`](https://github.com/IzanVil/datasemver/tree/main/web) viven un backend FastAPI y un frontend sin dependencias. Sube dos
+En [`datasemver_web/`](https://github.com/IzanVil/datasemver/tree/main/datasemver_web) viven un backend FastAPI y un frontend
+sin dependencias. Sube dos
 versiones de un dataset, o elige dos versiones de un directorio, y lee en el navegador el
 salto, los cambios clasificados, la comparación de columnas y la entrada de changelog.
 
+Viaja dentro del paquete, así que no hace falta clonar nada:
+
 ```bash
-pip install -r requirements-web.txt
-uvicorn web.backend.main:app --reload
+pip install "datasemver[web]"
+uvicorn datasemver_web.backend.main:app
 ```
+
+Desde un clon, `pip install -r requirements-web.txt` y añade `--reload`.
 
 Después abre <http://127.0.0.1:8000>; el backend sirve el frontend, así que ese es el único
 comando. La vista de histórico escanea `./datasets/` por defecto, agrupando ficheros
@@ -490,7 +495,7 @@ curl -X POST http://127.0.0.1:8000/api/diff \
 ```
 
 Los endpoints, la configuración y la convención de nombres de los datasets están
-documentados en [web/README.md](https://github.com/IzanVil/datasemver/blob/main/web/README.md) (en inglés).
+documentados en [datasemver_web/README.md](https://github.com/IzanVil/datasemver/blob/main/datasemver_web/README.md) (en inglés).
 
 ## Estructura del proyecto
 

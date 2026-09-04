@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-04
+
 ### Patch
 - Both READMEs open with a real terminal capture of `datasemver diff` instead of asking the
   reader to imagine the output, and carry two more: the semicolon-delimited CSV that proves
@@ -18,8 +20,14 @@ This project follows [Semantic Versioning](https://semver.org).
   the tool no longer produces without someone editing them by hand.
 - The sdist now carries `README.es.md`. The capture PNGs stay out of it, since the READMEs
   reference them by absolute URL.
+- The repository is public, which is what the absolute links added in 0.2.1 assumed. While
+  it was private every one of them, and the badges, answered 404 to anyone but the owner —
+  including on the PyPI page for 0.2.0.
 
 ## [0.2.1] - 2026-09-03
+
+Tagged, but superseded before it reached PyPI: 0.2.2 is the first release to follow 0.2.0
+on the index.
 
 ### Patch
 - The PyPI project page is built from `README.md`, where every link was relative and
@@ -115,7 +123,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/IzanVil/datasemver/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/IzanVil/datasemver/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/IzanVil/datasemver/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/IzanVil/datasemver/compare/v0.0.1...v0.1.0

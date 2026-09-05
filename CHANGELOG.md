@@ -8,6 +8,23 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-05
+
+### Minor
+- A project site at <https://izanvil.github.io/datasemver/>, English at the root and Spanish
+  at `/es/`. It answers "what is this and why would I want it" for someone who has not
+  already decided to read a README. The hero is the real terminal capture rather than a
+  reconstruction of one in markup, which is both more honest and less work. Both colour
+  schemes are supported, since a page that only exists in the dark meets half its readers on
+  the wrong footing.
+- The page is served from an orphan `gh-pages` branch rather than from `docs/` on `main`.
+  A package repository should read as a package repository, and the composition of a
+  marketing page in its tree works against that. The captures stay on `main` and are
+  referenced by absolute URL, so nothing is duplicated and the page cannot drift from the
+  documentation.
+- `Homepage` in the package metadata now points at the site; `Repository` still points at
+  the repository.
+
 ### Patch
 - Reading a dataset is roughly twice as fast, with the report unchanged down to the byte.
   Measuring first said the cost was not where it looked: profiling every column is 8% of a
@@ -31,23 +48,6 @@ This project follows [Semantic Versioning](https://semver.org).
 - `.gitattributes` pins text files to LF, so a Windows checkout no longer rewrites the CSV
   and JSON fixtures to CRLF and leave the suite measuring the clone instead of the library.
   Reading CRLF was already correct and is verified rather than trusted.
-
-### Minor
-- A project site at <https://izanvil.github.io/datasemver/>, English at the root and Spanish
-  at `/es/`. It answers "what is this and why would I want it" for someone who has not
-  already decided to read a README. The hero is the real terminal capture rather than a
-  reconstruction of one in markup, which is both more honest and less work. Both colour
-  schemes are supported, since a page that only exists in the dark meets half its readers on
-  the wrong footing.
-- The page is served from an orphan `gh-pages` branch rather than from `docs/` on `main`.
-  A package repository should read as a package repository, and the composition of a
-  marketing page in its tree works against that. The captures stay on `main` and are
-  referenced by absolute URL, so nothing is duplicated and the page cannot drift from the
-  documentation.
-- `Homepage` in the package metadata now points at the site; `Repository` still points at
-  the repository.
-
-### Patch
 - Releases publish through Trusted Publishing instead of an API token. The workflow mints a
   short-lived OIDC credential naming the repository, workflow file and environment it came
   from, and the index verifies that, so there is no long-lived publishing secret in the
@@ -270,7 +270,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/IzanVil/datasemver/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/IzanVil/datasemver/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/IzanVil/datasemver/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/IzanVil/datasemver/compare/v0.2.2...v0.2.3

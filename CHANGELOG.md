@@ -8,6 +8,27 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- A source can be a database table rather than a file. The connection URL names the database
+  and the fragment names the table, `sqlite:///snapshots.db#customers`, because a fragment is
+  not something a SQLAlchemy URL uses and so cannot collide with anything the URL already
+  means. SQLite needs no driver; the `sql` extra adds SQLAlchemy, psycopg2 and PyMySQL.
+- The dispatch lives in `load_frame` rather than in the CLI, so the Python API, the dashboard
+  and the pull request script read databases too without any of them learning what a
+  connection URL is.
+- `postgres://` and a bare `mysql://` are rewritten on the way through. The first lost its
+  alias in SQLAlchemy 2 and fails with "Can't load plugin", which says nothing about the
+  scheme; the second resolves to MySQLdb rather than the PyMySQL the extra installs. Both are
+  the URL every tutorial prints. A driver named explicitly is never rewritten.
+- Passwords are removed before the source reaches a report. It is rendered into changelog
+  entries, pull request comments and `--json`, and a connection string carries a password.
+  The redaction has its own fallback so that a URL too malformed to parse is still reported
+  without its credentials.
+- Whole tables only: no views, no queries, no schema qualification. The whole table is read,
+  because the profile compares row counts and column statistics and a partial read would
+  describe the query instead of the dataset. Types come from the database rather than being
+  inferred, so a column declared `TEXT` stays text even when every value looks numeric.
+
 ### Patch
 - The coverage badge is gone, because it read `unknown`. Nothing was ever uploaded: the
   workflow passed a `CODECOV_TOKEN` that does not exist, the action logged `Token required`,

@@ -55,12 +55,21 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0.3",  # CVE-2025-71176, tmpdir handling
+    "pytest>=9.0.3",
+    "sqlalchemy>=2.0",  # the SQLite tests need it; no server does  # CVE-2025-71176, tmpdir handling
     "pytest-cov>=4",
     "httpx>=0.27",
     "ruff>=0.6",
     "mypy>=1.11",
     "types-PyYAML>=6",
+]
+sql = [
+    "sqlalchemy>=2.0",
+    # Bare `postgresql://` and `mysql://` are the URLs people actually write, so the drivers
+    # those resolve to are the ones shipped: psycopg2 for the first, and PyMySQL for the
+    # second once `_normalised` points it there. Any other driver works when spelled out.
+    "psycopg2-binary>=2.9",
+    "pymysql>=1.1.1",  # CVE-2024-36039, SQL injection through unescaped keys
 ]
 web = [
     "fastapi>=0.110",

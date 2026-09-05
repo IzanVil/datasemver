@@ -8,6 +8,7 @@ include CODE_OF_CONDUCT.md
 include SECURITY.md
 include requirements.txt
 include requirements-web.txt
+include requirements-sql.txt
 include datasemver/py.typed
 include datasemver/rules/*.yaml
 

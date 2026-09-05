@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from datasemver.core.models import DatasetSchema
+from datasemver.formats.sql import is_sql_source, load_sql, redacted
 from datasemver.formats.utils import infer_types, profile_frame
 
 CSV_EXTENSIONS = {".csv", ".tsv"}
@@ -32,7 +33,15 @@ class DatasetReadError(ValueError):
 
 
 def load_frame(path: str | Path) -> pd.DataFrame:
-    """Read a CSV, JSON or Parquet file into a flat dataframe with usable types."""
+    """Read a file or a database table into a flat dataframe with usable types.
+
+    Dispatching here rather than in the CLI is what lets every other caller read a database
+    too: the Python API, the dashboard and the pull request script all arrive through this
+    function, and none of them had to learn what a connection URL is.
+    """
+    if isinstance(path, str) and is_sql_source(path):
+        return infer_types(load_sql(path))
+
     path = _existing_path(path)
     suffix = path.suffix.lower()
 
@@ -71,7 +80,18 @@ def load_parquet(path: str | Path) -> pd.DataFrame:
 def load_schema(path: str | Path) -> DatasetSchema:
     """Load a dataset and return its profile."""
     frame = load_frame(path)
-    return schema_from_frame(frame, source=str(path))
+    return schema_from_frame(frame, source=describe_source(path))
+
+
+def describe_source(path: str | Path) -> str:
+    """How a source should be named in a report.
+
+    The name reaches a changelog entry, a pull request comment and the JSON output, so a
+    connection URL arrives there without its password.
+    """
+    if isinstance(path, str) and is_sql_source(path):
+        return redacted(path)
+    return str(path)
 
 
 def schema_from_frame(frame: pd.DataFrame, source: str) -> DatasetSchema:

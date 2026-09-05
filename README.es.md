@@ -40,6 +40,7 @@ datos, ni ningún servicio corriendo.
 - [Demo](#demo)
 - [Versionado semántico para datos](#versionado-semántico-para-datos)
 - [Referencia de comandos](#referencia-de-comandos)
+- [Bases de datos](#bases-de-datos)
 - [Configuración: reglas en YAML](#configuración-reglas-en-yaml)
 - [API de Python](#api-de-python)
 - [GitHub Action](#github-action)
@@ -85,6 +86,7 @@ pip install -e ".[dev]"
 | --- | --- | --- |
 | _(ninguno)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | La librería y el comando `datasemver` |
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Ejecutar los tests y medir la cobertura |
+| `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Leer una [tabla de base de datos](#bases-de-datos) |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | El [panel web](#panel-web) |
 
 ```bash
@@ -311,6 +313,43 @@ se rechazan con un error en lugar de ignorarse.
 El catálogo completo de reglas, métricas y umbrales está en [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md)
 (en inglés). En [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples) se incluyen dos perfiles listos para usar:
 `strict_rules.yaml` y `lenient_rules.yaml`.
+
+## Bases de datos
+
+Un origen puede ser una tabla en vez de un fichero. La URL de conexión nombra la base de
+datos y el fragmento nombra la tabla:
+
+```bash
+pip install "datasemver[sql]"
+
+datasemver diff "sqlite:///snapshots.db#clientes_v1" "sqlite:///snapshots.db#clientes_v2"
+datasemver diff "postgresql://lector:secreto@almacen:5432/analitica#clientes" nuevo.csv
+```
+
+La tabla va tras `#` porque esa parte no la usa una URL de SQLAlchemy, así que no puede
+chocar con nada que la URL ya signifique. Entrecomilla el argumento entero: en la mayoría de
+shells, `#` abre un comentario.
+
+| Base de datos | URL | Driver |
+| --- | --- | --- |
+| SQLite | `sqlite:///ruta/a.db#tabla` | ninguno, va en la librería estándar |
+| PostgreSQL | `postgresql://usuario:clave@host:5432/bd#tabla` | `psycopg2`, en el extra `sql` |
+| MySQL o MariaDB | `mysql://usuario:clave@host/bd#tabla` | `pymysql`, en el extra `sql` |
+
+Dos formas de escribirlo se corrigen por el camino. `postgres://` perdió su alias en
+SQLAlchemy 2 y si no fallaría con «Can't load plugin»; un `mysql://` a secas significa
+MySQLdb y no el PyMySQL que instala el extra. Un driver que indiques tú, como
+`postgresql+psycopg://`, no se reescribe nunca.
+
+Las contraseñas no llegan al informe. El origen se escribe en las entradas de changelog, en
+los comentarios de pull request y en la salida `--json`, así que aparece como
+`postgresql://lector:***@almacen:5432/analitica#clientes`.
+
+Lo que todavía no hace: solo tablas completas, nombradas directamente. Sin vistas, sin
+consultas, sin cualificar el esquema, y lee la tabla entera porque el perfil compara número
+de filas y estadísticos de columna, que una lectura parcial reportaría mal. Los tipos vienen
+de la base de datos en vez de adivinarse, así que una columna declarada `TEXT` sigue siendo
+texto aunque todos sus valores parezcan numéricos.
 
 ## API de Python
 

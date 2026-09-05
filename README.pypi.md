@@ -110,6 +110,22 @@ Nested JSON objects and Parquet structs are flattened with a `.`, so
 `{"user": {"name": "..."}}` is profiled as `user.name`. Types are inferred for the text
 formats; Parquet carries its own schema and is trusted as it stands.
 
+## Databases
+
+A source can be a table instead of a file, with the connection URL naming the database and
+the fragment naming the table:
+
+```bash
+pip install "datasemver[sql]"
+
+datasemver diff "sqlite:///snapshots.db#customers_v1" "sqlite:///snapshots.db#customers_v2"
+datasemver diff "postgresql://reader:secret@warehouse:5432/analytics#customers" new.csv
+```
+
+SQLite needs no driver; PostgreSQL and MySQL use the ones the `sql` extra installs. Quote the
+argument, since `#` opens a comment in most shells. Passwords are removed before the source
+reaches a report. Whole tables only for now: no views, no queries, no schema qualification.
+
 ## Rules
 
 Every severity is a list of rules, evaluated `major`, then `minor`, then `patch`. The first

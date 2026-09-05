@@ -24,6 +24,8 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+_SOURCE_HELP = "{which} version of the dataset: a file, or a database URL with the table after '#'."
+
 console = Console()
 error_console = Console(stderr=True)
 
@@ -44,8 +46,8 @@ STATUS_COLORS: dict[ColumnStatus, str] = {
 
 @app.command()
 def diff(
-    old: Annotated[Path, typer.Argument(help="Previous version of the dataset (CSV or JSON).")],
-    new: Annotated[Path, typer.Argument(help="New version of the dataset (CSV or JSON).")],
+    old: Annotated[str, typer.Argument(help=_SOURCE_HELP.format(which="Previous"))],
+    new: Annotated[str, typer.Argument(help=_SOURCE_HELP.format(which="New"))],
     rules: Annotated[
         Path | None,
         typer.Option("--rules", "-r", help="Custom rules file overriding the defaults."),

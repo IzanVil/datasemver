@@ -39,6 +39,7 @@ and it needs no schema registry, no database and no service running.
 - [Demo](#demo)
 - [Semantic versioning for data](#semantic-versioning-for-data)
 - [Command reference](#command-reference)
+- [Databases](#databases)
 - [Configuration: rules in YAML](#configuration-rules-in-yaml)
 - [Python API](#python-api)
 - [GitHub Action](#github-action)
@@ -83,6 +84,7 @@ pip install -e ".[dev]"
 | --- | --- | --- |
 | _(none)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | The library and the `datasemver` command |
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Running the test suite and measuring coverage |
+| `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Reading a [database table](#databases) |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | The [web dashboard](#web-dashboard) |
 
 ```bash
@@ -304,6 +306,42 @@ ignored.
 The full catalogue of rules, metrics and thresholds is in [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md).
 Two ready-made profiles ship in [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples): `strict_rules.yaml` and
 `lenient_rules.yaml`.
+
+## Databases
+
+A source can be a database table instead of a file. The connection URL names the database and
+the fragment names the table:
+
+```bash
+pip install "datasemver[sql]"
+
+datasemver diff "sqlite:///snapshots.db#customers_v1" "sqlite:///snapshots.db#customers_v2"
+datasemver diff "postgresql://reader:secret@warehouse:5432/analytics#customers" new.csv
+```
+
+The table goes after `#` because that part is not something a SQLAlchemy URL uses, so it
+cannot collide with anything the URL already means. Quote the whole argument: `#` starts a
+comment in most shells.
+
+| Database | URL | Driver |
+| --- | --- | --- |
+| SQLite | `sqlite:///path/to.db#table` | none, it is in the standard library |
+| PostgreSQL | `postgresql://user:pass@host:5432/db#table` | `psycopg2`, in the `sql` extra |
+| MySQL or MariaDB | `mysql://user:pass@host/db#table` | `pymysql`, in the `sql` extra |
+
+Two spellings are corrected on the way through. `postgres://` lost its alias in SQLAlchemy 2
+and would otherwise fail with "Can't load plugin"; a bare `mysql://` means MySQLdb rather
+than the PyMySQL the extra installs. A driver you name yourself, like
+`postgresql+psycopg://`, is never rewritten.
+
+Passwords never reach the report. The source is rendered into changelog entries, pull request
+comments and `--json` output, so it arrives there as
+`postgresql://reader:***@warehouse:5432/analytics#customers`.
+
+What it does not do yet: only whole tables, named directly. No views, no queries, no schema
+qualification, and the whole table is read because the profile compares row counts and column
+statistics, which a partial read would misreport. Types come from the database rather than
+being guessed, so a column declared `TEXT` stays text even when every value looks numeric.
 
 ## Python API
 

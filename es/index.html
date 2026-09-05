@@ -54,7 +54,7 @@
 
 <div class="page">
   <dl class="facts">
-    <div><dt>Lee</dt><dd>CSV, JSON, Parquet</dd></div>
+    <div><dt>Lee</dt><dd>CSV, JSON, Parquet, SQL</dd></div>
     <div><dt>Python</dt><dd>3.10 a 3.14</dd></div>
     <div><dt>Reglas por defecto</dt><dd>16</dd></div>
     <div><dt>Tests</dt><dd>194 al 99%</dd></div>
@@ -163,12 +163,17 @@
   </section>
 
   <section id="surfaces">
-    <h2>Cuatro formas de usarlo, un informe</h2>
+    <h2>Cinco formas de usarlo, un informe</h2>
     <div class="surfaces">
       <div>
         <h3>Línea de comandos</h3>
         <p>Construida sobre typer y rich. Añade <code>--json</code> cuando quien lee la respuesta es un script y no una persona.</p>
         <code>datasemver diff old.csv new.csv</code>
+      </div>
+      <div>
+        <h3>Tablas de base de datos</h3>
+        <p>Una URL de conexión con la tabla tras <code>#</code>. SQLite no necesita driver; PostgreSQL y MySQL usan el extra <code>sql</code>.</p>
+        <code>sqlite:///snapshots.db#clientes</code>
       </div>
       <div>
         <h3>Librería de Python</h3>

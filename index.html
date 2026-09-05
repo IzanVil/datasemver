@@ -54,7 +54,7 @@
 
 <div class="page">
   <dl class="facts">
-    <div><dt>Reads</dt><dd>CSV, JSON, Parquet</dd></div>
+    <div><dt>Reads</dt><dd>CSV, JSON, Parquet, SQL</dd></div>
     <div><dt>Python</dt><dd>3.10 to 3.14</dd></div>
     <div><dt>Default rules</dt><dd>16</dd></div>
     <div><dt>Tests</dt><dd>194 at 99%</dd></div>
@@ -163,12 +163,17 @@
   </section>
 
   <section id="surfaces">
-    <h2>Four ways in, one report</h2>
+    <h2>Five ways in, one report</h2>
     <div class="surfaces">
       <div>
         <h3>Command line</h3>
         <p>Built on typer and rich. Add <code>--json</code> when a script needs to read the answer instead of a person.</p>
         <code>datasemver diff old.csv new.csv</code>
+      </div>
+      <div>
+        <h3>Database tables</h3>
+        <p>A connection URL with the table after <code>#</code>. SQLite needs no driver; PostgreSQL and MySQL use the <code>sql</code> extra.</p>
+        <code>sqlite:///snapshots.db#customers</code>
       </div>
       <div>
         <h3>Python library</h3>

@@ -215,6 +215,8 @@ h2 {
 }
 @media (max-width: 700px) { .surfaces { grid-template-columns: 1fr; } }
 .surfaces > div { padding: 1.3rem 0; border-top: 1px solid var(--line); }
+/* An odd last item would hang in one column with empty space beside it. */
+.surfaces > div:nth-child(odd):last-child { grid-column: 1 / -1; }
 .surfaces h3 { margin: 0 0 0.35rem; font-size: 0.98rem; font-weight: 600; }
 .surfaces p { margin: 0 0 0.55rem; font-size: 0.9rem; color: var(--ink-soft); }
 .surfaces code { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }

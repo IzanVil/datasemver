@@ -142,8 +142,8 @@ uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 ```
 
 A tag is a movable pointer: whoever controls `v7` controls what runs in CI, and the code
-that runs there can read the repository and, in the publish workflow, reach a PyPI token. A
-SHA cannot move. Dependabot advances the pins and the comments together every Monday, so
+that runs there can read the repository and, in the publish workflow, mint a token the
+index will accept. A SHA cannot move. Dependabot advances the pins and the comments together every Monday, so
 they stay current rather than merely frozen, and it raises the dependency floors in
 `pyproject.toml` when an advisory lands against one.
 
@@ -169,9 +169,23 @@ Releases are built and published by
 Running it by hand from the Actions tab publishes to TestPyPI by default, and to PyPI when
 the `pypi` target is chosen.
 
-The workflow expects two repository secrets, `PYPI_API_TOKEN` and `TEST_PYPI_API_TOKEN`,
-and two environments named `pypi` and `testpypi` to attach them to. Scope each token to
-the `datasemver` project once it exists on the index.
+There is no API token to store. Both indexes authenticate the workflow through Trusted
+Publishing: the job mints a short-lived OpenID Connect token that says which repository,
+which workflow file and which environment it came from, and the index checks that against
+what it was told to expect. Nothing long-lived exists to leak, rotate or scope.
+
+Each index is configured once, under **Publishing** in the project settings:
+
+| Field | PyPI | TestPyPI |
+| --- | --- | --- |
+| Owner | `IzanVil` | `IzanVil` |
+| Repository | `datasemver` | `datasemver` |
+| Workflow | `publish.yml` | `publish.yml` |
+| Environment | `pypi` | `testpypi` |
+
+The environment name is part of what the index verifies, so the `environment:` blocks in
+the workflow are load-bearing rather than decorative. `id-token: write` is granted to the
+two publish jobs only; the build job stays read-only.
 
 Building locally, which is worth doing before tagging:
 

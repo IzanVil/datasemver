@@ -9,6 +9,12 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Patch
+- Releases publish through Trusted Publishing instead of an API token. The workflow mints a
+  short-lived OIDC credential naming the repository, workflow file and environment it came
+  from, and the index verifies that, so there is no long-lived publishing secret in the
+  repository to leak, rotate or scope. PyPI had been saying as much in the release logs:
+  the `attestations` the action produces were being discarded silently because an explicit
+  password disables them. `id-token: write` is granted to the two publish jobs only.
 - The dashboard reports an upload under the name it arrived with. It said
   `old.csv → new.csv` for every comparison, whatever the reader had actually sent, because
   the server names the file on disk and the report took its source from that path. The name

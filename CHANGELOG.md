@@ -8,6 +8,17 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- The suite runs on macOS and Windows as well as Linux. The matrix covered five versions of
+  Python and one operating system, which made the supported-platform claim a claim rather
+  than a check: this library reads files, sniffs line endings to choose a CSV delimiter, and
+  shells out to git. Linux keeps the full version range and the other two take its ends,
+  which is where a platform difference would surface. Nothing was broken, and now that is
+  known rather than assumed.
+- `.gitattributes` pins text files to LF, so a Windows checkout no longer rewrites the CSV
+  and JSON fixtures to CRLF and leave the suite measuring the clone instead of the library.
+  Reading CRLF was already correct and is verified rather than trusted.
+
 ### Minor
 - A project site at <https://izanvil.github.io/datasemver/>, English at the root and Spanish
   at `/es/`. It answers "what is this and why would I want it" for someone who has not

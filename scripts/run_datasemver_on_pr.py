@@ -44,6 +44,7 @@ class DatasetReport:
     next_version: str
     bump: str | None
     changes: list[dict]
+    sidecar: str | None = None
 
     @property
     def rank(self) -> int:
@@ -161,7 +162,8 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
     if previous is None:
         raise SkippedDataset("new dataset, nothing to compare against")
 
-    current_version = read_version(args.base_ref, path, args.default_version)
+    recorded = recorded_version(args.base_ref, path)
+    current_version = recorded or args.default_version
 
     with tempfile.TemporaryDirectory() as directory:
         old_file = Path(directory) / f"base{Path(path).suffix}"
@@ -174,6 +176,7 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
         next_version=payload["next_version"],
         bump=payload["bump"],
         changes=[item for item in payload["classified"] if item["severity"]],
+        sidecar=sidecar_note(repo_root, path, recorded, payload["next_version"]),
     )
 
 
@@ -187,11 +190,55 @@ def show_blob(ref: str, path: str) -> bytes | None:
 
 def read_version(ref: str, path: str, default: str) -> str:
     """Read the version from the dataset's sidecar file in the base ref."""
+    return recorded_version(ref, path) or default
+
+
+def recorded_version(ref: str, path: str) -> str | None:
+    """The version a ref records beside a dataset, or None when it records none.
+
+    Distinct from `read_version`, which substitutes a default: the difference between "no
+    version was written down" and "the version written down is 0.0.0" is what makes the
+    check below able to say something useful.
+    """
     blob = show_blob(ref, f"{path}{VERSION_SUFFIX}")
     if blob is None:
-        return default
-    version = blob.decode("utf-8", "replace").strip()
-    return version or default
+        return None
+    return blob.decode("utf-8", "replace").strip() or None
+
+
+def written_version(repo_root: Path, path: str) -> str | None:
+    """The version recorded beside the dataset as this branch leaves it."""
+    sidecar = repo_root / f"{path}{VERSION_SUFFIX}"
+    if not sidecar.is_file():
+        return None
+    return sidecar.read_text(encoding="utf-8", errors="replace").strip() or None
+
+
+def sidecar_note(
+    repo_root: Path,
+    path: str,
+    recorded: str | None,
+    suggested: str,
+) -> str | None:
+    """Say something when the version file and the dataset disagree, and nothing otherwise.
+
+    A version that is never written down does not announce itself: the next branch reads the
+    stale number, bumps from there, and the drift compounds quietly. Whether to write the
+    number stays with the author, which is the point of the sidecar; noticing that it was not
+    written is what the tool can do about it.
+    """
+    written = written_version(repo_root, path)
+    name = f"`{path}{VERSION_SUFFIX}`"
+
+    if recorded is None and written is None:
+        return f"{name} does not exist, so the comparison started from the default"
+    if written is None:
+        return f"{name} was removed in this branch, and recorded {recorded}"
+    if written == recorded:
+        return f"{name} still reads {written}; {suggested} is not recorded yet"
+    if written != suggested:
+        return f"{name} reads {written}, but this branch suggests {suggested}"
+    return None
 
 
 def run_datasemver(old: Path, new: Path, current_version: str, rules: str | None) -> dict:
@@ -250,6 +297,7 @@ def render(
     for report in sorted(reports, key=lambda item: (-item.rank, item.path)):
         lines.extend(render_details(report, top_changes))
 
+    lines.extend(render_sidecars(reports))
     lines.extend(render_skipped(skipped))
     lines.append("### Reproduce locally")
     lines.append("")
@@ -292,6 +340,21 @@ def render_details(report: DatasetReport, top_changes: int) -> list[str]:
         lines.append(f"- … and {remaining} more")
     lines.append("")
     lines.append("</details>")
+    lines.append("")
+    return lines
+
+
+def render_sidecars(reports: list[DatasetReport]) -> list[str]:
+    """List the datasets whose version file disagrees with the branch, and nothing else.
+
+    Silent when every version file is in step, which is most of the time; the section only
+    appears when there is something a reviewer would want to have been told.
+    """
+    notes = [report for report in reports if report.sidecar]
+    if not notes:
+        return []
+    lines = ["### Version files", ""]
+    lines += [f"- `{report.path}`: {report.sidecar}" for report in notes]
     lines.append("")
     return lines
 

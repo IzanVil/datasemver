@@ -194,6 +194,85 @@ def test_nothing_is_written_without_the_github_environment(repo, tmp_path, monke
     assert code == 0
 
 
+# --- the version file ---------------------------------------------------------------------
+
+
+def write_sidecar(repo, value):
+    (repo / "data" / "customers.csv.version").write_text(value, encoding="utf-8")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", f"record {value}")
+
+
+def test_a_version_file_left_behind_is_reported(repo, tmp_path):
+    """The failure this guards against is silence, not a wrong number.
+
+    Nothing forces the author to record the bump. When they do not, the next branch reads
+    the stale version, bumps from there, and the drift compounds without anyone seeing it.
+    """
+    _, body = report_of(repo, tmp_path)
+
+    assert "### Version files" in body
+    assert "still reads 1.4.2" in body
+    assert "2.0.0 is not recorded yet" in body
+
+
+def test_a_recorded_bump_says_nothing(repo, tmp_path):
+    write_sidecar(repo, "2.0.0\n")
+
+    _, body = report_of(repo, tmp_path)
+
+    assert "### Version files" not in body
+
+
+def test_a_version_that_disagrees_with_the_branch_is_reported(repo, tmp_path):
+    """Recording 1.5.0 for a branch that removed a column is worth saying out loud."""
+    write_sidecar(repo, "1.5.0\n")
+
+    _, body = report_of(repo, tmp_path)
+
+    assert "reads 1.5.0, but this branch suggests 2.0.0" in body
+
+
+def test_a_dataset_with_no_version_file_says_so(repo, tmp_path):
+    run_git(repo, "rm", "-q", "data/customers.csv.version")
+    run_git(repo, "commit", "-qm", "drop the sidecar")
+    run_git(repo, "branch", "-f", "no-sidecar")
+    run_git(repo, "checkout", "-q", "no-sidecar")
+    (repo / "data" / "customers.csv").write_text(OLD_CSV, encoding="utf-8")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", "change it again")
+
+    output = tmp_path / "report.md"
+    pr.main(["--base-ref", "base", "--output", str(output), "--paths", "data/customers.csv"])
+    body = output.read_text(encoding="utf-8")
+
+    assert "was removed in this branch" in body
+
+
+def test_a_removed_version_file_is_reported(repo, tmp_path):
+    run_git(repo, "rm", "-q", "data/customers.csv.version")
+    run_git(repo, "commit", "-qm", "drop the sidecar")
+
+    _, body = report_of(repo, tmp_path)
+
+    assert "was removed in this branch, and recorded 1.4.2" in body
+
+
+def test_a_blank_version_file_counts_as_absent(repo, tmp_path):
+    write_sidecar(repo, "   \n")
+
+    _, body = report_of(repo, tmp_path)
+
+    assert "was removed in this branch" in body
+
+
+def test_recorded_version_separates_absent_from_zero(repo):
+    """`read_version` substitutes a default, which hides the difference this check needs."""
+    assert pr.recorded_version("base", "data/customers.csv") == "1.4.2"
+    assert pr.recorded_version("base", "data/nope.csv") is None
+    assert pr.read_version("base", "data/nope.csv", "0.0.0") == "0.0.0"
+
+
 # --- detection -------------------------------------------------------------------------
 
 

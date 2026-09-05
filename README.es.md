@@ -405,6 +405,22 @@ Sin ese fichero, el análisis parte de `--default-version` (`0.0.0`). El salto e
 deliberado: el comentario te dice la versión que el dataset merece, y tú la escribes en el
 fichero adjunto en el mismo pull request.
 
+Lo que significa que se puede olvidar, y una versión que nadie apuntó no se anuncia sola: la
+siguiente rama lee el número viejo, salta desde ahí, y la deriva se acumula en silencio. El
+informe lleva una sección **Version files** que solo aparece cuando el fichero de versión y
+su dataset no concuerdan:
+
+| Qué encuentra | Qué dice |
+| --- | --- |
+| El dataset cambió, el fichero no | `still reads 1.4.2; 2.0.0 is not recorded yet` |
+| El fichero guarda otro número | `reads 1.5.0, but this branch suggests 2.0.0` |
+| No hay fichero de versión | `does not exist, so the comparison started from the default` |
+| El fichero se borró en la rama | `was removed in this branch, and recorded 1.4.2` |
+
+Cuando la versión apuntada coincide con la sugerida, la sección no aparece: el informe se
+calla en el caso que no necesita nada. Decidir el número sigue siendo tuyo; darse cuenta de
+que nunca se escribió es lo que la herramienta sí puede hacer.
+
 ### Usarlo en otro repositorio
 
 Copia ambos ficheros en el repositorio destino e instala DataSemver desde PyPI en lugar de

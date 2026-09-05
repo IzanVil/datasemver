@@ -397,6 +397,22 @@ Without a sidecar the analysis starts from `--default-version` (`0.0.0`). Bumpin
 deliberate: the comment tells you the version the dataset deserves, and you write it into
 the sidecar in the same pull request.
 
+Which means it can be forgotten, and a version nobody wrote down does not announce itself:
+the next branch reads the stale number, bumps from there, and the drift compounds quietly.
+The report has a **Version files** section that appears only when a sidecar and its dataset
+disagree:
+
+| What it found | What it says |
+| --- | --- |
+| The dataset changed, the sidecar did not | `still reads 1.4.2; 2.0.0 is not recorded yet` |
+| The sidecar holds a different number | `reads 1.5.0, but this branch suggests 2.0.0` |
+| There is no sidecar at all | `does not exist, so the comparison started from the default` |
+| The sidecar was deleted in the branch | `was removed in this branch, and recorded 1.4.2` |
+
+When the recorded version matches the suggestion the section is absent, so the report stays
+quiet in the case that needs nothing. Deciding the number is still yours; noticing that it
+was never written is what the tool can do about it.
+
 ### Using it in another repository
 
 Copy both files into the target repository and install DataSemver from PyPI instead of the

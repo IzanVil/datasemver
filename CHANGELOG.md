@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-06
+
 ### Minor
 - A source can be a database table rather than a file. The connection URL names the database
   and the fragment names the table, `sqlite:///snapshots.db#customers`, because a fragment is
@@ -300,7 +302,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/IzanVil/datasemver/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/IzanVil/datasemver/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/IzanVil/datasemver/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/IzanVil/datasemver/compare/v0.2.3...v0.2.4

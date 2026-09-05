@@ -65,6 +65,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
     needs: build
     runs-on: ubuntu-latest
+    # The short-lived OIDC token this mints is what the index authenticates, in place of a
+    # long-lived API token that has to be stored, rotated and trusted not to leak.
+    permissions:
+      id-token: write
     environment:
       name: testpypi
       url: https://test.pypi.org/p/datasemver
@@ -79,7 +83,6 @@ jobs:
       - name: Publish
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
         with:
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
           # a re-run of an already published version is a no-op, not a failure
           skip-existing: true
@@ -89,6 +92,8 @@ jobs:
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     environment:
       name: pypi
       url: https://pypi.org/p/datasemver
@@ -103,6 +108,5 @@ jobs:
       - name: Publish
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
           # a re-run of an already published version is a no-op, not a failure
           skip-existing: true

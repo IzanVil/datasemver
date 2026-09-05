@@ -56,6 +56,12 @@ reverse proxy in front of anything reachable beyond your own machine.
 
 ## The GitHub Action
 
+Releases are published through Trusted Publishing rather than an API token: the workflow
+mints a short-lived OIDC credential naming the repository, workflow and environment it came
+from, and the index verifies that. There is no long-lived publishing secret in this
+repository to steal. Every action is pinned to a commit SHA, so a moved tag cannot change
+what runs in the job that holds that credential.
+
 `scripts/run_datasemver_on_pr.py` and the workflow that calls it run on `pull_request`, not
 `pull_request_target`. A pull request from a fork therefore gets a read-only token and no
 secrets, and the step that posts the comment is skipped for forks. Event values reach the

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DataSemver — semantic versioning for datasets</title>
+<meta name="description" content="Compare two versions of a CSV, JSON or Parquet dataset and get the semantic version bump they deserve, with the changelog entry that explains it.">
+<link rel="canonical" href="https://izanvil.github.io/datasemver/">
+<link rel="alternate" hreflang="es" href="https://izanvil.github.io/datasemver/es/">
+<link rel="alternate" hreflang="en" href="https://izanvil.github.io/datasemver/">
+<meta property="og:title" content="DataSemver — semantic versioning for datasets">
+<meta property="og:description" content="Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <a class="brand" href="./">Data<span>Semver</span></a>
+    <nav>
+      <a href="#how">How it decides</a>
+      <a href="#see">See it</a>
+      <a href="#use">Ways in</a>
+      <a href="https://github.com/IzanVil/datasemver">GitHub</a>
+      <a href="https://pypi.org/project/datasemver/">PyPI</a>
+      <a class="lang" href="es/">ES</a>
+    </nav>
+  </header>
+</div>
+
+<div class="wrap">
+  <div class="hero">
+    <p class="eyebrow">Semantic versioning for datasets</p>
+    <h1>Your data changed.<br><em>What should the version be?</em></h1>
+    <p class="lede">
+      DataSemver compares two versions of a dataset, classifies every difference it finds,
+      and answers with the bump they deserve — plus the changelog entry that explains it.
+    </p>
+
+    <!-- The page's one loud thing: the tool's own reasoning, not a claim about it. -->
+    <div class="verdict">
+      <div class="verdict-head">
+        <span class="dot"></span>
+        <span>datasemver diff clientes_v1.csv clientes_v2.csv --current-version 1.4.2</span>
+      </div>
+      <div class="verdict-body">
+        <div class="evidence">
+          <p class="evidence-label">What changed</p>
+          <div class="row">
+            <span class="sev major">major</span>
+            <span class="what">Column <b>legacy_code</b> was removed</span>
+          </div>
+          <div class="row">
+            <span class="sev major">major</span>
+            <span class="what">Column <b>phone</b> changed type from <code>int64</code> to <code>string</code></span>
+          </div>
+          <div class="row">
+            <span class="sev minor">minor</span>
+            <span class="what">Row count grew from 40 to 48 <span style="color:var(--muted)">(+20.00%)</span></span>
+          </div>
+          <div class="row">
+            <span class="sev minor">minor</span>
+            <span class="what">Column <b>country</b> was added</span>
+          </div>
+          <div class="row">
+            <span class="sev patch">patch</span>
+            <span class="what">Column <b>email</b> nulls dropped from 20.0% to 0.0%</span>
+          </div>
+          <div class="row">
+            <span class="sev patch">patch</span>
+            <span class="what">Column <b>monthly_spend</b> mean moved 3.19%</span>
+          </div>
+        </div>
+
+        <div class="outcome">
+          <p class="because">
+            The bump is the strongest severity found. Two changes break what consumers
+            already depend on, so the rest cannot soften it.
+          </p>
+          <span class="bump">major</span>
+          <div class="version">
+            <span class="from">1.4.2</span>
+            <span class="arrow">→</span>
+            <span class="to">2.0.0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="install">
+      <div class="cmd">
+        <span><span class="prompt">$</span> <span id="cmd-text">pip install datasemver</span></span>
+        <button type="button" data-copy="pip install datasemver">Copy</button>
+      </div>
+      <a class="btn" href="https://github.com/IzanVil/datasemver#quick-start">Quick start</a>
+      <a class="btn ghost" href="https://github.com/IzanVil/datasemver">Source</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <dl class="facts">
+    <div class="fact"><dt>Formats</dt><dd class="long">CSV · JSON · Parquet</dd></div>
+    <div class="fact"><dt>Python</dt><dd>3.10 <small>– 3.14</small></dd></div>
+    <div class="fact"><dt>Default rules</dt><dd>16</dd></div>
+    <div class="fact"><dt>Tests</dt><dd>194 <small>· 99%</small></dd></div>
+    <div class="fact"><dt>Licence</dt><dd>MIT</dd></div>
+  </dl>
+</div>
+
+<div class="wrap">
+
+  <section id="why">
+    <h2>Code has SemVer. Data doesn't.</h2>
+    <p class="sub">
+      A dropped column, a phone number that turned into a string, a distribution that quietly
+      shifted. All of them break the people downstream, and all of them usually ship as
+      "updated the dataset". DataSemver makes that impact explicit and reviewable, so a
+      dataset release can be discussed the way a library release is.
+    </p>
+  </section>
+
+  <section id="how">
+    <h2>How it decides</h2>
+    <p class="sub">
+      Every difference is matched against a rule, and each rule carries a severity. The bump
+      is the strongest severity found across all of them. Anything no rule covers is reported
+      as unclassified and never inflates the result.
+    </p>
+
+    <div class="tiers">
+      <div class="tier t-major">
+        <h3>Major — existing queries can break</h3>
+        <p>Something consumers already depend on is gone or has changed meaning.</p>
+        <ul>
+          <li>column_removed</li><li>type_changed_incompatible</li>
+          <li>column_renamed</li><li>distribution_shift</li>
+        </ul>
+      </div>
+      <div class="tier t-minor">
+        <h3>Minor — new information, contracts hold</h3>
+        <p>There is more than there was, and nothing that was there has moved.</p>
+        <ul>
+          <li>column_added</li><li>row_count_increased</li>
+          <li>new_category_added</li><li>cardinality_changed</li>
+        </ul>
+      </div>
+      <div class="tier t-patch">
+        <h3>Patch — same meaning, better data</h3>
+        <p>The dataset says what it said before, with fewer gaps or less noise.</p>
+        <ul>
+          <li>nulls_fixed</li><li>minor_stat_change</li>
+          <li>type_changed_compatible</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="sub" style="margin-top:1.8rem">
+      Severity is a property of your rules file, not of the change. The bundled defaults are
+      one opinion; <a href="https://github.com/IzanVil/datasemver/blob/main/examples">strict and lenient profiles</a>
+      ship alongside, and the
+      <a href="https://github.com/IzanVil/datasemver/blob/main/docs/rules.md">full catalogue</a>
+      lists every rule, metric and threshold.
+    </p>
+  </section>
+
+  <section id="see">
+    <h2>See it</h2>
+    <p class="sub">
+      The command prints the bump, the column comparison and the classified changes, then the
+      changelog entry. Nothing is written unless you ask with <code>--output</code>.
+    </p>
+
+    <figure>
+      <img src="assets/cli-diff.png" width="1287" height="1222" loading="lazy"
+           alt="Terminal running datasemver diff: a panel reading suggested bump MAJOR, 0.0.0 to 1.0.0, a table comparing each column's type, nulls and cardinality, a table classifying seven changes by severity, and the generated changelog entry.">
+      <figcaption>
+        A removed column and an <code>int64</code> that became a <code>string</code> make this
+        a breaking release. The changelog entry comes out with it.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="assets/cli-delimiter.png" width="1287" height="881" loading="lazy"
+           alt="Terminal running datasemver diff on two semicolon-delimited CSV files, correctly splitting them into five columns and reporting a MINOR bump from 1.4.2 to 1.5.0.">
+      <figcaption>
+        Delimiters are detected, not assumed. This export separates with semicolons while every
+        amount also contains a comma — the comma never reaches the header, so the semicolon wins.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="assets/dashboard-report.png" width="1049" height="925" loading="lazy"
+           alt="The web dashboard showing the same comparison: a MAJOR badge beside 1.4.2 to 2.0.0, tiles for rows, columns and change count, and a table of the six classified changes.">
+      <figcaption>
+        The same analysis in the browser. The dashboard is a client of the library, not a fork
+        of it: it calls the same function and shows the same report.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section id="use">
+    <h2>Four ways in</h2>
+    <p class="sub">All four return the same report.</p>
+
+    <div class="ways">
+      <div class="way">
+        <h3>Command line</h3>
+        <p><code>datasemver diff old.csv new.csv</code>, and <code>--json</code> when a script needs to read the answer.</p>
+        <code>pip install datasemver</code>
+      </div>
+      <div class="way">
+        <h3>Python library</h3>
+        <p><code>analyze()</code> for two paths, <code>analyze_schemas()</code> for dataframes you already have in memory.</p>
+        <code>from datasemver import analyze</code>
+      </div>
+      <div class="way">
+        <h3>Web dashboard</h3>
+        <p>Upload two files or pick two versions from a directory. A local tool with no authentication — keep it on loopback.</p>
+        <code>pip install "datasemver[web]"</code>
+      </div>
+      <div class="way">
+        <h3>GitHub Action</h3>
+        <p>Analyses the datasets a pull request touches and posts the suggested bump as a comment, rewritten on each push.</p>
+        <code>scripts/run_datasemver_on_pr.py</code>
+      </div>
+    </div>
+
+<pre><span class="c"># the bump, ready for a release script</span>
+BUMP=$(datasemver diff old.csv new.csv <span class="k">--json</span> | jq -r '.bump')
+
+<span class="c"># the changelog entry, prepended to a file you keep</span>
+datasemver diff old.csv new.csv <span class="k">--current-version</span> "$(cat VERSION)" <span class="k">--output</span> CHANGELOG.md</pre>
+  </section>
+
+  <section id="get">
+    <h2>Get it</h2>
+    <p class="sub">
+      Python 3.10 or newer. The package ships typed, and releases are published from CI
+      through Trusted Publishing with signed provenance — no long-lived token exists.
+    </p>
+    <div class="install">
+      <div class="cmd">
+        <span><span class="prompt">$</span> pip install datasemver</span>
+        <button type="button" data-copy="pip install datasemver">Copy</button>
+      </div>
+      <a class="btn" href="https://pypi.org/project/datasemver/">View on PyPI</a>
+    </div>
+  </section>
+
+</div>
+
+<div class="wrap">
+  <footer>
+    <div class="footlinks">
+      <a href="https://github.com/IzanVil/datasemver">Source</a>
+      <a href="https://pypi.org/project/datasemver/">PyPI</a>
+      <a href="https://github.com/IzanVil/datasemver/blob/main/docs/rules.md">Rule catalogue</a>
+      <a href="https://github.com/IzanVil/datasemver/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/IzanVil/datasemver/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/IzanVil/datasemver/issues">Issues</a>
+      <a href="es/">Español</a>
+    </div>
+    <p>
+      DataSemver is MIT licensed. Built by
+      <a href="https://github.com/IzanVil">Izan Vilchez</a>.
+    </p>
+  </footer>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const original = button.textContent;
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Press Ctrl+C";
+      }
+      setTimeout(() => { button.textContent = original; }, 1600);
+    });
+  }
+</script>
+
+</body>
+</html>

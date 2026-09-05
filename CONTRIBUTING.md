@@ -22,7 +22,11 @@ datasemver diff tests/fixtures/old.csv tests/fixtures/new.csv
 pytest
 ```
 
-Python 3.10 or newer is required. Development dependencies are declared in the `dev` extra
+Python 3.10 or newer is required. CI runs the suite on Linux across every supported version
+and on macOS and Windows at both ends of the range, because this library reads files, sniffs
+line endings and shells out to git, and those differ by platform. `.gitattributes` pins text
+files to LF so a Windows checkout does not rewrite the fixtures and leave the suite measuring
+the clone. Development dependencies are declared in the `dev` extra
 of `pyproject.toml`; `requirements.txt` is kept for the plain `pip install -r` workflow.
 
 ## Running the tests

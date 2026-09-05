@@ -132,6 +132,23 @@ Most contributions fall into this shape. The path through the code is:
 Detections should be quiet by default: a rule that fires on every dataset is noise, and
 noise is what makes the bump untrustworthy.
 
+## The site
+
+<https://izanvil.github.io/datasemver/> is served from the `gh-pages` branch, which shares
+no history with `main`. The page is a marketing surface and this branch is a Python package;
+keeping the composition of one out of the tree of the other is the whole reason for the
+split.
+
+```bash
+git fetch origin gh-pages
+git worktree add ../datasemver-site gh-pages
+```
+
+The captures it shows are not copied there. They are referenced from `main` by absolute URL,
+the same files the READMEs embed, so the page cannot drift into showing output the
+documentation does not. Regenerate them with `python scripts/capture_cli.py` on `main` and
+the site picks them up with no second commit.
+
 ## Actions and dependencies
 
 Every action is pinned to a commit SHA, with the version it corresponds to in a trailing

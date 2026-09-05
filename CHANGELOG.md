@@ -11,10 +11,15 @@ This project follows [Semantic Versioning](https://semver.org).
 ### Minor
 - A project site at <https://izanvil.github.io/datasemver/>, English at the root and Spanish
   at `/es/`. It answers "what is this and why would I want it" for someone who has not
-  already decided to read a README. The hero shows the tool's own reasoning — six real
-  changes, each with its severity, and the strongest one carrying the version — rather than
-  asserting the conclusion. It lives in this repository and is served by Pages from `docs/`,
-  so it reuses the same capture files the READMEs embed and cannot drift from them.
+  already decided to read a README. The hero is the real terminal capture rather than a
+  reconstruction of one in markup, which is both more honest and less work. Both colour
+  schemes are supported, since a page that only exists in the dark meets half its readers on
+  the wrong footing.
+- The page is served from an orphan `gh-pages` branch rather than from `docs/` on `main`.
+  A package repository should read as a package repository, and the composition of a
+  marketing page in its tree works against that. The captures stay on `main` and are
+  referenced by absolute URL, so nothing is duplicated and the page cannot drift from the
+  documentation.
 - `Homepage` in the package metadata now points at the site; `Repository` still points at
   the repository.
 

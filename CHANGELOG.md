@@ -9,6 +9,19 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Patch
+- Reading a dataset is roughly twice as fast, with the report unchanged down to the byte.
+  Measuring first said the cost was not where it looked: profiling every column is 8% of a
+  run and comparing two profiles does not register, while `infer_types` was most of it. It
+  derived the stripped values separately inside each of the three candidate converters, so a
+  column of plain text paid for the same full copy three times over, once per type it was
+  never going to be. They are computed once and shared now.
+- A column that cannot convert is rejected on a sample rather than on all of it. The check
+  only ever rejects: a sample that passes proves nothing and the full check still runs, so
+  the answer is identical to testing every value. A million rows of free text no longer have
+  to be parsed as numbers before anyone can say they are not numbers. Two tests pin the
+  soundness by putting the disqualifying value past the sample, where a check that trusted a
+  passing sample would convert the column and lose it.
+- On a pair of 60 MB files that is 18.1s to 8.5s end to end, and 7.2 MB/s to 15.2 MB/s.
 - The suite runs on macOS and Windows as well as Linux. The matrix covered five versions of
   Python and one operating system, which made the supported-platform claim a claim rather
   than a check: this library reads files, sniffs line endings to choose a CSV delimiter, and

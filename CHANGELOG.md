@@ -8,6 +8,15 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- The coverage badge is gone, because it read `unknown`. Nothing was ever uploaded: the
+  workflow passed a `CODECOV_TOKEN` that does not exist, the action logged `Token required`,
+  and `fail_ci_if_error: false` turned that into a green step. A badge that claims nothing
+  while looking like it claims something is worse than no badge, and a step that always
+  fails quietly is worse than one that is skipped. The upload now runs only when a token is
+  configured, and `CONTRIBUTING` says how to configure one. The 85% floor is enforced in
+  `pyproject.toml` either way, which is where the guarantee actually lives.
+
 ## [0.3.0] - 2026-09-05
 
 ### Minor

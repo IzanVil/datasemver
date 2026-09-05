@@ -5,7 +5,6 @@
 **Tus datos han cambiado. DataSemver te dice si eso es un patch, un minor o una versión que rompe.**
 
 [![Tests](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml/badge.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
-[![Coverage](https://codecov.io/gh/IzanVil/datasemver/branch/main/graph/badge.svg)](https://codecov.io/gh/IzanVil/datasemver)
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![Platforms](https://img.shields.io/badge/tested%20on-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)

@@ -93,6 +93,14 @@ ruff format --check .  # formatting
 mypy                   # types
 ```
 
+Coverage is measured on every run and the floor of 85% is enforced by `pyproject.toml`, so
+a run that drops below it fails whether or not anything is reporting the number elsewhere.
+
+Publishing that number to Codecov is optional and currently off: the workflow skips the
+upload unless a `CODECOV_TOKEN` repository secret exists. To turn it on, connect the
+repository at codecov.io, then `gh secret set CODECOV_TOKEN`. Until then there is no badge,
+because a badge reading "unknown" claims less than nothing.
+
 `ruff format .` writes the changes rather than reporting them. Markdown is excluded from
 both ruff commands: the Python blocks inside the READMEs are aligned for reading, not to a
 formatter's rules.

@@ -4,6 +4,8 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
+**[datasemver on the web](https://izanvil.github.io/datasemver/)** — what it does and why, with the output shown rather than described.
+
 **Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.**
 
 DataSemver compares two versions of a CSV, JSON or Parquet dataset, classifies every

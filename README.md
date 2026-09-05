@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/IzanVil/datasemver/blob/main/LICENSE)
 
-**English** · [Español](https://github.com/IzanVil/datasemver/blob/main/README.es.md)
+[**Website**](https://izanvil.github.io/datasemver/) · **English** · [Español](https://github.com/IzanVil/datasemver/blob/main/README.es.md)
 
 </div>
 

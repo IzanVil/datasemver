@@ -72,7 +72,7 @@ web = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/IzanVil/datasemver"
+Homepage = "https://izanvil.github.io/datasemver/"
 Repository = "https://github.com/IzanVil/datasemver"
 Issues = "https://github.com/IzanVil/datasemver/issues"
 

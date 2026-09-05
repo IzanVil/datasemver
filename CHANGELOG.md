@@ -8,6 +8,16 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- A project site at <https://izanvil.github.io/datasemver/>, English at the root and Spanish
+  at `/es/`. It answers "what is this and why would I want it" for someone who has not
+  already decided to read a README. The hero shows the tool's own reasoning — six real
+  changes, each with its severity, and the strongest one carrying the version — rather than
+  asserting the conclusion. It lives in this repository and is served by Pages from `docs/`,
+  so it reuses the same capture files the READMEs embed and cannot drift from them.
+- `Homepage` in the package metadata now points at the site; `Repository` still points at
+  the repository.
+
 ### Patch
 - Releases publish through Trusted Publishing instead of an API token. The workflow mints a
   short-lived OIDC credential naming the repository, workflow file and environment it came

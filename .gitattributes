@@ -1,0 +1,9 @@
+# Keep every text file in the repository at LF, whatever the platform checking it out.
+# Without this, a Windows clone rewrites the CSV and JSON fixtures to CRLF, and the suite
+# then measures the checkout rather than the library. DataSemver reads CRLF correctly
+# either way: `_sample_lines` opens with `newline=""` and strips it.
+* text=auto eol=lf
+
+*.png binary
+*.parquet binary
+*.cast binary

@@ -48,13 +48,19 @@ jobs:
       - name: Run the test suite
         run: pytest --cov-report=term-missing --cov-report=xml
 
+      # Skipped rather than run-and-fail when no token is configured. Without the guard
+      # the step uploads nothing, logs "Token required", and still reports success, which
+      # is the worst of the three possible outcomes.
       - name: Upload the coverage report
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        if: >-
+          matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+          && env.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: coverage.xml
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Check that the package builds
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'

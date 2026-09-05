@@ -456,3 +456,57 @@ def test_delimiter_detection_only_samples_the_first_lines(tmp_path):
 
     assert detect_delimiter(path) == ";"
     assert len(load_frame(path)) == 50
+
+
+# --- inference on columns longer than the sample -------------------------------------------
+
+
+def test_a_long_text_column_stays_text():
+    """The rejection path only runs above the sample size, so short fixtures never reach it."""
+    frame = pd.DataFrame({"email": [f"user{index}@example.com" for index in range(5_000)]})
+
+    assert canonical_dtype(infer_types(frame)["email"]) == "string"
+
+
+def test_a_value_past_the_sample_still_blocks_the_conversion():
+    """The sample may reject a column, never accept one.
+
+    Two thousand numeric strings followed by one word: a sample taken from the head sees
+    only numbers. If passing the sample were taken as proof, this column would be converted
+    and the stray value silently lost.
+    """
+    values = [str(index) for index in range(2_000)] + ["not a number"]
+    frame = pd.DataFrame({"code": values})
+
+    inferred = infer_types(frame)
+
+    assert canonical_dtype(inferred["code"]) == "string"
+    assert inferred["code"].iloc[-1] == "not a number"
+
+
+def test_a_date_past_the_sample_still_blocks_the_conversion():
+    values = [f"2026-01-{(index % 28) + 1:02d}" for index in range(2_000)] + ["last tuesday"]
+    frame = pd.DataFrame({"seen": values})
+
+    assert canonical_dtype(infer_types(frame)["seen"]) == "string"
+
+
+def test_a_long_numeric_column_still_converts():
+    frame = pd.DataFrame({"score": [str(index) for index in range(3_000)]})
+
+    inferred = infer_types(frame)
+
+    assert canonical_dtype(inferred["score"]) == "int64"
+    assert inferred["score"].iloc[-1] == 2_999
+
+
+def test_a_long_date_column_still_converts():
+    frame = pd.DataFrame({"day": [f"2026-01-{(index % 28) + 1:02d}" for index in range(3_000)]})
+
+    assert canonical_dtype(infer_types(frame)["day"]) == "datetime64"
+
+
+def test_a_long_boolean_column_still_converts():
+    frame = pd.DataFrame({"flag": ["true", "false"] * 1_500})
+
+    assert canonical_dtype(infer_types(frame)["flag"]) == "bool"

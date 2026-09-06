@@ -41,6 +41,7 @@ datos, ni ningún servicio corriendo.
 - [Versionado semántico para datos](#versionado-semántico-para-datos)
 - [Referencia de comandos](#referencia-de-comandos)
 - [Bases de datos](#bases-de-datos)
+- [DVC](#dvc)
 - [Configuración: reglas en YAML](#configuración-reglas-en-yaml)
 - [API de Python](#api-de-python)
 - [GitHub Action](#github-action)
@@ -227,6 +228,7 @@ Lo que DataSemver mira:
 
 ```bash
 datasemver diff OLD NEW [OPTIONS]
+datasemver dvc [DATASETS...] [OPTIONS]
 datasemver rules [RULES_FILE]
 python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 ```
@@ -356,6 +358,105 @@ consultas, sin cualificar el esquema, y lee la tabla entera porque el perfil com
 de filas y estadísticos de columna, que una lectura parcial reportaría mal. Los tipos vienen
 de la base de datos en vez de adivinarse, así que una columna declarada `TEXT` sigue siendo
 texto aunque todos sus valores parezcan numéricos.
+
+## DVC
+
+[DVC](https://dvc.org) versiona datasets manteniéndolos fuera de git: un commit guarda un
+puntero `.dvc` con un hash, y los bytes viven en una caché local o en un remoto. Por eso la
+versión anterior de un dataset no se puede leer con `git show` — ahí no hay nada que leer. Hay
+que pedírsela a DVC, y eso es lo que hace este comando.
+
+```bash
+pip install dvc          # DataSemver no depende de él
+datasemver dvc --rev HEAD^
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-dvc.png" width="880"
+       alt="Terminal mostrando datasemver dvc: un panel que indica Suggested bump MINOR de HEAD^ al árbol de trabajo, y una tabla con data/ventas.csv como modificado, pasando de 1.4.2 a 1.5.0 con tres cambios clasificados.">
+</p>
+
+<p align="center">
+  <sub>La versión de partida, <code>1.4.2</code>, se leyó del fichero
+  <code>data/ventas.csv.version</code> registrado en la revisión base.</sub>
+</p>
+
+Ejecuta `dvc diff`, se queda con las entradas que son datasets en un formato que DataSemver
+lee, recupera cada versión anterior con `dvc get` y la compara con la nueva.
+
+| Opción | Por defecto | Qué hace |
+| --- | --- | --- |
+| `--rev` | `HEAD^` | Revisión desde la que comparar |
+| `--to` | el árbol de trabajo | Revisión hasta la que comparar |
+| `--repo` | el directorio actual | Ruta del repositorio DVC |
+| `--json` | desactivado | Imprime la ejecución como JSON en vez de la tabla |
+| `--output RUTA` | | Escribe un informe Markdown en un fichero |
+| `--current-version` | `0.0.0` | Versión desde la que subir cuando el dataset no registra ninguna |
+| `--rules RUTA` | las reglas incluidas | Fichero de reglas que sustituye a las de serie |
+
+Nombrar datasets limita la ejecución a esos: `datasemver dvc data/clientes.csv`.
+
+Solo se comparan los datasets `modified` y `renamed`, porque son los que existen a ambos lados
+del rango; un renombrado se lee con cada uno de sus dos nombres. Un dataset añadido o borrado
+aparece como omitido, con el motivo. Todo lo demás que DVC versiona — modelos, imágenes,
+archivos comprimidos — queda fuera por su extensión.
+
+DVC nunca se importa. Se ejecuta como comando, así que puede vivir en otro entorno (lo habitual
+es una instalación con `pipx` o `brew`) y DataSemver sigue funcionando sin él. Si falta, el
+comando lo dice y explica cómo instalarlo.
+
+### Remotos
+
+La comparación lee el espacio de trabajo y la caché locales, así que un dato que nunca se ha
+descargado no está ahí para compararlo. Ejecuta `dvc pull` antes. DVC informa de una caché
+vacía como "unexpected error", que parece un fallo del programa en lugar de un `dvc pull` que
+falta, así que ese caso se traduce a una frase que nombra `dvc pull`.
+
+### Mantener al día el fichero de versión
+
+Para esto está `--json`. Cada dataset lleva la versión a la que debe pasar:
+
+```bash
+datasemver dvc --rev HEAD^ --json \
+  | jq -r '.datasets[] | [.next_version, .path] | @tsv' \
+  | while IFS=$'\t' read -r version path; do printf '%s\n' "$version" > "$path.version"; done
+```
+
+El fichero lateral son unos pocos bytes de texto, así que lo versiona git y no DVC, y
+DataSemver lo lee directamente de la revisión base. Eso es lo que hace que cada subida continúe
+desde la anterior en lugar de empezar de nuevo en `0.0.0` cada vez.
+
+### Como etapa de un pipeline
+
+El comando funciona dentro de `dvc repro`:
+
+```yaml
+stages:
+  version:
+    cmd: datasemver dvc --rev HEAD^ --output report.md
+    deps:
+      - data/raw.csv
+    outs:
+      - report.md
+```
+
+Esa etapa responde a "qué ha cambiado desde el último commit". Para comparar dos datasets que
+produce el propio pipeline — otra pregunta distinta, y la más habitual en un `dvc.yaml` — usa
+`datasemver diff` sobre los dos ficheros directamente:
+
+```yaml
+stages:
+  validate:
+    cmd: >-
+      datasemver diff data/raw.csv data/processed.csv
+      --current-version $(cat data/processed.csv.version)
+      --output CHANGELOG.md
+    deps:
+      - data/raw.csv
+      - data/processed.csv
+    outs:
+      - CHANGELOG.md
+```
 
 ## API de Python
 
@@ -585,10 +686,13 @@ datasemver/
 │   └── models.py         modelos pydantic compartidos por el pipeline
 ├── formats/
 │   ├── loader.py         lectores de CSV, JSON y Parquet
+│   ├── sql.py            tablas de base de datos leídas como datasets
 │   └── utils.py          inferencia de tipos y perfilado de columnas
 ├── rules/
 │   ├── engine.py         parseo de reglas y asignación de severidad
 │   └── default_rules.yaml
+├── integrations/
+│   └── dvc.py            ejecución sobre los datasets que versiona DVC
 ├── utils/
 │   ├── similarity.py     heurísticas de detección de renombrados
 │   └── version.py        aritmética de versiones semánticas
@@ -598,7 +702,7 @@ CHANGELOG.md              las versiones del propio proyecto
 docs/rules.md             catálogo de reglas
 examples/                 perfiles de reglas alternativos
 scripts/                  ayudante de CI que analiza los datasets que toca una rama
-web/                      backend FastAPI y frontend estático del panel
+datasemver_web/           backend FastAPI y frontend estático del panel
 datasets/                 datasets versionados de ejemplo para el histórico del panel
 .github/workflows/        análisis de pull requests, matriz de tests y publicación
 tests/                    suite de pytest y fixtures de datasets

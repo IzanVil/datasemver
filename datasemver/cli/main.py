@@ -14,6 +14,7 @@ from rich.table import Table
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.changelog import render_entry, severity_label, write_changelog
 from datasemver.core.models import AnalysisReport, ColumnStatus, Severity
+from datasemver.integrations import dvc as dvc_integration
 from datasemver.rules.engine import EVALUATION_ORDER, RuleError, load_rules
 from datasemver.utils.version import InvalidVersionError
 
@@ -150,6 +151,120 @@ def _percent(value: float | None) -> str:
 
 def _number(value: int | None) -> str:
     return "-" if value is None else str(value)
+
+
+@app.command("dvc")
+def dvc(
+    paths: Annotated[
+        list[str] | None,
+        typer.Argument(help="Limit the run to these datasets; defaults to everything changed."),
+    ] = None,
+    rev: Annotated[
+        str,
+        typer.Option("--rev", help="Revision to compare from."),
+    ] = "HEAD^",
+    to_rev: Annotated[
+        str | None,
+        typer.Option("--to", help="Revision to compare to; defaults to the working tree."),
+    ] = None,
+    repo: Annotated[
+        Path,
+        typer.Option("--repo", help="Path to the DVC repository."),
+    ] = Path(),
+    rules: Annotated[
+        Path | None,
+        typer.Option("--rules", "-r", help="Custom rules file overriding the defaults."),
+    ] = None,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the run as JSON instead of a table.")
+    ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help="Write a Markdown report to this file."),
+    ] = None,
+    current_version: Annotated[
+        str,
+        typer.Option(
+            "--current-version",
+            "-c",
+            help="Version to bump from when a dataset records none beside it.",
+        ),
+    ] = DEFAULT_VERSION,
+) -> None:
+    """Analyse the datasets DVC reports as changed between two revisions."""
+    try:
+        reports, skipped = dvc_integration.analyse(
+            repo=repo,
+            rev=rev,
+            to_rev=to_rev,
+            paths=list(paths) if paths else None,
+            current_version=current_version,
+            rules=rules,
+        )
+    except (dvc_integration.DvcError, RuleError, InvalidVersionError) as error:
+        error_console.print(f"[bold red]error:[/] {error}")
+        raise typer.Exit(code=2) from error
+
+    if output is not None:
+        output.write_text(
+            dvc_integration.render_markdown(reports, skipped, rev, to_rev), encoding="utf-8"
+        )
+
+    if as_json:
+        console.print_json(json.dumps(dvc_integration.as_payload(reports, skipped, rev, to_rev)))
+        return
+
+    _render_dvc_run(reports, skipped, rev, to_rev, output)
+
+
+def _render_dvc_run(
+    reports: list[dvc_integration.DatasetReport],
+    skipped: list[tuple[str, str]],
+    rev: str,
+    to_rev: str | None,
+    output: Path | None,
+) -> None:
+    target = to_rev or "working tree"
+    if not reports:
+        console.print(f"[dim]no versioned dataset changed between {rev} and {target}[/]")
+    else:
+        overall = max(reports, key=lambda report: report.rank).bump
+        style = SEVERITY_COLORS.get(Severity(overall), "bold blue") if overall else "bold blue"
+        console.print(
+            Panel(
+                f"[{style}]Suggested bump: {(overall or 'none').upper()}[/]\n{rev} -> {target}",
+                title="DataSemver over DVC",
+                expand=False,
+            )
+        )
+        console.print(_dvc_table(reports))
+
+    for path, reason in skipped:
+        console.print(f"[dim]skipped {path}: {reason}[/]")
+
+    if output is not None:
+        console.print(f"[dim]report written to {output}[/]")
+
+
+def _dvc_table(reports: list[dvc_integration.DatasetReport]) -> Table:
+    table = Table(title="Datasets", header_style="bold")
+    for header in ("dataset", "status", "current", "suggested", "bump", "changes"):
+        table.add_column(header)
+    for report in dvc_integration.ranked(reports):
+        name = report.path
+        if report.renamed_from:
+            name += f"\n[dim]was {report.renamed_from}[/]"
+        bump = report.bump or "none"
+        style = SEVERITY_COLORS.get(Severity(report.bump), "dim") if report.bump else "dim"
+        table.add_row(
+            name,
+            report.status,
+            report.current_version,
+            report.next_version,
+            f"[{style}]{bump.upper()}[/]",
+            str(len(report.changes)),
+        )
+    return table
 
 
 @app.command("rules")

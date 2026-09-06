@@ -8,6 +8,21 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- `datasemver dvc` compares the datasets DVC reports as changed between two revisions. DVC
+  keeps data out of git — a commit records a `.dvc` pointer holding a hash, and the bytes live
+  in a cache or a remote — so the previous version cannot be read with `git show` the way the
+  pull request script reads it. It is fetched with `dvc get` instead. Renamed datasets are read
+  under each of their two names; added and deleted ones are reported as skipped, with the
+  reason. `--json` and `--output` give the run as structured data or as a Markdown report, and
+  the version each comparison starts from is read from the `.version` sidecar in the base
+  revision, so a bump continues from the last one rather than restarting at `0.0.0`.
+- DVC is never imported. It is run as a command, so it can live in a different environment and
+  DataSemver still installs and runs without it. The two failures a first-time user hits — no
+  DVC on PATH, and data that was never pulled — are translated into sentences that name
+  `pip install dvc` and `dvc pull`; DVC reports the second as "unexpected error", which reads
+  like a bug rather than a missing pull.
+
 ### Patch
 - Tests for the paths and text that behave differently by operating system: directory names
   with spaces, with accents and outside Latin-1, a changelog written to and prepended in such

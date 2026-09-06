@@ -112,6 +112,19 @@ def main() -> int:
                 sales,
             ),
         ]
+        dvc_repo = _build_dvc_repo(Path(tmp) / "dvc-demo")
+        if dvc_repo is not None:
+            captures.append(
+                Capture(
+                    "cli-dvc",
+                    "datasemver dvc",
+                    ["dvc", "--repo", str(dvc_repo), "--rev", "HEAD^"],
+                    dvc_repo,
+                )
+            )
+        else:
+            print("dvc is not installed; cli-dvc was left untouched.")
+
         written = [_record(capture) for capture in captures]
 
     rasteriser = _find_rasteriser()
@@ -124,6 +137,39 @@ def main() -> int:
     for svg in written:
         _rasterise(rasteriser, svg)
     return 0
+
+
+def _build_dvc_repo(root: Path) -> Path | None:
+    """A throwaway DVC repository holding two revisions of one dataset, or None.
+
+    The capture has to be a real run like the others, and a real run of this command needs a
+    repository where DVC actually tracks something. Building one costs a few seconds and is
+    skipped entirely when DVC is not installed, the same way the rasterising step is.
+    """
+    if shutil.which("dvc") is None:
+        return None
+
+    (root / "data").mkdir(parents=True)
+
+    def run(*args: str) -> None:
+        subprocess.run(args, cwd=root, check=True, capture_output=True)
+
+    subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True, capture_output=True)
+    run("git", "config", "user.email", "demo@example.invalid")
+    run("git", "config", "user.name", "Demo")
+    run("dvc", "init", "-q")
+
+    (root / "data" / "ventas.csv").write_text(SEMICOLON_V1, encoding="utf-8")
+    run("dvc", "add", "data/ventas.csv", "-q")
+    (root / "data" / "ventas.csv.version").write_text("1.4.2\n", encoding="utf-8")
+    run("git", "add", "-A")
+    run("git", "commit", "-qm", "ventas 1.4.2")
+
+    (root / "data" / "ventas.csv").write_text(SEMICOLON_V2, encoding="utf-8")
+    run("dvc", "add", "data/ventas.csv", "-q")
+    run("git", "add", "-A")
+    run("git", "commit", "-qm", "nuevo canal de venta")
+    return root
 
 
 def _write_semicolon_pair(root: Path) -> Path:

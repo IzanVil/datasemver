@@ -40,6 +40,7 @@ and it needs no schema registry, no database and no service running.
 - [Semantic versioning for data](#semantic-versioning-for-data)
 - [Command reference](#command-reference)
 - [Databases](#databases)
+- [DVC](#dvc)
 - [Configuration: rules in YAML](#configuration-rules-in-yaml)
 - [Python API](#python-api)
 - [GitHub Action](#github-action)
@@ -223,6 +224,7 @@ What DataSemver looks at:
 
 ```bash
 datasemver diff OLD NEW [OPTIONS]
+datasemver dvc [DATASETS...] [OPTIONS]
 datasemver rules [RULES_FILE]
 python -m datasemver diff OLD NEW     # equivalent, no installation needed
 ```
@@ -348,6 +350,105 @@ What it does not do yet: only whole tables, named directly. No views, no queries
 qualification, and the whole table is read because the profile compares row counts and column
 statistics, which a partial read would misreport. Types come from the database rather than
 being guessed, so a column declared `TEXT` stays text even when every value looks numeric.
+
+## DVC
+
+[DVC](https://dvc.org) versions datasets by keeping them out of git: a commit records a `.dvc`
+pointer holding a hash, and the bytes live in a local cache or a remote. So the previous
+version of a dataset cannot be read with `git show` — there is nothing there to read. It has
+to be asked of DVC, and that is what this command does.
+
+```bash
+pip install dvc          # DataSemver does not depend on it
+datasemver dvc --rev HEAD^
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-dvc.png" width="880"
+       alt="Terminal showing datasemver dvc: a panel reading Suggested bump MINOR from HEAD^ to the working tree, and a table listing data/ventas.csv as modified, going from 1.4.2 to 1.5.0 with three classified changes.">
+</p>
+
+<p align="center">
+  <sub>The version it starts from, <code>1.4.2</code>, was read out of the
+  <code>data/ventas.csv.version</code> file recorded in the base revision.</sub>
+</p>
+
+It runs `dvc diff`, keeps the entries that are datasets in a format DataSemver reads, fetches
+each previous version with `dvc get`, and compares it against the newer one.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `--rev` | `HEAD^` | Revision to compare from |
+| `--to` | the working tree | Revision to compare to |
+| `--repo` | the current directory | Path to the DVC repository |
+| `--json` | off | Print the run as JSON instead of the table |
+| `--output PATH` | | Write a Markdown report to a file |
+| `--current-version` | `0.0.0` | Version to bump from when a dataset records none beside it |
+| `--rules PATH` | the bundled rules | Rules file replacing the defaults |
+
+Naming datasets limits the run to those: `datasemver dvc data/customers.csv`.
+
+Only `modified` and `renamed` datasets are compared, because those are the ones that exist on
+both sides of the range; a rename is read under each of its two names. An added or deleted
+dataset is listed as skipped, with the reason. Everything else DVC tracks — models, images,
+archives — is left out by extension.
+
+DVC is never imported. It is run as a command, so it can live in a different environment (a
+`pipx` or `brew` install is the usual case) and DataSemver keeps working without it. When it is
+missing, the command says so and how to install it.
+
+### Remotes
+
+The comparison reads the local workspace and the local cache, so data that was never pulled is
+not there to compare. Run `dvc pull` first. DVC reports a missing cache as "unexpected error",
+which reads like a bug rather than a missing pull, so that one is translated into a sentence
+naming `dvc pull`.
+
+### Keeping the version file up to date
+
+This is what `--json` is for. Every dataset carries the version it should move to:
+
+```bash
+datasemver dvc --rev HEAD^ --json \
+  | jq -r '.datasets[] | [.next_version, .path] | @tsv' \
+  | while IFS=$'\t' read -r version path; do printf '%s\n' "$version" > "$path.version"; done
+```
+
+The sidecar is a few bytes of text, so git tracks it rather than DVC and DataSemver reads it
+straight out of the base revision. That is what makes each bump continue from the last one
+instead of restarting at `0.0.0` every time.
+
+### As a pipeline stage
+
+The command works inside `dvc repro`:
+
+```yaml
+stages:
+  version:
+    cmd: datasemver dvc --rev HEAD^ --output report.md
+    deps:
+      - data/raw.csv
+    outs:
+      - report.md
+```
+
+That stage answers "what changed since the last commit". To compare two datasets the pipeline
+itself produces — a different question, and the more common one in a `dvc.yaml` — use
+`datasemver diff` on the two files directly:
+
+```yaml
+stages:
+  validate:
+    cmd: >-
+      datasemver diff data/raw.csv data/processed.csv
+      --current-version $(cat data/processed.csv.version)
+      --output CHANGELOG.md
+    deps:
+      - data/raw.csv
+      - data/processed.csv
+    outs:
+      - CHANGELOG.md
+```
 
 ## Python API
 
@@ -573,10 +674,13 @@ datasemver/
 │   └── models.py         pydantic models shared across the pipeline
 ├── formats/
 │   ├── loader.py         CSV, JSON and Parquet readers
+│   ├── sql.py            database tables read as datasets
 │   └── utils.py          type inference and column profiling
 ├── rules/
 │   ├── engine.py         rule parsing and severity assignment
 │   └── default_rules.yaml
+├── integrations/
+│   └── dvc.py            running over the datasets DVC versions
 ├── utils/
 │   ├── similarity.py     rename detection heuristics
 │   └── version.py        semantic version arithmetic
@@ -586,7 +690,7 @@ CHANGELOG.md              the project's own versions
 docs/rules.md             rule catalogue
 examples/                 alternative rule profiles
 scripts/                  CI helper that analyses the datasets a branch touches
-web/                      FastAPI backend and static frontend for the dashboard
+datasemver_web/           FastAPI backend and static frontend for the dashboard
 datasets/                 sample versioned datasets for the dashboard history view
 .github/workflows/        pull request analysis, the test matrix and the release
 tests/                    pytest suite and dataset fixtures

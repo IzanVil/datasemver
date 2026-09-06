@@ -93,6 +93,12 @@ pip install -e ".[dev]"
 pip install "datasemver[web]"
 ```
 
+DataSemver se prueba en Linux, macOS y Windows. La suite incluye rutas con espacios, tildes
+y caracteres fuera de Latin-1, además de ficheros con los finales de línea que escribe
+Windows, porque son las diferencias que no se ven en una sola máquina. Cada fichero que la
+librería lee o escribe indica su codificación, así que el cp1252 por defecto de Windows nunca
+llega a opinar.
+
 Requiere Python 3.10 o superior. El paquete se distribuye tipado (`py.typed`), así que los
 verificadores de tipos ven las anotaciones de cada función pública.
 

@@ -37,6 +37,12 @@ This project follows [Semantic Versioning](https://semver.org).
   like a bug rather than a missing pull.
 
 ### Patch
+- The CLI no longer dies when its output is redirected on Windows. Rich reaches for the
+  pre-VT Windows console API whenever it cannot confirm the terminal understands escape
+  sequences, and it cannot confirm that through a pipe, because `GetConsoleMode` fails on a
+  pipe handle. It then called that API on the pipe: `datasemver rules | findstr x` ended in
+  `OSError: [Errno 22] Invalid argument`. The suite never saw it because the test runner
+  replaces stdout with an object that has no file descriptor at all.
 - Errors printed by the CLI no longer lose anything inside square brackets. Rich read them as
   style tags, so the advice for reading a database arrived as `pip install "datasemver"` —
   which installs the wrong thing — instead of `pip install "datasemver[sql]"`. Every error the

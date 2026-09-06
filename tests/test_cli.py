@@ -174,3 +174,14 @@ def test_square_brackets_in_an_error_reach_the_terminal(old_csv, new_csv, monkey
 
     assert result.exit_code == 2
     assert "datasemver[sql]" in result.output
+
+
+def test_the_console_does_not_use_the_pre_vt_windows_api():
+    """Rich falls back to the Win32 console API when it cannot confirm VT support, which it
+    cannot do when stdout is a pipe. It then calls that API on the pipe, and
+    `datasemver rules | findstr x` dies with `OSError: [Errno 22]`. Nothing here is
+    Windows-only, so the setting is asserted rather than the platform."""
+    from datasemver.cli.main import console, error_console
+
+    assert console.legacy_windows is False
+    assert error_console.legacy_windows is False

@@ -28,8 +28,15 @@ app = typer.Typer(
 
 _SOURCE_HELP = "{which} version of the dataset: a file, or a database URL with the table after '#'."
 
-console = Console()
-error_console = Console(stderr=True)
+# `legacy_windows=False` rather than letting rich decide. Rich calls the pre-VT Windows
+# console API when it cannot confirm the terminal understands escape sequences, and it cannot
+# confirm that when stdout is a pipe: `GetConsoleMode` fails on a pipe handle, rich concludes
+# the console is ancient, and then calls the console API on something that is not a console.
+# `datasemver rules | findstr x` died there with `OSError: [Errno 22] Invalid argument`. Every
+# Windows that VT support ever shipped in is Windows 10 or newer, so nothing supported loses
+# anything, and the redirected output that CI and scripts actually use now works.
+console = Console(legacy_windows=False)
+error_console = Console(stderr=True, legacy_windows=False)
 
 SEVERITY_COLORS: dict[Severity, str] = {
     Severity.MAJOR: "bold red",

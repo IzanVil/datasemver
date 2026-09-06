@@ -57,7 +57,11 @@ jobs:
           binary=dist/datasemver
           if [ "${{ matrix.platform }}" = "windows" ]; then binary=dist/datasemver.exe; fi
           "$binary" --help > /dev/null
-          "$binary" rules | grep -q column_removed
+          # Written to a file rather than piped into grep: `grep -q` stops reading at the
+          # first match, the binary takes a broken pipe, and under `pipefail` the whole step
+          # fails with no output at all to say why.
+          "$binary" rules > rules.txt
+          grep -q column_removed rules.txt
           "$binary" diff tests/fixtures/old.csv tests/fixtures/new.csv --json > /dev/null
           python -c "import pandas; pandas.DataFrame({'id':[1,2],'a':['x','y']}).to_parquet('one.parquet'); pandas.DataFrame({'id':[1,2,3],'a':['x','y','z'],'b':[1,2,3]}).to_parquet('two.parquet')"
           "$binary" diff one.parquet two.parquet --json > /dev/null

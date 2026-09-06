@@ -88,6 +88,7 @@ pip install -e ".[dev]"
 | _(ninguno)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | La librería y el comando `datasemver` |
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Ejecutar los tests y medir la cobertura |
 | `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Leer una [tabla de base de datos](#bases-de-datos) |
+| `exe` | `pyinstaller` | Construir un [ejecutable independiente](#sin-python) |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | El [panel web](#panel-web) |
 
 ```bash
@@ -102,6 +103,62 @@ llega a opinar.
 
 Requiere Python 3.10 o superior. El paquete se distribuye tipado (`py.typed`), así que los
 verificadores de tipos ven las anotaciones de cada función pública.
+
+### Sin Python
+
+Cada release incluye un ejecutable único por plataforma que lleva su propio Python, para
+máquinas donde instalarlo no es una opción. Se descarga desde la
+[última release](https://github.com/IzanVil/datasemver/releases/latest).
+
+| Descarga | Para |
+| --- | --- |
+| `datasemver-<versión>-linux-x86_64.tar.gz` | Linux, 64 bits Intel o AMD |
+| `datasemver-<versión>-macos-arm64.tar.gz` | macOS con Apple Silicon |
+| `datasemver-<versión>-macos-x86_64.tar.gz` | macOS con Intel |
+| `datasemver-<versión>-windows-x86_64.zip` | Windows, 64 bits |
+
+En Linux y macOS:
+
+```bash
+tar xzf datasemver-*-linux-x86_64.tar.gz
+./datasemver diff antiguo.csv nuevo.csv
+```
+
+En Windows, descomprímelo y ejecuta `datasemver.exe` desde PowerShell o una terminal:
+
+```powershell
+.\datasemver.exe diff antiguo.csv nuevo.csv
+```
+
+**macOS se negará a abrirlo la primera vez.** Los binarios no están firmados con un
+certificado de desarrollador de Apple, así que Gatekeeper los pone en cuarentena e informa de
+que el fichero está dañado, que no es lo que ha pasado. Quita la marca de cuarentena:
+
+```bash
+xattr -d com.apple.quarantine ./datasemver
+```
+
+O ábrelo una vez desde el Finder con clic derecho → Abrir, que ofrece un botón que el aviso
+normal no da.
+
+El ejecutable ronda los 100 MB, en su mayoría pyarrow, pandas y numpy, que son bibliotecas
+grandes y son lo que permite leer Parquet. Incluye soporte de bases de datos, así que las
+fuentes `sqlite://`, `postgresql://` y `mysql://` funcionan sin instalar nada más; el
+[panel web](#panel-web) no forma parte de él y sigue necesitando una instalación de Python. En
+Linux requiere glibc 2.28 o posterior — es el suelo que fijan las propias ruedas de pyarrow,
+así que cubre RHEL 8, Debian 10 y Ubuntu 18.10 en adelante.
+
+Para construirlo tú mismo:
+
+```bash
+pip install -e ".[sql,exe]"
+python scripts/build_executables.py
+```
+
+PyInstaller congela el intérprete bajo el que se ejecuta y no puede compilar de forma cruzada,
+así que el binario de cada plataforma hay que construirlo en esa plataforma. `--platform`
+comprueba que estás en la que pides, en lugar de apuntar a ella, y el workflow de release
+saca sus cuatro binarios de cuatro runners.
 
 ## Inicio rápido
 
@@ -701,10 +758,10 @@ datasemver/
 CHANGELOG.md              las versiones del propio proyecto
 docs/rules.md             catálogo de reglas
 examples/                 perfiles de reglas alternativos
-scripts/                  ayudante de CI que analiza los datasets que toca una rama
+scripts/                  ayudante de CI para pull requests, y la construcción del ejecutable
 datasemver_web/           backend FastAPI y frontend estático del panel
 datasets/                 datasets versionados de ejemplo para el histórico del panel
-.github/workflows/        análisis de pull requests, matriz de tests y publicación
+.github/workflows/        análisis de pull requests, matriz de tests, publicación y ejecutables
 tests/                    suite de pytest y fixtures de datasets
 demo.cast                 grabación de asciinema usada en la demo de arriba
 ```

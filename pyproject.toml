@@ -62,7 +62,14 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "types-PyYAML>=6",
+    "pyinstaller>=6.0",  # so the build script is exercised by CI rather than skipped
 ]
+exe = [
+    # Freezing the CLI into a standalone executable. Named `exe` rather than `build` to
+    # keep it apart from the `build` package, which is the PEP 517 frontend in dev.
+    "pyinstaller>=6.0",
+]
+
 sql = [
     "sqlalchemy>=2.0",
     # Bare `postgresql://` and `mysql://` are the URLs people actually write, so the drivers

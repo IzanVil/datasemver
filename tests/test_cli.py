@@ -152,3 +152,25 @@ def test_the_declared_version_matches_the_packaging_metadata():
 
     assert declared is not None
     assert datasemver.__version__ == declared.group(1)
+
+
+def test_square_brackets_in_an_error_reach_the_terminal(old_csv, new_csv, monkeypatch):
+    """Rich reads `[sql]` as a style tag and prints nothing for it.
+
+    The message that says how to install the database support is
+    `pip install "datasemver[sql]"`, and it arrived as `pip install "datasemver"` -- advice
+    that installs the wrong thing. Every error the CLI prints goes through the same line, so
+    any bracket in any message was being eaten the same way.
+    """
+    import datasemver.cli.main as main
+    from datasemver.formats.sql import INSTALL_HINT
+
+    def refuse(*args, **kwargs):
+        raise ValueError(INSTALL_HINT)
+
+    monkeypatch.setattr(main, "analyze", refuse)
+
+    result = run("diff", str(old_csv), str(new_csv))
+
+    assert result.exit_code == 2
+    assert "datasemver[sql]" in result.output

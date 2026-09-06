@@ -8,6 +8,7 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -69,7 +70,7 @@ def diff(
     try:
         report = analyze(old, new, rules=rules, current_version=current_version)
     except (FileNotFoundError, ValueError, RuleError, InvalidVersionError) as error:
-        error_console.print(f"[bold red]error:[/] {error}")
+        error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
 
     if output is not None:
@@ -202,7 +203,7 @@ def dvc(
             rules=rules,
         )
     except (dvc_integration.DvcError, RuleError, InvalidVersionError) as error:
-        error_console.print(f"[bold red]error:[/] {error}")
+        error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
 
     if output is not None:
@@ -277,7 +278,7 @@ def show_rules(
     try:
         rule_set = load_rules(path)
     except (FileNotFoundError, RuleError) as error:
-        error_console.print(f"[bold red]error:[/] {error}")
+        error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
 
     for severity in EVALUATION_ORDER:

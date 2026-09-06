@@ -86,6 +86,7 @@ pip install -e ".[dev]"
 | _(none)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | The library and the `datasemver` command |
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Running the test suite and measuring coverage |
 | `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Reading a [database table](#databases) |
+| `exe` | `pyinstaller` | Building a [standalone executable](#without-python) |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | The [web dashboard](#web-dashboard) |
 
 ```bash
@@ -100,6 +101,62 @@ say.
 
 Requires Python 3.10 or newer. The package ships typed (`py.typed`), so type checkers see
 the annotations of every public function.
+
+### Without Python
+
+Every release carries a single executable per platform that brings its own Python, for
+machines where installing one is not an option. Download it from the
+[latest release](https://github.com/IzanVil/datasemver/releases/latest).
+
+| Download | For |
+| --- | --- |
+| `datasemver-<version>-linux-x86_64.tar.gz` | Linux, 64-bit Intel or AMD |
+| `datasemver-<version>-macos-arm64.tar.gz` | macOS on Apple Silicon |
+| `datasemver-<version>-macos-x86_64.tar.gz` | macOS on Intel |
+| `datasemver-<version>-windows-x86_64.zip` | Windows, 64-bit |
+
+On Linux and macOS:
+
+```bash
+tar xzf datasemver-*-linux-x86_64.tar.gz
+./datasemver diff old.csv new.csv
+```
+
+On Windows, unzip it and run `datasemver.exe` from PowerShell or a terminal:
+
+```powershell
+.\datasemver.exe diff old.csv new.csv
+```
+
+**macOS will refuse to open it the first time.** The binaries are not signed with an Apple
+developer certificate, so Gatekeeper quarantines them and reports the file as damaged, which
+is not what has happened. Clear the quarantine flag:
+
+```bash
+xattr -d com.apple.quarantine ./datasemver
+```
+
+Or open it once through Finder with right-click → Open, which offers a button the warning
+dialog does not.
+
+The executable is around 100 MB, most of it pyarrow, pandas and numpy, which are large
+libraries and are what makes the tool read Parquet. It includes database support, so
+`sqlite://`, `postgresql://` and `mysql://` sources work with nothing else installed; the
+[web dashboard](#web-dashboard) is not part of it and still needs a Python install. On Linux
+it needs glibc 2.28 or newer — that is the floor pyarrow's own wheels set, so it covers
+RHEL 8, Debian 10 and Ubuntu 18.10 onwards.
+
+To build one yourself:
+
+```bash
+pip install -e ".[sql,exe]"
+python scripts/build_executables.py
+```
+
+PyInstaller freezes the interpreter it runs under and cannot cross-compile, so each platform's
+binary has to be built on that platform. `--platform` checks that you are on the one you
+asked for rather than targeting it, and the release workflow gets its four binaries from four
+runners.
 
 ## Quick start
 
@@ -689,10 +746,10 @@ datasemver/
 CHANGELOG.md              the project's own versions
 docs/rules.md             rule catalogue
 examples/                 alternative rule profiles
-scripts/                  CI helper that analyses the datasets a branch touches
+scripts/                  CI helper for pull requests, and the standalone-executable build
 datasemver_web/           FastAPI backend and static frontend for the dashboard
 datasets/                 sample versioned datasets for the dashboard history view
-.github/workflows/        pull request analysis, the test matrix and the release
+.github/workflows/        pull request analysis, the test matrix, the release and the executables
 tests/                    pytest suite and dataset fixtures
 demo.cast                 asciinema recording used in the demo above
 ```

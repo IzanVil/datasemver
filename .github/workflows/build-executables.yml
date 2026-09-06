@@ -1,0 +1,98 @@
+name: Executables
+
+# One file per platform that carries its own Python, for people who want to run the tool
+# without installing anything. PyInstaller freezes the interpreter it runs under and cannot
+# cross-compile, so each binary comes from a runner of its own operating system; that is the
+# whole reason this is a matrix rather than three flags on one build.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: executables-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} · ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, platform: linux, arch: x86_64 }
+          - { runner: windows-latest, platform: windows, arch: x86_64 }
+          # macos-latest is Apple Silicon. An Intel Mac cannot run that binary, so it gets
+          # its own runner; the archive name carries the architecture to tell them apart.
+          - { runner: macos-latest, platform: macos, arch: arm64 }
+          - { runner: macos-15-intel, platform: macos, arch: x86_64 }
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+
+      # The sql extra is installed on purpose. Someone running the binary has no way to add
+      # an extra later, so a binary built without it could never read a database at all.
+      - name: Install the package and the build tooling
+        run: pip install ".[sql]" "pyinstaller>=6.0"
+
+      - name: Build the executable
+        run: python scripts/build_executables.py --platform ${{ matrix.platform }}
+
+      # A binary that builds and does not run is the failure worth catching here, and the
+      # bundled rules file is the part most likely to go missing without anything saying so.
+      - name: Check that the executable runs
+        shell: bash
+        run: |
+          binary=dist/datasemver
+          if [ "${{ matrix.platform }}" = "windows" ]; then binary=dist/datasemver.exe; fi
+          "$binary" --help > /dev/null
+          "$binary" rules | grep -q column_removed
+          "$binary" diff tests/fixtures/old.csv tests/fixtures/new.csv --json > /dev/null
+          python -c "import pandas; pandas.DataFrame({'id':[1,2],'a':['x','y']}).to_parquet('one.parquet'); pandas.DataFrame({'id':[1,2,3],'a':['x','y','z'],'b':[1,2,3]}).to_parquet('two.parquet')"
+          "$binary" diff one.parquet two.parquet --json > /dev/null
+          echo "the executable runs, reads its bundled rules, and reads Parquet"
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: executable-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  attach:
+    name: Attach to the release
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download every archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          pattern: executable-*
+          merge-multiple: true
+          path: dist/
+
+      - name: Attach them to the release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+          fail_on_unmatched_files: true

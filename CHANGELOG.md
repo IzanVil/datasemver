@@ -9,6 +9,19 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- Standalone executables. Every release now carries one file per platform that brings its own
+  Python — Linux, Windows, macOS on Apple Silicon and macOS on Intel — so the tool runs on a
+  machine with no Python and no pip. `scripts/build_executables.py` builds one with
+  PyInstaller and wraps it with the licence in a tar.gz or a zip named for the version and the
+  architecture, keeping the executable bit that is the difference between a download that runs
+  and one that answers "Permission denied". The `sql` extra is built in on purpose: someone
+  running a binary has no way to add an extra afterwards, so leaving it out would have made
+  database sources permanently unreachable there. The dashboard is not included and still
+  needs a Python install.
+- PyInstaller cannot cross-compile, so `--platform` checks that the machine is the one being
+  asked for instead of pretending to target it, and the workflow takes its four binaries from
+  four runners. Each one is run before it is uploaded: `--help`, a comparison, a Parquet
+  comparison, and `rules`, which is what proves the bundled rules file is actually in there.
 - `datasemver dvc` compares the datasets DVC reports as changed between two revisions. DVC
   keeps data out of git — a commit records a `.dvc` pointer holding a hash, and the bytes live
   in a cache or a remote — so the previous version cannot be read with `git show` the way the
@@ -24,6 +37,10 @@ This project follows [Semantic Versioning](https://semver.org).
   like a bug rather than a missing pull.
 
 ### Patch
+- Errors printed by the CLI no longer lose anything inside square brackets. Rich read them as
+  style tags, so the advice for reading a database arrived as `pip install "datasemver"` —
+  which installs the wrong thing — instead of `pip install "datasemver[sql]"`. Every error the
+  CLI prints went through that same line.
 - Tests for the paths and text that behave differently by operating system: directory names
   with spaces, with accents and outside Latin-1, a changelog written to and prepended in such
   a path, a column name outside Latin-1 travelling from a CSV header into a changelog entry,

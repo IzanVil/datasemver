@@ -8,6 +8,18 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- Tests for the paths and text that behave differently by operating system: directory names
+  with spaces, with accents and outside Latin-1, a changelog written to and prepended in such
+  a path, a column name outside Latin-1 travelling from a CSV header into a changelog entry,
+  a SQLite file opened from an accented directory, and a file whose lines end the way Windows
+  writes them. They run on all three systems in CI, which is the point: none of them fails on
+  the machine the code is written on.
+- Reviewing the code for the same class of problem found nothing to change. Every read and
+  write already names its encoding, so a Windows default of cp1252 never applies; there is no
+  `chmod`, no `os.name` branch and no `shell=True`; and Rich has not used colorama since it
+  began driving the Windows console API itself.
+
 ## [0.4.0] - 2026-09-06
 
 ### Minor

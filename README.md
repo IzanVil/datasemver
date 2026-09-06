@@ -91,6 +91,12 @@ pip install -e ".[dev]"
 pip install "datasemver[web]"
 ```
 
+DataSemver is tested on Linux, macOS and Windows. The suite includes paths with spaces,
+accents and characters outside Latin-1, along with files that end their lines the way Windows
+writes them, because those are the differences that do not show up on one machine. Every file
+the library reads or writes names its encoding, so a Windows default of cp1252 never gets a
+say.
+
 Requires Python 3.10 or newer. The package ships typed (`py.typed`), so type checkers see
 the annotations of every public function.
 

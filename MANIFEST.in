@@ -14,7 +14,7 @@ include datasemver/rules/*.yaml
 
 recursive-include docs *.md
 recursive-include examples *.yaml
-recursive-include datasemver_web *.html *.css *.js *.md
+recursive-include datasemver_web *.html *.css *.js *.md *.svg
 recursive-include tests *.py *.csv *.json *.parquet
 
 prune .github

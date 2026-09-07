@@ -353,6 +353,28 @@ def test_frontend_is_served(client):
     assert "DataSemver" in response.text
 
 
+def test_the_page_carries_its_mark(client):
+    """The mark is inline in the page so it takes its colours from the theme tokens."""
+    response = client.get("/")
+
+    assert 'class="brand-mark"' in response.text
+    assert "var(--accent)" in response.text
+
+
+def test_the_favicon_is_served(client):
+    """It is a frontend file, and a frontend file is exactly what gets left out of a wheel.
+
+    The dashboard's own packaging comment records that happening once already: the extras
+    installed the dependencies and none of the interface. A stylesheet missing is obvious on
+    sight, a favicon missing is not, so it is checked here rather than noticed later.
+    """
+    response = client.get("/favicon.svg")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")
+    assert "<svg" in response.text
+
+
 def test_mounting_a_missing_frontend_is_a_no_op(tmp_path):
     from fastapi import FastAPI
 

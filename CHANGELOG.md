@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-07
+
 ### Minor
 - Standalone executables. Every release now carries one file per platform that brings its own
   Python — Linux, Windows, macOS on Apple Silicon and macOS on Intel — so the tool runs on a
@@ -359,7 +361,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/IzanVil/datasemver/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/IzanVil/datasemver/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/IzanVil/datasemver/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/IzanVil/datasemver/compare/v0.2.4...v0.2.5

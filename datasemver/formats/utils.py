@@ -9,7 +9,7 @@ import pandas as pd
 from pandas.api import types as ptypes
 
 from datasemver.core.models import ColumnStats
-from datasemver.utils.statistics import QUANTILE_LEVELS
+from datasemver.utils.statistics import OTHER_CATEGORY, QUANTILE_LEVELS
 
 MAX_TRACKED_CATEGORIES = 200
 MAX_CATEGORY_UNIQUENESS = 0.5
@@ -128,7 +128,9 @@ def profile_column(series: pd.Series, name: str) -> ColumnStats:
     if non_null.empty:
         return stats
 
-    if stats.dtype in {"int64", "float64"}:
+    if stats.dtype == "datetime64":
+        _profile_moments(stats, non_null)
+    elif stats.dtype in {"int64", "float64"}:
         numeric = pd.to_numeric(non_null, errors="coerce").dropna()
         if not numeric.empty:
             stats.mean = float(numeric.mean())
@@ -142,17 +144,64 @@ def profile_column(series: pd.Series, name: str) -> ColumnStats:
         modes = non_null.mode()
         if not modes.empty:
             stats.mode = str(modes.iloc[0])
-        looks_categorical = (
-            stats.cardinality <= MAX_TRACKED_CATEGORIES
-            and stats.cardinality / len(non_null) <= MAX_CATEGORY_UNIQUENESS
-        )
-        if looks_categorical:
+        # A column where nearly every value is distinct is an identifier, not a category,
+        # and nothing useful comes of tracking it. Cardinality alone is not the test: a
+        # column with more distinct values than are tracked individually is still a category
+        # and is still worth comparing on balance, with its tail summed into one bucket.
+        if stats.cardinality / len(non_null) <= MAX_CATEGORY_UNIQUENESS:
             counts = non_null.astype(str).value_counts()
-            stats.categories = sorted(counts.index)
-            # The proportions, not only the set: a column whose values all still appear but
-            # in a completely different balance is invisible to the set alone.
-            stats.category_counts = {str(name): int(count) for name, count in counts.items()}
+            if stats.cardinality <= MAX_TRACKED_CATEGORIES:
+                # The exact set, which is what makes a category appearing or disappearing
+                # reportable. Beyond the limit it would be a sample of the set, and a value
+                # missing from a sample is not a value that was removed.
+                stats.categories = sorted(counts.index)
+            stats.category_counts = _bounded_counts(counts)
     return stats
+
+
+def _profile_moments(stats: ColumnStats, non_null: pd.Series) -> None:
+    """Profile a datetime column on its epoch, so it is comparable like any other number.
+
+    Without this a date column carried a type, a null ratio and a cardinality and nothing
+    else, which left the most common thing that happens to one -- the whole window sliding
+    forward, or shrinking to half the period -- reported as no change at all.
+
+    Seconds rather than nanoseconds: a nanosecond epoch is past the range a float64 holds
+    exactly, so the quantiles would be rounded on their way into the profile.
+
+    The cast to microseconds is what makes that seconds rather than whatever the column
+    happened to be stored in. A datetime column's resolution varies with the pandas version
+    and with where it was read from -- `date_range` gives microseconds on pandas 3 and
+    nanoseconds before it -- and `astype("int64")` reports the count in the column's own
+    unit, so dividing by a fixed number reads the same instant as a different date.
+    """
+    moments = pd.to_datetime(non_null, errors="coerce").dropna()
+    if moments.empty:  # pragma: no cover - the nulls are already gone and the dtype is a date
+        return
+    if getattr(moments.dtype, "tz", None) is not None:
+        moments = moments.dt.tz_convert("UTC").dt.tz_localize(None)
+
+    epoch = moments.astype("datetime64[us]").astype("int64") / 1_000_000
+    stats.mean = float(epoch.mean())
+    stats.std = float(epoch.std(ddof=0))
+    stats.minimum = float(epoch.min())
+    stats.maximum = float(epoch.max())
+    stats.quantiles = [float(value) for value in epoch.quantile(QUANTILE_LEVELS).tolist()]
+
+
+def _bounded_counts(counts: pd.Series) -> dict[str, int]:
+    """The most frequent categories, with everything below them summed into one bucket.
+
+    The bucket is what removes a cliff: a column with one more distinct value than the limit
+    used to be profiled with no counts at all, so a city column collapsing until one value
+    held most of the rows was reported as no change.
+    """
+    head = counts.iloc[:MAX_TRACKED_CATEGORIES]
+    bounded = {str(name): int(count) for name, count in head.items()}
+    tail = int(counts.iloc[MAX_TRACKED_CATEGORIES:].sum())
+    if tail:
+        bounded[OTHER_CATEGORY] = bounded.get(OTHER_CATEGORY, 0) + tail
+    return bounded
 
 
 def profile_frame(frame: pd.DataFrame) -> dict[str, ColumnStats]:

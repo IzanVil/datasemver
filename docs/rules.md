@@ -36,8 +36,8 @@ Pass a file with `--rules custom.yaml` to replace the bundled defaults entirely,
 | `new_category_added` | A categorical column gained values |
 | `category_removed` | A categorical column lost values |
 | `cardinality_changed` | The share of distinct values of a column moved by more than 10 points |
-| `distribution_shift` | A numeric column's whole distribution moved: a KS statistic of at least 0.1, and above what two identical samples of that size would produce |
-| `category_balance_shift` | A categorical column's proportions moved: a PSI of at least 0.1, over at least 30 rows |
+| `distribution_shift` | A numeric or datetime column's whole distribution moved: a KS statistic of at least 0.1, and above what two identical samples of that size would produce |
+| `category_balance_shift` | A categorical column's proportions moved: a PSI of at least 0.1, over at least 30 rows. Columns with more distinct values than are tracked individually are compared with their tail summed into one bucket |
 | `minor_stat_change` | A numeric mean moved by more than 1% without the distribution moving |
 
 A column is treated as categorical when it holds at most 200 distinct values and its

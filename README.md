@@ -410,6 +410,17 @@ one-in-a-hundred while both values are still present — invisible to a comparis
 category sets. The conventional PSI readings are the defaults: 0.1 unstable, 0.25 no longer
 the same population.
 
+Datetime columns are compared the same way, on their epoch: a window that slides forward, or
+an export that only covers half the period it used to, is a change rather than the silence a
+date column produced when it carried no statistics at all. It is only ever the distribution —
+a percentage move of a datetime's mean would be a percentage of the time since 1970 — and the
+change is described in dates.
+
+A categorical column with more distinct values than are tracked individually is still compared
+on its balance, with everything below the most frequent values summed into one bucket. Where
+the two versions truncate differently, only the categories both of them kept are compared, so
+a category sitting near the cut is not read as one that disappeared.
+
 Both are measured against what the sample size can support. A KS statistic has no fixed
 meaning on its own: on four rows against five, appending a single row moves the distribution
 by a fifth, so a shift has to clear the critical value for those sample sizes as well as the

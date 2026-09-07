@@ -9,6 +9,22 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- Datetime columns are compared. One carried a type, a null ratio and a cardinality and
+  nothing else, because the statistics were filled in for `int64` and `float64` only, so the
+  most common thing that happens to a date column -- the whole window sliding forward, or an
+  export that now covers half the period -- was reported as no change at all. Five thousand
+  hourly rows moved six years is a `major` now. They are profiled on their epoch in seconds
+  and compared with the same KS statistic as any other column, but never on a relative move
+  of the mean: a percentage of an epoch is a percentage of the time since 1970. The change is
+  described in dates.
+- A categorical column past the tracked limit is compared on its balance instead of not at
+  all. The limit was a cliff: 200 distinct values were profiled with their counts and 201 with
+  nothing, so a city column collapsing until one value held 95% of the rows was reported as no
+  change. Everything below the most frequent values is summed into one bucket now, which is
+  how PSI is computed on a high-cardinality feature anyway, and the exact category set is
+  still only kept where it is exact -- a value missing from a sample of a set is not a value
+  that was removed. Where two versions truncate at different places only the categories both
+  kept are compared, so a category sitting near the cut is not read as one that disappeared.
 - Comparisons read distributions, not single numbers. A column's profile now carries a
   quantile grid and, for a categorical column, the count per category, and two changes are
   detected from them: `distribution_shift` on the Kolmogorov-Smirnov statistic, and
@@ -37,6 +53,10 @@ This project follows [Semantic Versioning](https://semver.org).
   from a broken pipeline cannot do anything useful with either.
 
 ### Patch
+- A date read as a different date depending on how it was stored. The epoch conversion divided
+  by a fixed billion, and `astype("int64")` counts in the column's own resolution, which is
+  microseconds on pandas 3 and nanoseconds before it -- so 2020 arrived as 1970. It casts to a
+  named unit first, and four resolutions and a timezone are pinned by tests.
 - A column holding one repeated value compared as maximally different from itself. The KS
   approximation compared one version's quantile levels against the other's distribution, which
   is only the same thing where the distribution has no steps in it; a constant column is all

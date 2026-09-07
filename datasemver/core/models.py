@@ -114,6 +114,15 @@ class ColumnStats(BaseModel):
         return self.dtype in {"int64", "float64"}
 
     @property
+    def is_temporal(self) -> bool:
+        """Compared like a number, on its epoch, but never described like one.
+
+        A percentage of an epoch is a percentage since 1970, which is why a temporal column
+        is compared on its distribution and never on a relative move of its mean.
+        """
+        return self.dtype == "datetime64"
+
+    @property
     def non_null_count(self) -> int:
         return round(self.row_count * (1 - self.null_ratio))
 

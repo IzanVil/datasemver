@@ -8,7 +8,40 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- Comparisons read distributions, not single numbers. A column's profile now carries a
+  quantile grid and, for a categorical column, the count per category, and two changes are
+  detected from them: `distribution_shift` on the Kolmogorov-Smirnov statistic, and
+  `category_balance_shift` on the Population Stability Index. Three changes that a version
+  before this reported as no change at all: a fraud label going from 50/50 to 1/99 with both
+  values still present, a spread growing from one to forty with the mean unmoved, and a column
+  splitting into two modes around the same centre. Only the mean was ever compared, and the
+  comparison returned before reaching anything else whenever the mean had not moved.
+- Both are measured against what the sample size supports, because the same change makes the
+  tool wrong in the other direction otherwise. A KS statistic has no fixed reading: on four
+  rows against five, appending one row moves the distribution by a fifth, so a shift has to
+  clear the critical value for those sizes as well as the threshold. Six rows and one outlier
+  used to be a `major`; it is a `minor` now, and the fixture pair that first surfaced this is
+  a test.
+- `datasemver profile` writes what a comparison reads to a file, and `diff` accepts one
+  wherever it accepts a dataset, on either side. A profile is a few hundred bytes against
+  megabytes of data -- 2.9 KB for a 63 MB Parquet -- so it can be committed beside the
+  dataset, and the version it describes never has to be fetched again, or exist at all. The
+  dispatch sits in `load_schema`, so the Python API, the dashboard and the DVC run all got it
+  at once. `.profile.json` marks one, kept apart from `.json` because that is a format read as
+  data, and a profile from a newer DataSemver is refused rather than half-understood.
+- `--fail-on major` on `diff` and `dvc` exits `1` when the suggested bump reaches a severity,
+  so a pipeline can refuse a dataset instead of only describing it. The command found a
+  breaking change and exited `0` before, which left parsing the JSON as the only way to act on
+  it. Exit `2` still means the run itself failed: a caller that cannot tell a rejected dataset
+  from a broken pipeline cannot do anything useful with either.
+
 ### Patch
+- A column holding one repeated value compared as maximally different from itself. The KS
+  approximation compared one version's quantile levels against the other's distribution, which
+  is only the same thing where the distribution has no steps in it; a constant column is all
+  step. Both distributions are read at the same point now. Found by its own test rather than
+  by a user.
 - The release workflow compares the tag against the version in `pyproject.toml` whenever the
   ref is a tag, not only on a `release` event. Every release since 0.3.0 was published by
   dispatching the workflow from a tag, which is the path the check was not covering: it was

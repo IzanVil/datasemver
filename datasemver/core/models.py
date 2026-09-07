@@ -77,6 +77,7 @@ class ChangeType(str, Enum):
     CATEGORY_REMOVED = "category_removed"
     CARDINALITY_CHANGED = "cardinality_changed"
     DISTRIBUTION_SHIFT = "distribution_shift"
+    CATEGORY_BALANCE_SHIFT = "category_balance_shift"
     MINOR_STAT_CHANGE = "minor_stat_change"
 
 
@@ -102,6 +103,11 @@ class ColumnStats(BaseModel):
     maximum: float | None = None
     mode: str | None = None
     categories: list[str] | None = None
+    # Both hold the shape of a column rather than one summary of it, and both are optional
+    # so a profile written before they existed still loads and still compares -- the differ
+    # falls back to the mean when they are absent.
+    quantiles: list[float] | None = None
+    category_counts: dict[str, int] | None = None
 
     @property
     def is_numeric(self) -> bool:

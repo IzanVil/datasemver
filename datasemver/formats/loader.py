@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from datasemver.core.models import DatasetSchema
+from datasemver.core.profile import is_profile, read_profile
 from datasemver.formats.sql import is_sql_source, load_sql, redacted
 from datasemver.formats.utils import infer_types, profile_frame
 
@@ -78,7 +79,16 @@ def load_parquet(path: str | Path) -> pd.DataFrame:
 
 
 def load_schema(path: str | Path) -> DatasetSchema:
-    """Load a dataset and return its profile."""
+    """Load a dataset and return its profile, or read a profile that was already stored.
+
+    Dispatching on the source here rather than in the CLI is what gives every caller the
+    stored profile for free -- the Python API, the dashboard, the DVC run and the pull
+    request script all arrive through this function, exactly as they do for a database URL.
+    A comparison against a profile never loads the dataset behind it, because there may not
+    be one any more.
+    """
+    if is_profile(path):
+        return read_profile(path)
     frame = load_frame(path)
     return schema_from_frame(frame, source=describe_source(path))
 

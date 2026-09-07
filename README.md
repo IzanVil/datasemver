@@ -41,6 +41,7 @@ and it needs no schema registry, no database and no service running.
 - [Command reference](#command-reference)
 - [Databases](#databases)
 - [DVC](#dvc)
+- [Stored profiles](#stored-profiles)
 - [Configuration: rules in YAML](#configuration-rules-in-yaml)
 - [Python API](#python-api)
 - [GitHub Action](#github-action)
@@ -281,6 +282,7 @@ What DataSemver looks at:
 
 ```bash
 datasemver diff OLD NEW [OPTIONS]
+datasemver profile SOURCE [OPTIONS]
 datasemver dvc [DATASETS...] [OPTIONS]
 datasemver rules [RULES_FILE]
 python -m datasemver diff OLD NEW     # equivalent, no installation needed
@@ -292,6 +294,7 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--current-version TEXT` | `-c` | Version the new dataset is bumped from (default `0.0.0`) |
 | `--output PATH` | `-o` | Write the changelog entry to a file, prepending it if it already exists |
 | `--json` | | Print the full report as JSON instead of the tables |
+| `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
 
 Examples:
 
@@ -302,6 +305,9 @@ datasemver diff old.csv new.csv --rules examples/strict_rules.yaml
 datasemver diff old.csv new.csv --output CHANGELOG.md
 datasemver diff old.csv new.csv --json | jq '.classified[] | {severity, rule: .rule}'
 datasemver rules examples/lenient_rules.yaml
+datasemver diff old.csv new.csv --fail-on major   # exit 1 on a breaking change
+datasemver profile customers_v3.parquet           # writes customers_v3.profile.json
+datasemver diff customers_v3.profile.json customers_v4.parquet
 ```
 
 Formats are detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`
@@ -313,6 +319,10 @@ the tab of a `.tsv` as well, and an empty value means unset. Nested JSON objects
 Parquet structs are flattened with a `.` separator, so `{"user": {"name": "..."}}` is
 profiled as the column `user.name`. The command exits with `2` on a missing file, an
 unsupported extension, an unreadable dataset or an invalid rules file.
+
+Three exit codes, so a pipeline can tell them apart: `0` ran and had nothing to refuse, `1`
+ran and the bump reached `--fail-on`, `2` could not run. Without `--fail-on` the command is
+advisory and always exits `0`, whatever it finds.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-delimiter.png" width="880"
@@ -333,6 +343,28 @@ Parquet export of the same data is supported and reports the same changes:
 ```bash
 datasemver diff tests/fixtures/old.csv tests/fixtures/new.parquet
 ```
+
+## Stored profiles
+
+A comparison reads a *profile*: the columns, their types, their null ratios, a quantile grid
+per numeric column and the counts per category. That is a few hundred bytes where the dataset
+is megabytes, so it can be written to a file and kept.
+
+```bash
+datasemver profile customers_v3.parquet          # writes customers_v3.profile.json
+datasemver diff customers_v3.profile.json customers_v4.parquet
+```
+
+The dataset a profile describes does not have to exist any more. Commit the profile beside
+the data — next to the DVC pointer, in the same pull request — and the next comparison needs
+only the new version, instead of fetching a previous one that may be large, remote or gone.
+It also makes a suggestion auditable months later: the profile still says exactly what the
+bump was computed from.
+
+A profile is read wherever a dataset is, on either side of a comparison, so this works from
+the Python API and the dashboard too. `.profile.json` is the extension that marks one, kept
+distinct from `.json` because that is a format DataSemver reads as data. A profile written by
+a newer version of DataSemver is refused rather than half-understood.
 
 ## Configuration: rules in YAML
 
@@ -367,6 +399,22 @@ understood it:
 severity, which then acts as the fallback. Unknown rule names, unknown severities and
 thresholds on rules that do not accept one are rejected with an error instead of being
 ignored.
+
+Two rules compare distributions rather than single numbers, which is what catches a change
+that leaves every summary statistic where it was. `distribution_shift` fires on the
+Kolmogorov-Smirnov statistic between the two versions of a numeric column, so a spread that
+grows fortyfold under an unchanged mean, or a column that splits into two modes around the
+same centre, is a change rather than a coincidence. `category_balance_shift` fires on the
+Population Stability Index of a categorical column, which sees a label going from balanced to
+one-in-a-hundred while both values are still present — invisible to a comparison of the
+category sets. The conventional PSI readings are the defaults: 0.1 unstable, 0.25 no longer
+the same population.
+
+Both are measured against what the sample size can support. A KS statistic has no fixed
+meaning on its own: on four rows against five, appending a single row moves the distribution
+by a fifth, so a shift has to clear the critical value for those sample sizes as well as the
+configured threshold. On a handful of rows nothing is reported, because there is nothing to
+report.
 
 The full catalogue of rules, metrics and thresholds is in [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md).
 Two ready-made profiles ship in [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples): `strict_rules.yaml` and

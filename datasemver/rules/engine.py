@@ -18,6 +18,8 @@ THRESHOLD_RULES: dict[str, tuple[ChangeType, str]] = {
     "null_ratio_increase_greater_than": (ChangeType.NULLS_INTRODUCED, "delta_pct"),
     "null_ratio_decrease_greater_than": (ChangeType.NULLS_FIXED, "delta_pct"),
     "mean_shift_greater_than": (ChangeType.DISTRIBUTION_SHIFT, "mean_shift_pct"),
+    "ks_statistic_greater_than": (ChangeType.DISTRIBUTION_SHIFT, "ks_statistic"),
+    "psi_greater_than": (ChangeType.CATEGORY_BALANCE_SHIFT, "psi"),
     "cardinality_change_greater_than": (ChangeType.CARDINALITY_CHANGED, "change_pct"),
 }
 

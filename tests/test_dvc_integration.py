@@ -590,3 +590,21 @@ def test_a_real_dvc_repository_is_analysed_end_to_end(tmp_path):
     assert dataset["path"] == "data/customers.csv"
     assert dataset["current_version"] == "1.4.2", "the sidecar in the base revision was read"
     assert dataset["next_version"] == "2.0.0"
+
+
+def test_the_run_is_refused_when_a_dataset_reaches_the_gate(workspace, fake):
+    """A run's severity is its worst dataset: one breaking change breaks the revision."""
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(app, ["dvc", "--repo", str(workspace), "--fail-on", "major"])
+
+    assert result.exit_code == 1
+    assert "refused" in result.output
+
+
+def test_a_run_below_the_gate_is_let_through(workspace, fake):
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(app, ["dvc", "--repo", str(workspace)])
+
+    assert result.exit_code == 0

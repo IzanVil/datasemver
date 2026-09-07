@@ -10,16 +10,24 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from datasemver import __version__, analyze
+from datasemver import __version__
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze_schemas
-from datasemver.core.models import AnalysisReport
-from datasemver.formats.loader import SUPPORTED_EXTENSIONS, load_frame, schema_from_frame
+from datasemver.core.models import AnalysisReport, Change, DatasetSchema
+from datasemver.core.profile import PROFILE_SUFFIX, Profile, is_profile, read_profile
+from datasemver.core.rows import compare_rows
+from datasemver.formats.loader import (
+    SUPPORTED_EXTENSIONS,
+    describe_source,
+    load_frame,
+    schema_from_frame,
+)
 from datasemver.rules.engine import RuleError
 from datasemver.utils.version import InvalidVersionError
 
@@ -36,12 +44,21 @@ ANALYSIS_ERRORS = (ValueError, RuleError, InvalidVersionError)
 CHUNK_BYTES = 1024 * 1024
 MAX_NAME_CHARS = 120
 
+# A stored profile is accepted wherever a dataset is. It is a few hundred bytes where the
+# dataset is megabytes, which is what lets a comparison here reach a version far past the
+# upload limit -- or one whose file no longer exists anywhere.
+UPLOAD_EXTENSIONS = SUPPORTED_EXTENSIONS | {PROFILE_SUFFIX}
+
 
 class Meta(BaseModel):
     """Everything the frontend needs to configure itself."""
 
     version: str
     supported_extensions: list[str]
+    # Reported apart from the dataset formats rather than mixed into them: a profile is not a
+    # format the tool reads, it is the summary the tool writes, and a frontend that offered it
+    # as an option under "supported formats" would be saying something false.
+    profile_suffix: str
     datasets_dir: str
     max_upload_mb: float
     default_version: str
@@ -54,6 +71,7 @@ def meta() -> Meta:
     return Meta(
         version=__version__,
         supported_extensions=sorted(SUPPORTED_EXTENSIONS),
+        profile_suffix=PROFILE_SUFFIX,
         datasets_dir=str(settings.datasets_dir),
         max_upload_mb=settings.max_upload_mb,
         default_version=DEFAULT_VERSION,
@@ -66,8 +84,13 @@ async def diff_uploads(
     new: UploadFile = File(..., description="New version of the dataset."),
     current_version: str = Form(DEFAULT_VERSION),
     rules: UploadFile | None = File(None, description="Optional YAML rules file."),
+    key: str = Form("", description="Comma-separated columns identifying a row."),
 ) -> AnalysisReport:
-    """Compare two uploaded datasets and return the full analysis report."""
+    """Compare two uploaded datasets and return the full analysis report.
+
+    Either side may be a stored profile rather than a dataset, which is what lets a
+    comparison here reach a version whose file is far past the upload limit, or gone.
+    """
     settings = get_settings()
 
     with tempfile.TemporaryDirectory() as directory:
@@ -86,7 +109,36 @@ async def diff_uploads(
             current_version,
             rules_path,
             names=(reported_name(old), reported_name(new)),
+            key=_key_columns(key),
         )
+
+
+def _key_columns(raw: str) -> list[str] | None:
+    """The key as a list, or None when the field was left alone.
+
+    Written as text because that is what a form sends, and split on commas so a composite key
+    is one field rather than a widget someone has to discover.
+    """
+    columns = [part.strip() for part in raw.split(",") if part.strip()]
+    return columns or None
+
+
+@app.post("/api/profile", response_model=Profile, tags=["profile"])
+async def profile_upload(
+    dataset: UploadFile = File(..., description="Dataset to profile."),
+) -> Profile:
+    """Return the profile of an uploaded dataset, as the file `datasemver profile` writes.
+
+    A few hundred bytes describing megabytes: keep it beside the data and the next comparison
+    needs only the new version. This is the dashboard's half of that, so a profile can be
+    produced by someone who never touches the command line.
+    """
+    settings = get_settings()
+    with tempfile.TemporaryDirectory() as directory:
+        path = await store_upload(dataset, Path(directory) / "dataset", settings)
+        with as_http_error():
+            schema, _ = _side(path, reported_name(dataset))
+    return Profile(dataset=schema)
 
 
 @app.get("/api/history", response_model=History, tags=["history"])
@@ -120,8 +172,8 @@ async def store_upload(
     allowed: set[str] | None = None,
 ) -> Path:
     """Persist an upload to disk, enforcing its extension and the size limit."""
-    allowed = allowed or SUPPORTED_EXTENSIONS
-    suffix = Path(upload.filename or "").suffix.lower()
+    allowed = allowed or UPLOAD_EXTENSIONS
+    suffix = _suffix_of(upload.filename or "")
     if suffix not in allowed:
         raise HTTPException(
             status_code=400,
@@ -131,7 +183,9 @@ async def store_upload(
             ),
         )
 
-    path = destination.with_suffix(suffix)
+    # Concatenated rather than `with_suffix`, whose rules about a compound suffix have
+    # moved between the Python versions this supports.
+    path = destination.with_name(destination.name + suffix)
     path.parent.mkdir(parents=True, exist_ok=True)
     written = _copy_within_limit(upload, path, settings.max_upload_bytes)
 
@@ -143,6 +197,19 @@ async def store_upload(
     if written == 0:
         raise HTTPException(status_code=400, detail=f"'{upload.filename}' is empty")
     return path
+
+
+def _suffix_of(filename: str) -> str:
+    """The extension an upload is dispatched on, keeping a profile's two.
+
+    `Path("x.profile.json").suffix` is `.json`, which is a dataset format here: a profile
+    stored under the server's own name would be read back as an array of records rather than
+    as a profile. The compound suffix is the whole point of the name, so it is kept.
+    """
+    lowered = filename.lower()
+    if lowered.endswith(PROFILE_SUFFIX):
+        return PROFILE_SUFFIX
+    return Path(lowered).suffix
 
 
 def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:
@@ -174,6 +241,7 @@ def run_analysis(
     current_version: str,
     rules: Path | None,
     names: tuple[str, str] | None = None,
+    key: list[str] | None = None,
 ) -> AnalysisReport:
     """Call the library and translate its errors into HTTP responses.
 
@@ -182,14 +250,43 @@ def run_analysis(
     the report would say `old.csv` no matter what the reader actually uploaded.
     """
     with as_http_error():
-        if names is None:
-            return analyze(old, new, rules=rules, current_version=current_version)
+        old_schema, old_frame = _side(old, names[0] if names else None)
+        new_schema, new_frame = _side(new, names[1] if names else None)
+        extra = _row_changes(old_frame, new_frame, key, old_schema.source, new_schema.source)
         return analyze_schemas(
-            schema_from_frame(load_frame(old), source=names[0]),
-            schema_from_frame(load_frame(new), source=names[1]),
+            old_schema,
+            new_schema,
             rules=rules,
             current_version=current_version,
+            extra_changes=extra,
         )
+
+
+def _side(path: Path, name: str | None) -> tuple[DatasetSchema, Any]:
+    """One side of a comparison: its profile, and its rows when it has any.
+
+    A stored profile has no rows and never will, which is the whole reason it is small enough
+    to keep. So it comes back with `None` where a dataset comes back with its frame, and the
+    row comparison below reads that rather than trying to load a file that describes one.
+    """
+    if is_profile(path):
+        return read_profile(path), None
+    frame = load_frame(path)
+    return schema_from_frame(frame, source=name or describe_source(path)), frame
+
+
+def _row_changes(
+    old_frame: Any, new_frame: Any, key: list[str] | None, old_name: str, new_name: str
+) -> list[Change]:
+    """Match rows on the key, when one was given and both sides have rows to match."""
+    if not key:
+        return []
+    if old_frame is None or new_frame is None:
+        raise HTTPException(
+            status_code=400,
+            detail="comparing rows needs both datasets; a stored profile keeps none",
+        )
+    return compare_rows(old_frame, new_frame, key, old_name, new_name)
 
 
 def reported_name(upload: UploadFile) -> str:

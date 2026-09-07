@@ -8,6 +8,8 @@ pytest.importorskip("httpx")
 from fastapi.testclient import TestClient
 
 import datasemver_web.backend.main as main
+from datasemver.core.profile import PROFILE_SUFFIX, PROFILE_VERSION, write_profile
+from datasemver.formats.loader import load_schema
 from datasemver_web.backend.config import Settings
 from datasemver_web.backend.history import scan_datasets
 from datasemver_web.backend.main import app
@@ -414,3 +416,127 @@ def test_a_missing_file_becomes_a_404():
         raise FileNotFoundError("dataset not found: gone.csv")
 
     assert error.value.status_code == 404
+
+
+# --- profiles, which are what let a comparison outgrow the upload limit ----------------------
+
+
+def test_a_dataset_can_be_profiled_through_the_dashboard(client, old_csv):
+    """The dashboard's half of `datasemver profile`, for someone who never opens a terminal."""
+    with old_csv.open("rb") as handle:
+        response = client.post("/api/profile", files={"dataset": ("old.csv", handle, "text/csv")})
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["profile_version"] == PROFILE_VERSION
+    assert payload["dataset"]["source"] == "old.csv"
+    assert payload["dataset"]["columns"]["score"]["quantiles"]
+
+
+def test_a_profile_is_accepted_in_place_of_a_dataset(client, old_csv, new_csv, tmp_path):
+    """The point of accepting one: the previous version never has to be uploaded, or exist."""
+    stored = write_profile(load_schema(old_csv), tmp_path / f"old{PROFILE_SUFFIX}")
+
+    with stored.open("rb") as profile, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={
+                "old": (f"customers{PROFILE_SUFFIX}", profile, "application/json"),
+                "new": ("new.csv", new, "text/csv"),
+            },
+            data={"current_version": "1.0.0"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["bump"] == "major"
+
+
+def test_a_plain_json_upload_is_still_read_as_data(client, old_json, new_json):
+    """`.json` is a format this reads; only the compound suffix means a profile."""
+    with old_json.open("rb") as old, new_json.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={
+                "old": ("old.json", old, "application/json"),
+                "new": ("new.json", new, "application/json"),
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["diff"]["new"]["row_count"] == 5
+
+
+def test_the_frontend_is_told_what_marks_a_profile(client):
+    """Reported apart from the formats, because a profile is not one of them."""
+    payload = client.get("/api/meta").json()
+
+    assert payload["profile_suffix"] == PROFILE_SUFFIX
+    assert PROFILE_SUFFIX not in payload["supported_extensions"]
+
+
+# --- comparing rows -----------------------------------------------------------------------------
+
+
+def test_a_key_compares_the_rows(client, old_csv, new_csv):
+    with old_csv.open("rb") as old, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={"old": ("old.csv", old, "text/csv"), "new": ("new.csv", new, "text/csv")},
+            data={"key": "id"},
+        )
+
+    types = {change["type"] for change in response.json()["diff"]["changes"]}
+    assert "rows_modified" in types
+
+
+def test_no_key_leaves_the_rows_alone(client, old_csv, new_csv):
+    with old_csv.open("rb") as old, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={"old": ("old.csv", old, "text/csv"), "new": ("new.csv", new, "text/csv")},
+        )
+
+    types = {change["type"] for change in response.json()["diff"]["changes"]}
+    assert "rows_modified" not in types
+
+
+def test_a_key_against_a_profile_is_refused_with_the_reason(client, old_csv, new_csv, tmp_path):
+    """A profile keeps no rows, so there is nothing to match; saying so beats a stack trace."""
+    stored = write_profile(load_schema(old_csv), tmp_path / f"old{PROFILE_SUFFIX}")
+
+    with stored.open("rb") as profile, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={
+                "old": (f"old{PROFILE_SUFFIX}", profile, "application/json"),
+                "new": ("new.csv", new, "text/csv"),
+            },
+            data={"key": "id"},
+        )
+
+    assert response.status_code == 400
+    assert "keeps none" in response.json()["detail"]
+
+
+def test_a_key_naming_no_column_is_refused(client, old_csv, new_csv):
+    with old_csv.open("rb") as old, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={"old": ("old.csv", old, "text/csv"), "new": ("new.csv", new, "text/csv")},
+            data={"key": "nope"},
+        )
+
+    assert response.status_code == 400
+    assert "no column 'nope'" in response.json()["detail"]
+
+
+def test_a_blank_key_is_the_same_as_none(client, old_csv, new_csv):
+    """An untouched text field sends an empty string, which must not become a key of one."""
+    with old_csv.open("rb") as old, new_csv.open("rb") as new:
+        response = client.post(
+            "/api/diff",
+            files={"old": ("old.csv", old, "text/csv"), "new": ("new.csv", new, "text/csv")},
+            data={"key": "  ,  "},
+        )
+
+    assert response.status_code == 200

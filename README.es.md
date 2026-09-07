@@ -837,6 +837,15 @@ curl -X POST http://127.0.0.1:8000/api/diff \
 Los endpoints, la configuración y la convención de nombres de los datasets están
 documentados en [datasemver_web/README.md](https://github.com/IzanVil/datasemver/blob/main/datasemver_web/README.md) (en inglés).
 
+### Trabajar desde el panel
+
+Cualquiera de los dos lados de una comparación puede ser un perfil guardado en lugar de un
+dataset, que es lo que le permite alcanzar una versión demasiado grande para subirla o que ya
+no está en disco: el perfil son unos cientos de bytes. **Save profile** escribe el perfil de la
+versión nueva, así que el panel puede producir uno para quien nunca abre un terminal. El campo
+**Key** convierte la comparación en una comparación fila a fila, nombrando una columna o
+varias separadas por comas.
+
 ## Estructura del proyecto
 
 ```

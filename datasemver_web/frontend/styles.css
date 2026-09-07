@@ -195,6 +195,24 @@ button:focus-visible {
   margin-top: 18px;
   flex-wrap: wrap;
 }
+/* The hint takes the free space so the two buttons stay together on the right, and comparing
+   keeps the filled treatment: saving a profile is the useful second thing, not the point. */
+.form-footer .hint {
+  margin-right: auto;
+}
+.button-quiet {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.button-quiet:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 
 .button {
   border: 0;

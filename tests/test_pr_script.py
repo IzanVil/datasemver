@@ -443,3 +443,60 @@ def test_the_defaults_are_the_documented_ones(monkeypatch):
     assert args.top_changes == pr.TOP_CHANGES
     assert args.default_version == pr.DEFAULT_VERSION
     assert args.output is None
+
+
+# --- refusing a change -----------------------------------------------------------------------
+
+
+def test_without_a_threshold_the_run_only_describes(repo, tmp_path):
+    """The default has to stay advisory: every repository already running this expects 0."""
+    code, _ = report_of(repo, tmp_path)
+
+    assert code == 0
+
+
+def test_a_bump_that_reaches_the_threshold_fails_the_run(repo, tmp_path):
+    code, body = report_of(repo, tmp_path, "--fail-on", "major")
+
+    assert code == 1
+    assert "customers.csv" in body
+
+
+def test_the_report_is_written_before_the_run_is_refused(repo, tmp_path):
+    """A refusal that suppressed its own explanation would say no and never say why."""
+    output = tmp_path / "out" / "report.md"
+
+    code = pr.main(["--base-ref", "base", "--output", str(output), "--fail-on", "major"])
+
+    assert code == 1
+    assert output.exists()
+    assert output.read_text(encoding="utf-8").strip()
+
+
+def test_a_bump_below_the_threshold_is_let_through(repo, tmp_path):
+    """The same change, under a rule set that does not call any of it breaking."""
+    rules = tmp_path / "tolerant.yaml"
+    rules.write_text(
+        "patch:\n"
+        "  - column_removed\n"
+        "  - type_changed_incompatible\n"
+        "  - column_added\n"
+        "  - row_count_increased\n"
+        "  - nulls_fixed\n"
+        "  - minor_stat_change\n",
+        encoding="utf-8",
+    )
+
+    code, _ = report_of(repo, tmp_path, "--fail-on", "major", "--rules", str(rules))
+
+    assert code == 0
+
+
+def test_a_run_with_nothing_to_compare_is_not_refused(repo, tmp_path):
+    output = tmp_path / "out" / "report.md"
+
+    code = pr.main(
+        ["--base-ref", "base", "--output", str(output), "--fail-on", "patch", "--paths", "none.csv"]
+    )
+
+    assert code == 0

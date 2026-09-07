@@ -8,7 +8,27 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- The pull request script takes `--fail-on` and the workflow can refuse a merge. `--fail-on`
+  reached the CLI in 0.6.0 and stopped there, so the surface people actually consume this
+  through -- the comment on a pull request -- could still only describe what it found. The
+  refusal runs after the comment is posted, never before: a gate that suppressed its own
+  explanation would block a merge and never say which dataset or why. Off unless
+  `DATASEMVER_FAIL_ON` is set, because a repository already running this expects an exit code
+  of zero.
+- The package namespace exports what the last two releases added. `datasemver` exposed
+  `analyze` and four models, so profiles, the row comparison and `analyze_schemas` were only
+  reachable through `datasemver.core.*` -- and the README documented one of those paths as the
+  way in, which makes an internal module part of the contract in a package that ships
+  `py.typed`. Twenty-one names are exported now, the READMEs import from the package, and a
+  test fails on any name in `__all__` that stops resolving.
+
 ### Patch
+- The terminal captures in the READMEs show what the tool prints. They were generated the day
+  before the release that changed it, so `datasemver rules` was pictured with a rule set that
+  no longer exists and described in its alt text as six rules under major where there are
+  seven, and seven under minor where there are ten. `scripts/capture_cli.py` regenerated three
+  of the four; `cli-dvc` needs DVC on the machine and was left alone.
 - The dashboard has a mark: two blocks for the two versions, split by the seam that is the
   comparison between them. It is inline SVG taking its colours from the theme tokens the page
   already switches on, so it follows light and dark without a second copy, and there is a

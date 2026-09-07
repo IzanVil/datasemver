@@ -3,6 +3,7 @@ import subprocess
 import sys
 
 import pandas as pd
+import pytest
 
 from datasemver.core.analyzer import analyze, analyze_schemas
 from datasemver.core.changelog import render_entry, write_changelog
@@ -110,3 +111,38 @@ def test_module_entry_point_runs(old_csv, new_csv):
 
     assert result.returncode == 0
     assert json.loads(result.stdout)["bump"] == "major"
+
+
+# --- the supported interface ------------------------------------------------------------------
+
+
+def test_everything_the_package_promises_is_reachable():
+    """`__all__` is the contract; a name in it that does not resolve is a broken promise."""
+    import datasemver
+
+    missing = [name for name in datasemver.__all__ if not hasattr(datasemver, name)]
+
+    assert missing == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "analyze",
+        "analyze_schemas",
+        "compare_rows",
+        "load_schema",
+        "read_profile",
+        "schema_from_frame",
+        "write_profile",
+    ],
+)
+def test_the_capabilities_are_reachable_from_the_package_itself(name):
+    """Documenting `datasemver.core.analyzer` as the way in makes an internal path a contract.
+
+    These are what the READMEs tell a reader to import, so they have to keep resolving from
+    the namespace rather than only from wherever they happen to be defined today.
+    """
+    import datasemver
+
+    assert callable(getattr(datasemver, name))

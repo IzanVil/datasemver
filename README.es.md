@@ -428,7 +428,7 @@ y como lo ha entendido el motor:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-rules.png" width="760"
-       alt="Terminal con datasemver rules: el conjunto de reglas por defecto impreso en tres grupos de severidad con color, seis reglas en major, siete en minor y tres en patch.">
+       alt="Terminal con datasemver rules: el conjunto de reglas por defecto impreso en tres grupos de severidad con color, siete reglas en major, diez en minor y tres en patch.">
 </p>
  Las reglas con umbral como
 `row_count_decrease_greater_than` se emparejan de forma natural con su equivalente sin
@@ -624,14 +624,29 @@ que vengan de cualquier sitio sin tocar el sistema de ficheros:
 
 ```python
 import pandas as pd
-from datasemver.core.analyzer import analyze_schemas
-from datasemver.formats.loader import schema_from_frame
+from datasemver import analyze_schemas, schema_from_frame
 
 report = analyze_schemas(
     schema_from_frame(pd.read_sql(query, engine), "warehouse@yesterday"),
     schema_from_frame(pd.read_sql(query, engine), "warehouse@today"),
 )
 ```
+
+Un perfil se puede escribir y volver a leer, que es lo que permite que una comparación
+sobreviva al dataset que describe:
+
+```python
+from datasemver import analyze, load_schema, write_profile
+
+write_profile(load_schema("customers_v3.parquet"), "customers_v3.profile.json")
+
+# meses después, con el dataset ya desaparecido
+report = analyze("customers_v3.profile.json", "customers_v4.parquet")
+```
+
+Todo lo alcanzable desde el espacio de nombres `datasemver` es la interfaz soportada. Las
+rutas de módulo que hay por debajo —`datasemver.core.analyzer` y las demás— pueden moverse
+entre versiones, así que importa desde el paquete y no desde dentro de él.
 
 ## GitHub Action
 

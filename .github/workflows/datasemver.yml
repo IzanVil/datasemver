@@ -57,13 +57,22 @@ jobs:
 
       - name: Analyse the datasets that changed
         id: datasemver
+        # The gate runs, but its failure is caught here so that the comment below still
+        # posts: a refusal that suppressed its own explanation would block a merge and never
+        # say which dataset or why. The last step turns the caught failure back into one.
+        continue-on-error: true
         env:
           BASE_REF: ${{ steps.base.outputs.ref }}
           REPORT_PATH: ${{ runner.temp }}/datasemver-report.md
+          # Unset here, because this repository's datasets are dashboard fixtures and
+          # changing them is ordinary work. Set the variable to patch, minor or major in a
+          # repository that wants its data reviewed the way its code is.
+          FAIL_ON: ${{ vars.DATASEMVER_FAIL_ON }}
         run: |
           python scripts/run_datasemver_on_pr.py \
             --base-ref "$BASE_REF" \
-            --output "$REPORT_PATH"
+            --output "$REPORT_PATH" \
+            ${FAIL_ON:+--fail-on "$FAIL_ON"}
 
       - name: Comment on the pull request
         if: >-
@@ -96,3 +105,15 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+      - name: Refuse the change
+        # After the comment, never before it. `outcome` is what the step really did;
+        # `conclusion` is what continue-on-error turned it into.
+        if: steps.datasemver.outcome == 'failure'
+        env:
+          MAX_BUMP: ${{ steps.datasemver.outputs.max_bump }}
+        run: |
+          echo "::error::the datasets in this branch suggest a $MAX_BUMP bump, which the"\
+               " configured DATASEMVER_FAIL_ON threshold refuses. The report is in the"\
+               " pull request comment."
+          exit 1

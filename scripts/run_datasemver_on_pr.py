@@ -107,6 +107,12 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         help=f"Changes listed per dataset (default: {TOP_CHANGES}).",
     )
     parser.add_argument("--output", type=Path, default=None, help="Write the report to this file.")
+    parser.add_argument(
+        "--fail-on",
+        choices=sorted(SEVERITY_RANK, key=lambda name: SEVERITY_RANK[name]),
+        default=None,
+        help="Exit with 1 when the worst bump in the run reaches this severity or higher.",
+    )
     return parser.parse_args(argv)
 
 
@@ -396,7 +402,26 @@ def finish(
         dataset_count=str(len(reports)),
     )
     append_step_summary(body)
-    return 0
+    return _gate(args.fail_on, overall)
+
+
+def _gate(fail_on: str | None, overall: str | None) -> int:
+    """Turn the run's worst bump into an exit code, matching what `datasemver diff` does.
+
+    The report is written, printed and posted before this runs, and that ordering is the
+    point: a refusal that suppressed the explanation would say a change was rejected and
+    never say which dataset or why.
+    """
+    if fail_on is None or overall is None:
+        return 0
+    if SEVERITY_RANK[overall] < SEVERITY_RANK[fail_on]:
+        return 0
+    print(
+        f"error: the worst suggested bump is {overall}, which reaches the --fail-on "
+        f"threshold of {fail_on}",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def truncate(body: str) -> str:

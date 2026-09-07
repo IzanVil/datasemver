@@ -419,7 +419,7 @@ understood it:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-rules.png" width="760"
-       alt="Terminal showing datasemver rules: the bundled default rule set printed as three colour-coded severity groups, six rules under major, seven under minor and three under patch.">
+       alt="Terminal showing datasemver rules: the bundled default rule set printed as three colour-coded severity groups, seven rules under major, ten under minor and three under patch.">
 </p>
  Threshold rules such as
 `row_count_decrease_greater_than` pair naturally with their plain counterpart in a lower
@@ -612,14 +612,29 @@ can be compared without touching the filesystem:
 
 ```python
 import pandas as pd
-from datasemver.core.analyzer import analyze_schemas
-from datasemver.formats.loader import schema_from_frame
+from datasemver import analyze_schemas, schema_from_frame
 
 report = analyze_schemas(
     schema_from_frame(pd.read_sql(query, engine), "warehouse@yesterday"),
     schema_from_frame(pd.read_sql(query, engine), "warehouse@today"),
 )
 ```
+
+A profile can be written and read back, which is what lets a comparison outlive the dataset
+it describes:
+
+```python
+from datasemver import analyze, load_schema, write_profile
+
+write_profile(load_schema("customers_v3.parquet"), "customers_v3.profile.json")
+
+# months later, with the dataset long gone
+report = analyze("customers_v3.profile.json", "customers_v4.parquet")
+```
+
+Everything reachable from the `datasemver` namespace is the supported interface. The module
+paths underneath it — `datasemver.core.analyzer` and the rest — are free to move between
+releases, so import from the package itself rather than from inside it.
 
 ## GitHub Action
 

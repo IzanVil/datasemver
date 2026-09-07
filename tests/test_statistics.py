@@ -14,7 +14,9 @@ import math
 import pytest
 
 from datasemver.utils.statistics import (
+    OTHER_CATEGORY,
     QUANTILE_LEVELS,
+    aligned_counts,
     ks_critical_value,
     ks_statistic,
     population_stability_index,
@@ -162,3 +164,46 @@ def test_a_category_that_appears_for_the_first_time_is_seen():
 @pytest.mark.parametrize(("old", "new"), [({}, {"a": 1}), ({"a": 1}, {}), ({}, {})])
 def test_an_empty_side_reports_no_movement(old, new):
     assert population_stability_index(old, new) == 0.0
+
+
+# --- aligning counts that were truncated differently --------------------------------------------
+
+
+def test_untruncated_counts_are_compared_as_they_are():
+    """Both sides exact: a category appearing or disappearing is a real event, not an artefact."""
+    old, new = aligned_counts({"a": 5, "b": 5}, {"a": 5, "c": 5})
+
+    assert old == {"a": 5, "b": 5}
+    assert new == {"a": 5, "c": 5}
+
+
+def test_a_category_one_side_truncated_does_not_read_as_removed():
+    """`b` is tracked on the left and fell into the tail on the right, which is not a removal."""
+    old, new = aligned_counts(
+        {"a": 500, "b": 100},
+        {"a": 500, OTHER_CATEGORY: 100},
+    )
+
+    assert set(old) == set(new)
+    assert population_stability_index(old, new) < 0.1
+
+
+def test_aligning_keeps_every_row_on_both_sides():
+    """Folding must move rows between bins, never lose them: the shares have to stay shares."""
+    before = {"a": 500, "b": 100, "c": 50, OTHER_CATEGORY: 350}
+    after = {"a": 400, "c": 200, OTHER_CATEGORY: 400}
+
+    old, new = aligned_counts(before, after)
+
+    assert sum(old.values()) == sum(before.values())
+    assert sum(new.values()) == sum(after.values())
+
+
+def test_a_real_collapse_survives_the_alignment():
+    """The folding must not flatten the signal it exists to protect."""
+    old, new = aligned_counts(
+        {"a": 100, "b": 100, OTHER_CATEGORY: 800},
+        {"a": 9_500, "b": 100, OTHER_CATEGORY: 400},
+    )
+
+    assert population_stability_index(old, new) > 0.25

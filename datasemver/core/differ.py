@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from datasemver.core.models import (
     Change,
@@ -16,6 +17,7 @@ from datasemver.core.models import (
 )
 from datasemver.utils.similarity import column_similarity
 from datasemver.utils.statistics import (
+    aligned_counts,
     ks_critical_value,
     ks_statistic,
     population_stability_index,
@@ -216,7 +218,8 @@ def _row_count_changes(old: DatasetSchema, new: DatasetSchema) -> Iterator[Chang
 def _column_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     yield from _type_changes(old, new)
     yield from _null_changes(old, new, config)
-    yield from _category_changes(old, new, config)
+    yield from _category_changes(old, new)
+    yield from _balance_changes(old, new, config)
     yield from _numeric_changes(old, new, config)
     yield from _cardinality_changes(old, new, config)
 
@@ -273,7 +276,7 @@ def _null_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Ite
         )
 
 
-def _category_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
+def _category_changes(old: ColumnStats, new: ColumnStats) -> Iterator[Change]:
     if old.categories is None or new.categories is None:
         return
 
@@ -298,8 +301,6 @@ def _category_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) ->
             details={"categories": lost[:20]},
         )
 
-    yield from _balance_changes(old, new, config)
-
 
 def _balance_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     """Compare how the values are distributed, not only which values occur.
@@ -315,11 +316,12 @@ def _balance_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> 
         # cannot move by a little, so every move looks like a large one.
         return
 
-    index = population_stability_index(old.category_counts, new.category_counts)
+    before, after = aligned_counts(old.category_counts, new.category_counts)
+    index = population_stability_index(before, after)
     if index < config.psi_threshold:
         return
 
-    moved = _largest_move(old.category_counts, new.category_counts)
+    moved = _largest_move(before, after)
     yield Change(
         type=ChangeType.CATEGORY_BALANCE_SHIFT,
         column=new.name,
@@ -344,11 +346,15 @@ def _largest_move(old: dict[str, int], new: dict[str, int]) -> tuple[str, float,
 
 
 def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
-    if not (old.is_numeric and new.is_numeric):
-        return
     if old.mean is None or new.mean is None:
         return
     if _is_sequential_key(old) and _is_sequential_key(new):
+        return
+
+    if old.is_temporal and new.is_temporal:
+        yield from _moment_changes(old, new, config)
+        return
+    if not (old.is_numeric and new.is_numeric):
         return
 
     base = abs(old.mean) or 1.0
@@ -359,6 +365,47 @@ def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> 
         yield from _shape_changes(old, new, config, metrics, relative)
         return
     yield from _mean_only_changes(old, new, config, metrics, relative)
+
+
+def _moment_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
+    """Compare two datetime columns on when they actually sit.
+
+    Only on the distribution, never on a relative move of the mean: the mean of a datetime is
+    a point on an epoch, so "moved 12%" would mean twelve per cent of the time since 1970,
+    which is a number about the epoch rather than about the data.
+    """
+    before, after = old.mean, new.mean
+    if not (old.quantiles and new.quantiles) or before is None or after is None:
+        return
+
+    statistic = ks_statistic(old.quantiles, new.quantiles)
+    floor = max(config.ks_threshold, ks_critical_value(old.non_null_count, new.non_null_count))
+    if statistic < floor:
+        return
+
+    yield Change(
+        type=ChangeType.DISTRIBUTION_SHIFT,
+        column=new.name,
+        description=(
+            f"Column '{new.name}' moved in time (KS {statistic:.3f}): "
+            f"{_moment(old.minimum)}..{_moment(old.maximum)} -> "
+            f"{_moment(new.minimum)}..{_moment(new.maximum)}"
+        ),
+        metrics={
+            "mean_old": before,
+            "mean_new": after,
+            "mean_shift_seconds": round(abs(after - before), 3),
+            "ks_statistic": statistic,
+        },
+    )
+
+
+def _moment(value: float | None) -> str:
+    """An epoch second as the date it is, because that is what the reader recognises."""
+    if value is None:
+        return "-"
+    stamp = datetime.fromtimestamp(value, tz=timezone.utc)
+    return stamp.strftime("%Y-%m-%d %H:%M:%S").removesuffix(" 00:00:00")
 
 
 def _shape_changes(

@@ -35,6 +35,13 @@ QUANTILE_LEVELS: tuple[float, ...] = (
 # large, which is the honest reading of "this value stopped appearing".
 _PSI_FLOOR = 1e-4
 
+# Where the categories a profile does not track individually are summed. A column with more
+# distinct values than the profile keeps is still worth comparing on balance -- binning the
+# tail is how PSI is computed on a high-cardinality feature anyway -- and without a bucket
+# for it such a column was compared on nothing at all. A real category by this name merges
+# into the bucket, which costs a little accuracy in one bin and nothing else.
+OTHER_CATEGORY = "__other__"
+
 # Coefficient of the Kolmogorov distribution at the 5% level. The two-sample critical value
 # is this over the square root of the harmonic-ish sample size; see `ks_critical_value`.
 _KS_ALPHA_05 = 1.358
@@ -111,6 +118,36 @@ def _cdf_at(value: float, grid: list[float]) -> float:
         share = (value - lower) / (upper - lower)
         level += share * (QUANTILE_LEVELS[below + 1] - QUANTILE_LEVELS[below])
     return level
+
+
+def aligned_counts(
+    old: dict[str, int], new: dict[str, int]
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Put two category-count maps where their shares mean the same thing.
+
+    A profile keeps the most frequent categories and sums the rest into `OTHER_CATEGORY`, so
+    two versions of a column can track different sets: a category sitting near the cut can be
+    tracked in one and folded into the tail of the other. Reading that as the category having
+    disappeared would report a shift that is really an artefact of where the cut fell.
+
+    So where either side is truncated, only the categories both of them tracked are compared,
+    and everything else on each side joins that side's own tail. Where neither is truncated
+    the counts are exact and are compared as they are, which keeps a category genuinely
+    appearing or disappearing visible.
+    """
+    if OTHER_CATEGORY not in old and OTHER_CATEGORY not in new:
+        return dict(old), dict(new)
+
+    shared = (set(old) & set(new)) - {OTHER_CATEGORY}
+    return _folded(old, shared), _folded(new, shared)
+
+
+def _folded(counts: dict[str, int], shared: set[str]) -> dict[str, int]:
+    kept = {name: counts[name] for name in shared}
+    tail = sum(counts.values()) - sum(kept.values())
+    if tail:
+        kept[OTHER_CATEGORY] = tail
+    return kept
 
 
 def population_stability_index(old: dict[str, int], new: dict[str, int]) -> float:

@@ -419,6 +419,18 @@ siguen presentes —invisible para una comparación de los conjuntos de categor�
 por defecto son la lectura convencional del PSI: 0,1 inestable, 0,25 ya no es la misma
 población.
 
+Las columnas de fecha se comparan igual, sobre su epoch: una ventana que se desliza hacia
+delante, o un export que solo cubre la mitad del periodo que cubría, es un cambio y no el
+silencio que producía una columna de fecha cuando no llevaba ningún estadístico. Solo se
+compara la distribución —un movimiento porcentual de la media de una fecha sería un porcentaje
+del tiempo transcurrido desde 1970— y el cambio se describe en fechas.
+
+Una columna categórica con más valores distintos de los que se rastrean individualmente se
+sigue comparando por balance, sumando en un único bucket todo lo que queda por debajo de los
+valores más frecuentes. Cuando las dos versiones truncan por sitios distintos, solo se comparan
+las categorías que ambas conservaron, de modo que una categoría situada junto al corte no se
+lee como una que desapareció.
+
 Ambas se miden contra lo que el tamaño de muestra puede sostener. Un estadístico KS no
 significa nada por sí solo: con cuatro filas contra cinco, añadir una sola fila mueve la
 distribución un quinto, así que un desplazamiento tiene que superar el valor crítico para esos

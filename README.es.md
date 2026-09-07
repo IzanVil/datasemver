@@ -766,6 +766,13 @@ tests/                    suite de pytest y fixtures de datasets
 demo.cast                 grabación de asciinema usada en la demo de arriba
 ```
 
+La publicación usa Trusted Publishing, así que no hay ningún token de API guardado en
+este repositorio. El workflow emite un token OpenID Connect de vida corta que dice de
+qué repositorio, de qué fichero de workflow y de qué entorno viene, y el índice lo
+verifica contra lo que se le dijo que esperara. Lo que hay que configurar una vez en
+cada índice está en
+[CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md#releasing).
+
 ## Changelog
 
 Cada versión publicada está descrita en [CHANGELOG.md](https://github.com/IzanVil/datasemver/blob/main/CHANGELOG.md), que usa el mismo

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="DataSemver">
+  <title>DataSemver</title>
+  <!-- Two versions of a dataset, and the comparison running between them. Light variant:
+       the colours are written out because a README image is fetched on its own. -->
+  <rect x="3" y="7" width="10.5" height="18" rx="2.2" fill="#14181f" opacity="0.86"/>
+  <rect x="18.5" y="7" width="10.5" height="18" rx="2.2" fill="#14181f" opacity="0.86"/>
+  <rect x="14.9" y="3.5" width="2.2" height="25" rx="1.1" fill="#0e7c5a"/>
+</svg>

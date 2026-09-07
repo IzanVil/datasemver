@@ -8,6 +8,19 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- The repository root holds what builds the project and little else. Seventeen tracked files
+  there had become hard to read past: the community documents moved to `.github`, where GitHub
+  reads them exactly as it did before and the security policy still fills the Security tab;
+  the demo recording and the PyPI readme moved to `docs`; and the four `requirements-*.txt`
+  became `requirements/`, whose `-r` lines pip resolves relative to the file holding them.
+  Eight files are left. Nothing was deleted and nothing changed what it does.
+- Every reference moved with them, which is most of the work: the links in three READMEs and
+  on both pages of the site, `readme` in `pyproject.toml`, the install commands, the project
+  layout listings and the dashboard's own README. `MANIFEST.in` needed its includes placed
+  after `prune .github`, or the prune would have taken the three documents it is not aimed at
+  and a source distribution would have quietly lost them.
+
 ### Minor
 - The dashboard does what the library does. It was two releases behind: profiles, the row
   comparison and the distribution statistics reached the CLI and stopped there, so the

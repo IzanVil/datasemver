@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-07
+
 ### Minor
 - `--key` compares the datasets row by row instead of profile against profile. A profile
   cannot answer which rows changed -- a version where a third of the rows were rewritten with
@@ -465,7 +467,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/IzanVil/datasemver/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/IzanVil/datasemver/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/IzanVil/datasemver/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/IzanVil/datasemver/compare/v0.2.5...v0.3.0

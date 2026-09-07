@@ -78,7 +78,11 @@ h1, h2, h3 { text-wrap: balance; }
 .mark {
   font-weight: 700; font-size: 1rem; letter-spacing: -0.01em;
   font-variation-settings: "wdth" 112; color: var(--ink); text-decoration: none;
+  display: flex; align-items: center; gap: 0.5rem;
 }
+/* The seam takes the accent token rather than naming a colour, so the one mark follows both
+   modes the way everything else on the page does. */
+.mark-glyph { width: 22px; height: 22px; flex: none; }
 .mark b { color: var(--accent); font-weight: 700; }
 .nav ul {
   list-style: none; margin: 0 0 0 auto; padding: 0;

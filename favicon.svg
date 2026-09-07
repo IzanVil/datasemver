@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>DataSemver</title>
+  <!--
+    Two versions of a dataset, and the comparison running between them.
+
+    Heavier and with less padding than the mark in the nav, because a favicon is read at 16px
+    and the proportions that balance at 22px close up at that size. The colours are written
+    out rather than taken from site.css, since a favicon is fetched on its own and inherits
+    nothing; the media query is the same pair of palettes the page uses.
+  -->
+  <style>
+    .block { fill: #14181f; opacity: 0.88; }
+    .seam  { fill: #0e7c5a; }
+    @media (prefers-color-scheme: dark) {
+      .block { fill: #e8ecf2; }
+      .seam  { fill: #4ecda4; }
+    }
+  </style>
+  <rect class="block" x="1.5" y="4.5" width="12" height="23" rx="2.6" />
+  <rect class="block" x="18.5" y="4.5" width="12" height="23" rx="2.6" />
+  <rect class="seam" x="14.4" y="1" width="3.2" height="30" rx="1.6" />
+</svg>

@@ -210,3 +210,102 @@ def test_severity_cannot_be_compared_to_other_types():
         _ = Severity.MAJOR < 3
     with pytest.raises(TypeError):
         _ = Severity.MAJOR >= "not-a-severity"
+
+
+# --- rules scoped to columns ------------------------------------------------------------------
+
+
+def rules_from(text: str, tmp_path):
+    path = tmp_path / "rules.yaml"
+    path.write_text(text, encoding="utf-8")
+    return load_rules(path)
+
+
+CONTRACT = """
+major:
+  - nulls_introduced: {columns: [user_id, email]}
+minor:
+  - nulls_introduced
+ignore:
+  - distribution_shift: {columns: [ingested_at]}
+"""
+
+
+def nulls_in(column: str) -> Change:
+    return Change(type=ChangeType.NULLS_INTRODUCED, column=column, description="nulls")
+
+
+def test_a_scoped_rule_covers_the_columns_it_names(tmp_path):
+    rule_set = rules_from(CONTRACT, tmp_path)
+
+    assert rule_set.classify(nulls_in("email")).severity is Severity.MAJOR
+
+
+def test_a_scoped_rule_leaves_every_other_column_to_the_general_one(tmp_path):
+    """The point of scoping: one column is protected without raising the bar everywhere."""
+    rule_set = rules_from(CONTRACT, tmp_path)
+
+    assert rule_set.classify(nulls_in("notes")).severity is Severity.MINOR
+
+
+def test_an_ignored_change_is_reported_but_left_unclassified(tmp_path):
+    """Detected and expected are different answers from silence, and it stays visible."""
+    rule_set = rules_from(CONTRACT, tmp_path)
+    drift = Change(type=ChangeType.DISTRIBUTION_SHIFT, column="ingested_at", description="drift")
+
+    classified = rule_set.classify(drift)
+
+    assert classified.severity is None
+    assert classified.rule == "distribution_shift"
+
+
+def test_ignoring_one_column_does_not_ignore_the_others(tmp_path):
+    rule_set = rules_from(CONTRACT + "\nmajor:\n  - distribution_shift\n", tmp_path)
+    elsewhere = Change(type=ChangeType.DISTRIBUTION_SHIFT, column="amount", description="drift")
+
+    assert rule_set.classify(elsewhere).severity is Severity.MAJOR
+
+
+def test_a_threshold_and_columns_can_be_given_together(tmp_path):
+    rule_set = rules_from(
+        "major:\n  - row_count_decrease_greater_than: {threshold: 20, columns: [orders]}\n",
+        tmp_path,
+    )
+    rule = rule_set.rules[Severity.MAJOR][0]
+
+    assert rule.threshold == 20
+    assert rule.columns == frozenset({"orders"})
+
+
+def test_the_shorthand_for_a_threshold_still_works(tmp_path):
+    """Every rules file written before columns existed has to keep parsing unchanged."""
+    rule_set = rules_from("major:\n  - row_count_decrease_greater_than: 20\n", tmp_path)
+
+    assert rule_set.rules[Severity.MAJOR][0].threshold == 20
+
+
+def test_columns_written_as_a_bare_string_is_an_error(tmp_path):
+    """It reads as one column to a person and as five to anything that iterates a string."""
+    with pytest.raises(RuleError, match="must be a list"):
+        rules_from("major:\n  - column_removed: {columns: user_id}\n", tmp_path)
+
+
+def test_an_empty_column_list_is_an_error(tmp_path):
+    with pytest.raises(RuleError, match="matches nothing"):
+        rules_from("major:\n  - column_removed: {columns: []}\n", tmp_path)
+
+
+def test_an_unknown_option_on_a_rule_is_an_error(tmp_path):
+    with pytest.raises(RuleError, match=r"does not take \['umbral'\]"):
+        rules_from("major:\n  - column_removed: {umbral: 3}\n", tmp_path)
+
+
+def test_a_threshold_on_a_rule_that_takes_none_is_still_an_error(tmp_path):
+    with pytest.raises(RuleError, match="does not accept a threshold"):
+        rules_from("major:\n  - column_removed: {threshold: 3}\n", tmp_path)
+
+
+def test_a_boolean_is_not_a_threshold(tmp_path):
+    """YAML reads `true` as a boolean, and a boolean is an integer in Python."""
+    with pytest.raises(RuleError, match="must be numeric"):
+        rules_from("major:\n  - row_count_decrease_greater_than: true\n", tmp_path)

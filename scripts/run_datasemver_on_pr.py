@@ -21,6 +21,7 @@ from typing import Literal, overload
 MARKER = "<!-- datasemver-report -->"
 DATASET_EXTENSIONS = (".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq")
 VERSION_SUFFIX = ".version"
+PROFILE_SUFFIX = ".profile.json"
 DEFAULT_VERSION = "0.0.0"
 TOP_CHANGES = 5
 MAX_COMMENT_CHARS = 60000
@@ -158,7 +159,11 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
     if not new_file.exists():
         raise SkippedDataset("removed in this branch")
 
-    previous = show_blob(args.base_ref, path)
+    # A profile committed beside the dataset is read instead of the dataset itself. It is a
+    # few hundred bytes against however large the base version is, and pulling that through
+    # git on every push was the most expensive thing this script did.
+    stored = show_blob(args.base_ref, f"{path}{PROFILE_SUFFIX}")
+    previous = stored if stored is not None else show_blob(args.base_ref, path)
     if previous is None:
         raise SkippedDataset("new dataset, nothing to compare against")
 
@@ -166,7 +171,8 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
     current_version = recorded or args.default_version
 
     with tempfile.TemporaryDirectory() as directory:
-        old_file = Path(directory) / f"base{Path(path).suffix}"
+        suffix = PROFILE_SUFFIX if stored is not None else Path(path).suffix
+        old_file = Path(directory) / f"base{suffix}"
         old_file.write_bytes(previous)
         payload = run_datasemver(old_file, new_file, current_version, args.rules)
 

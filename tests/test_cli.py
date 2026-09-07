@@ -262,3 +262,66 @@ def test_profiling_something_that_is_not_there_fails_cleanly(tmp_path):
 
     assert result.exit_code == 2
     assert "error" in result.output
+
+
+# --- the version flag -------------------------------------------------------------------------
+
+
+def test_the_version_flag_prints_the_running_version():
+    """A profile records the version that wrote it, so a reader needs to name its own."""
+    result = run("--version")
+
+    assert result.exit_code == 0
+    assert datasemver.__version__ in result.output
+
+
+# --- keying on a column -----------------------------------------------------------------------
+
+
+def test_a_key_reports_the_rows_that_changed(tmp_path):
+    old, new = tmp_path / "old.csv", tmp_path / "new.csv"
+    old.write_text("id,v\n1,a\n2,b\n3,c\n", encoding="utf-8")
+    new.write_text("id,v\n1,a\n2,B\n3,C\n", encoding="utf-8")
+
+    payload = json.loads(run("diff", str(old), str(new), "--key", "id", "--json").stdout)
+
+    modified = next(c for c in payload["diff"]["changes"] if c["type"] == "rows_modified")
+    assert modified["metrics"]["rows_modified"] == 2
+
+
+def test_a_composite_key_is_given_one_flag_per_column(tmp_path):
+    old, new = tmp_path / "old.csv", tmp_path / "new.csv"
+    old.write_text("a,b,v\n1,1,x\n1,2,y\n", encoding="utf-8")
+    new.write_text("a,b,v\n1,1,x\n1,2,Y\n", encoding="utf-8")
+
+    payload = json.loads(run("diff", str(old), str(new), "-k", "a", "-k", "b", "--json").stdout)
+
+    assert any(c["type"] == "rows_modified" for c in payload["diff"]["changes"])
+
+
+def test_a_key_that_cannot_identify_a_row_fails_cleanly(tmp_path):
+    old, new = tmp_path / "old.csv", tmp_path / "new.csv"
+    old.write_text("id,v\n1,a\n1,b\n", encoding="utf-8")
+    new.write_text("id,v\n1,a\n2,b\n", encoding="utf-8")
+
+    result = run("diff", str(old), str(new), "--key", "id")
+
+    assert result.exit_code == 2
+    assert "repeat a key" in result.output
+
+
+# --- the schema-only shortcut -------------------------------------------------------------------
+
+
+def test_schema_only_answers_the_breaking_question(tmp_path):
+    import pandas as pd
+
+    old, new = tmp_path / "old.parquet", tmp_path / "new.parquet"
+    pd.DataFrame({"id": range(20), "legacy": ["x"] * 20}).to_parquet(old)
+    pd.DataFrame({"id": range(20)}).to_parquet(new)
+
+    result = run("diff", str(old), str(new), "--schema-only", "--json")
+    payload = json.loads(result.stdout)
+
+    assert payload["bump"] == "major"
+    assert any(c["type"] == "column_removed" for c in payload["diff"]["changes"])

@@ -10,6 +10,7 @@ import pandas as pd
 
 from datasemver.core.models import DatasetSchema
 from datasemver.core.profile import is_profile, read_profile
+from datasemver.formats.metadata import schema_from_metadata
 from datasemver.formats.sql import is_sql_source, load_sql, redacted
 from datasemver.formats.utils import infer_types, profile_frame
 
@@ -78,7 +79,7 @@ def load_parquet(path: str | Path) -> pd.DataFrame:
     return _flatten_structs(frame)
 
 
-def load_schema(path: str | Path) -> DatasetSchema:
+def load_schema(path: str | Path, schema_only: bool = False) -> DatasetSchema:
     """Load a dataset and return its profile, or read a profile that was already stored.
 
     Dispatching on the source here rather than in the CLI is what gives every caller the
@@ -89,8 +90,17 @@ def load_schema(path: str | Path) -> DatasetSchema:
     """
     if is_profile(path):
         return read_profile(path)
+    if schema_only and _is_parquet_file(path):
+        return schema_from_metadata(_existing_path(path), source=describe_source(path))
     frame = load_frame(path)
     return schema_from_frame(frame, source=describe_source(path))
+
+
+def _is_parquet_file(path: str | Path) -> bool:
+    """Only a Parquet file has a footer to read instead of rows; everything else is read."""
+    if isinstance(path, str) and is_sql_source(path):
+        return False
+    return Path(path).suffix.lower() in PARQUET_EXTENSIONS
 
 
 def describe_source(path: str | Path) -> str:

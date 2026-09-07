@@ -39,6 +39,8 @@ Pass a file with `--rules custom.yaml` to replace the bundled defaults entirely,
 | `distribution_shift` | A numeric or datetime column's whole distribution moved: a KS statistic of at least 0.1, and above what two identical samples of that size would produce |
 | `category_balance_shift` | A categorical column's proportions moved: a PSI of at least 0.1, over at least 30 rows. Columns with more distinct values than are tracked individually are compared with their tail summed into one bucket |
 | `minor_stat_change` | A numeric mean moved by more than 1% without the distribution moving |
+| `rows_modified` | Rows present in both versions changed value; only with `--key` |
+| `rows_replaced` | Rows were added or removed, matched on the key; only with `--key` |
 
 A column is treated as categorical when it holds at most 200 distinct values and its
 distinct values cover at most half of its non-null rows. Contiguous integer keys are
@@ -57,6 +59,8 @@ These accept a numeric limit and match only when the metric is strictly above it
 | `mean_shift_greater_than` | Percentage the mean of a numeric column moved |
 | `ks_statistic_greater_than` | Kolmogorov-Smirnov statistic between the two distributions, 0 to 1 |
 | `psi_greater_than` | Population Stability Index of a categorical column: 0.1 unstable, 0.25 no longer the same population |
+| `rows_modified_greater_than` | Percentage of the rows present in both that changed value |
+| `rows_replaced_greater_than` | Percentage of the new dataset that was added or removed |
 | `cardinality_change_greater_than` | Percentage the distinct value count moved |
 
 Combine a threshold rule with its plain counterpart to get a fallback severity:
@@ -68,5 +72,31 @@ minor:
   - row_count_decreased
 ```
 
-An unknown rule name, an unknown severity, or a threshold on a rule that does not take one
-raises an error instead of being silently ignored.
+## Scoping a rule to columns
+
+Any rule takes a `columns` list, which is what turns a rule set into a contract about
+particular data rather than one sensitivity applied everywhere:
+
+```yaml
+major:
+  - column_removed
+  - nulls_introduced: {columns: [user_id, email]}   # these two, never
+minor:
+  - nulls_introduced                                 # anywhere else, tolerable
+  - row_count_decrease_greater_than: {threshold: 20, columns: [orders]}
+
+ignore:
+  - distribution_shift: {columns: [ingested_at, loaded_at]}
+```
+
+`ignore` is not a severity. A change it names is still detected and still reported, and is
+left unclassified so it contributes nothing to the bump: "this was expected" and "nothing
+happened" are different answers, and only one of them is true.
+
+Without column scoping the only way to tolerate a column that drifts by design is to raise the
+threshold for every column at once, which spends the signal everywhere to silence it in one
+place.
+
+An unknown rule name, an unknown severity, a threshold on a rule that does not take one, or a
+`columns` written as a bare string instead of a list raises an error instead of being silently
+ignored.

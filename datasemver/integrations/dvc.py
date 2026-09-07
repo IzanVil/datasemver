@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze
+from datasemver.core.profile import PROFILE_SUFFIX
 from datasemver.formats.loader import SUPPORTED_EXTENSIONS
 from datasemver.rules.engine import RuleError
 
@@ -213,6 +214,21 @@ def fetch(repo: Path, path: str, rev: str, destination: Path) -> Path:
     return destination
 
 
+def stored_profile(repo: Path, path: str, rev: str, destination: Path) -> Path | None:
+    """The profile committed beside a dataset at a revision, written out, or None.
+
+    A profile is a few hundred bytes of text, so git tracks it even where DVC tracks the data
+    -- the same arrangement the `.version` sidecar already uses. When one is there the
+    previous version of the dataset is never fetched: no `dvc get`, no remote, no cache, and
+    the comparison works on a revision whose data has since been collected.
+    """
+    blob = _show(repo, f"{rev}:{path}{PROFILE_SUFFIX}")
+    if blob is None:
+        return None
+    destination.write_text(blob, encoding="utf-8")
+    return destination
+
+
 def recorded_version(repo: Path, path: str, rev: str) -> str | None:
     """The version written beside a dataset at a given revision, or None.
 
@@ -221,16 +237,20 @@ def recorded_version(repo: Path, path: str, rev: str) -> str | None:
     go through DVC, and the reason a bump suggested here continues from the last one instead
     of restarting at the default every time.
     """
+    blob = _show(repo, f"{rev}:{path}{VERSION_SUFFIX}")
+    return blob.strip() or None if blob else None
+
+
+def _show(repo: Path, target: str) -> str | None:
+    """The contents of `<rev>:<path>`, or None when git has nothing there."""
     result = subprocess.run(
-        ["git", "show", f"{rev}:{path}{VERSION_SUFFIX}"],
+        ["git", "show", target],
         cwd=repo,
         capture_output=True,
         text=True,
         check=False,
     )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip() or None
+    return result.stdout if result.returncode == 0 else None
 
 
 # --- the analysis --------------------------------------------------------------------------
@@ -282,7 +302,9 @@ def analyse_change(
     with tempfile.TemporaryDirectory() as directory:
         scratch = Path(directory)
         try:
-            old_file = fetch(repo, old_path, rev, scratch / f"old{Path(old_path).suffix}")
+            old_file = stored_profile(
+                repo, old_path, rev, scratch / f"old{PROFILE_SUFFIX}"
+            ) or fetch(repo, old_path, rev, scratch / f"old{Path(old_path).suffix}")
             new_file = resolve_new_side(repo, new_path, to_rev, scratch)
         except DvcError as error:
             raise SkippedDataset(str(error)) from error

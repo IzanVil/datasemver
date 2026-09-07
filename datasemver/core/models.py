@@ -78,6 +78,8 @@ class ChangeType(str, Enum):
     CARDINALITY_CHANGED = "cardinality_changed"
     DISTRIBUTION_SHIFT = "distribution_shift"
     CATEGORY_BALANCE_SHIFT = "category_balance_shift"
+    ROWS_MODIFIED = "rows_modified"
+    ROWS_REPLACED = "rows_replaced"
     MINOR_STAT_CHANGE = "minor_stat_change"
 
 

@@ -9,6 +9,33 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- `--key` compares the datasets row by row instead of profile against profile. A profile
+  cannot answer which rows changed -- a version where a third of the rows were rewritten with
+  values drawn the same way has the same profile as the one before it, and is a different
+  dataset to anyone joining against it. Rows added, removed and changed are reported, with the
+  columns that changed and how many rows each accounts for. It needs both datasets in memory,
+  so it stays opt-in; a key that is missing or repeated is refused with the count rather than
+  matched arbitrarily, because there is no answer to guess about which of two rows sharing a
+  key is the one that moved.
+- Any rule takes a `columns` list, and `ignore` takes rules that are detected and left
+  unclassified. Severities were uniform across every column, so tolerating the one that drifts
+  by design -- an `ingested_at`, a load counter -- meant raising the threshold for all of them,
+  spending the signal everywhere to silence it in one place. An ignored change still appears in
+  the diff and contributes nothing to the bump, because "this was expected" and "nothing
+  happened" are different answers.
+- `--schema-only` profiles Parquet from its footer instead of its rows: the schema, the null
+  counts and the ranges are all in there, which is every input the breaking-change rules need.
+  Five point four seconds and 641 MB become one second and 137 MB over two 61 MB files. It
+  answers less on purpose and says so -- with no data read there is no distribution to compare,
+  and a footer that does not carry statistics is refused rather than read as zero nulls, which
+  would turn a column that is entirely null into a column with none.
+- The DVC run and the pull request script read a profile committed beside the dataset when one
+  is there, in place of the previous version itself. `dvc get` pulled the whole base dataset
+  from the cache or the remote and the pull request script pulled it through git on every push;
+  both now read a few hundred bytes of text out of the base revision, the way the `.version`
+  sidecar already worked. A DVC comparison no longer needs the remote at all, and works on a
+  revision whose data has since been collected.
+- `datasemver --version`.
 - Datetime columns are compared. One carried a type, a null ratio and a cardinality and
   nothing else, because the statistics were filled in for `int64` and `float64` only, so the
   most common thing that happens to a date column -- the whole window sliding forward, or an
@@ -53,6 +80,11 @@ This project follows [Semantic Versioning](https://semver.org).
   from a broken pipeline cannot do anything useful with either.
 
 ### Patch
+- Two rows that both hold no value compared as different, and a column whose type widened from
+  `int64` to `float64` compared as every row changed. Both came out of comparing values as text:
+  a pandas NA does not survive `==` as a boolean, and `1` and `1.0` are the same number written
+  two ways. Numbers are compared as numbers and a missing value is substituted before the
+  comparison rather than after it. Found by the tests for the feature, before it shipped.
 - A date read as a different date depending on how it was stored. The epoch conversion divided
   by a fixed billion, and `astype("int64")` counts in the column's own resolution, which is
   microseconds on pandas 3 and nanoseconds before it -- so 2020 arrived as 1970. It casts to a

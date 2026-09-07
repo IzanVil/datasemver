@@ -12,6 +12,7 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
+from datasemver import __version__
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.changelog import render_entry, severity_label, write_changelog
 from datasemver.core.models import AnalysisReport, ColumnStatus, Severity
@@ -51,6 +52,14 @@ GATE_EXIT_CODE = 1
 
 _FAIL_ON_HELP = "Exit with code 1 when the suggested bump reaches this severity or higher."
 _PROFILE_OUTPUT_HELP = "Where to write it; defaults to <name>.profile.json beside the dataset."
+_KEY_HELP = (
+    "Column identifying a row, repeated for a composite key. Reports rows added, "
+    "removed and changed, which no comparison of profiles can see."
+)
+_SCHEMA_ONLY_HELP = (
+    "Profile Parquet from its footer instead of its rows: fast, but no distribution "
+    "comparison, because no data is read."
+)
 
 
 SEVERITY_COLORS: dict[Severity, str] = {
@@ -66,6 +75,33 @@ STATUS_COLORS: dict[ColumnStatus, str] = {
     ColumnStatus.MODIFIED: "yellow",
     ColumnStatus.UNCHANGED: "dim",
 }
+
+
+def _print_version(requested: bool) -> None:
+    """Report the running version and stop.
+
+    Worth having on any command line, and worth more here than most: a profile records the
+    version that wrote it and is refused by an older reader, so someone meeting that message
+    needs to be able to say which version they are holding.
+    """
+    if requested:
+        console.print(__version__)
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_print_version,
+            is_eager=True,
+            help="Print the installed version and exit.",
+        ),
+    ] = False,
+) -> None:
+    """Semantic versioning for datasets."""
 
 
 @app.command()
@@ -91,10 +127,19 @@ def diff(
         Severity | None,
         typer.Option("--fail-on", help=_FAIL_ON_HELP),
     ] = None,
+    schema_only: Annotated[bool, typer.Option("--schema-only", help=_SCHEMA_ONLY_HELP)] = False,
+    key: Annotated[list[str] | None, typer.Option("--key", "-k", help=_KEY_HELP)] = None,
 ) -> None:
     """Compare two dataset versions and suggest a semantic version bump."""
     try:
-        report = analyze(old, new, rules=rules, current_version=current_version)
+        report = analyze(
+            old,
+            new,
+            rules=rules,
+            current_version=current_version,
+            schema_only=schema_only,
+            key=list(key) if key else None,
+        )
     except (FileNotFoundError, ValueError, RuleError, InvalidVersionError) as error:
         error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error

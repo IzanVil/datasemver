@@ -42,6 +42,7 @@ datos, ni ningún servicio corriendo.
 - [Referencia de comandos](#referencia-de-comandos)
 - [Bases de datos](#bases-de-datos)
 - [DVC](#dvc)
+- [Filas, no solo forma](#filas-no-solo-forma)
 - [Perfiles guardados](#perfiles-guardados)
 - [Configuración: reglas en YAML](#configuración-reglas-en-yaml)
 - [API de Python](#api-de-python)
@@ -299,6 +300,9 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--output PATH` | `-o` | Escribe la entrada de changelog en un fichero, anteponiéndola si ya existe |
 | `--json` | | Imprime el informe completo como JSON en lugar de las tablas |
 | `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
+| `--key COLUMNA` | `-k` | Columna que identifica una fila; repítela para una clave compuesta |
+| `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas |
+| `--version` | | Imprime la versión instalada y termina |
 
 Ejemplos:
 
@@ -312,6 +316,8 @@ datasemver rules examples/lenient_rules.yaml
 datasemver diff old.csv new.csv --fail-on major   # sale con 1 si el cambio rompe
 datasemver profile customers_v3.parquet           # escribe customers_v3.profile.json
 datasemver diff customers_v3.profile.json customers_v4.parquet
+datasemver diff old.csv new.csv --key id          # qué filas cambiaron, no solo la forma
+datasemver diff old.parquet new.parquet --schema-only
 ```
 
 Los formatos se detectan por extensión: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`,
@@ -350,6 +356,23 @@ reporta los mismos cambios:
 ```bash
 datasemver diff tests/fixtures/old.csv tests/fixtures/new.parquet
 ```
+
+## Filas, no solo forma
+
+Todo lo anterior compara perfiles, lo que responde si esto sigue siendo el mismo tipo de datos
+y deliberadamente no qué filas cambiaron. Dale una clave y responde también a eso:
+
+```bash
+datasemver diff old.csv new.csv --key id
+# 1500 of 5000 row(s) present in both changed value (30.0%): email (1500), amount (1500)
+```
+
+Una versión donde se ha reescrito un tercio de las filas con valores sacados de la misma
+distribución tiene el mismo perfil que la anterior, y es un dataset distinto para cualquiera que
+haga un join contra ella. Esta es la comparación que lo ve. Necesita ambos datasets en memoria
+y una clave que identifique una fila, y por eso va detrás de una bandera; una clave que falta o
+que se repite se rechaza indicando cuántas filas la repiten, en lugar de emparejar al azar.
+Repite `--key` para una clave compuesta.
 
 ## Perfiles guardados
 

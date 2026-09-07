@@ -17,6 +17,10 @@ minor:
   - category_removed
   - cardinality_changed
   - nulls_introduced
+  # Only ever detected when a key is given: rows changing value is new capability in the
+  # data, not a broken contract, until a rules file says otherwise for its own dataset.
+  - rows_modified
+  - rows_replaced
   # Between 0.1 and 0.25: the balance moved enough to be worth knowing about, not enough to
   # call the column a different one.
   - category_balance_shift

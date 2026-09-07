@@ -41,6 +41,7 @@ and it needs no schema registry, no database and no service running.
 - [Command reference](#command-reference)
 - [Databases](#databases)
 - [DVC](#dvc)
+- [Rows, not just shape](#rows-not-just-shape)
 - [Stored profiles](#stored-profiles)
 - [Configuration: rules in YAML](#configuration-rules-in-yaml)
 - [Python API](#python-api)
@@ -295,6 +296,9 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--output PATH` | `-o` | Write the changelog entry to a file, prepending it if it already exists |
 | `--json` | | Print the full report as JSON instead of the tables |
 | `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
+| `--key COLUMN` | `-k` | Column identifying a row; repeat for a composite key |
+| `--schema-only` | | Profile Parquet from its footer instead of its rows |
+| `--version` | | Print the installed version and exit |
 
 Examples:
 
@@ -308,6 +312,8 @@ datasemver rules examples/lenient_rules.yaml
 datasemver diff old.csv new.csv --fail-on major   # exit 1 on a breaking change
 datasemver profile customers_v3.parquet           # writes customers_v3.profile.json
 datasemver diff customers_v3.profile.json customers_v4.parquet
+datasemver diff old.csv new.csv --key id          # which rows changed, not just the shape
+datasemver diff old.parquet new.parquet --schema-only
 ```
 
 Formats are detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`
@@ -343,6 +349,22 @@ Parquet export of the same data is supported and reports the same changes:
 ```bash
 datasemver diff tests/fixtures/old.csv tests/fixtures/new.parquet
 ```
+
+## Rows, not just shape
+
+Everything above compares profiles, which answers whether this is still the same kind of data
+and deliberately not which rows changed. Give it a key and it answers that too:
+
+```bash
+datasemver diff old.csv new.csv --key id
+# 1500 of 5000 row(s) present in both changed value (30.0%): email (1500), amount (1500)
+```
+
+A version where a third of the rows were rewritten with values drawn the same way has the same
+profile as the one before it, and is a different dataset to anyone joining against it. This is
+the comparison that sees it. It needs both datasets in memory and a key that identifies a row,
+which is why it sits behind a flag; a key that is missing or repeated is refused with the count
+rather than matched arbitrarily. Repeat `--key` for a composite key.
 
 ## Stored profiles
 

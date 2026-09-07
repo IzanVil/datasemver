@@ -247,18 +247,18 @@ datasemver diff old.csv new.csv --current-version "$(cat VERSION)" --output CHAN
 
 ## Demo
 
-A recording of the CLI lives in [`demo.cast`](https://github.com/IzanVil/datasemver/blob/main/demo.cast) and replays locally:
+A recording of the CLI lives in [`demo.cast`](https://github.com/IzanVil/datasemver/blob/main/docs/demo.cast) and replays locally:
 
 ```bash
 pip install asciinema
-asciinema play demo.cast
+asciinema play docs/demo.cast
 ```
 
 Re-record it after a change in the CLI output, then upload it to get a shareable player:
 
 ```bash
-asciinema rec demo.cast --overwrite --cols 90 --rows 40
-asciinema upload demo.cast
+asciinema rec docs/demo.cast --overwrite --cols 90 --rows 40
+asciinema upload docs/demo.cast
 ```
 
 ## Semantic versioning for data
@@ -786,7 +786,7 @@ pip install "datasemver[web]"
 uvicorn datasemver_web.backend.main:app
 ```
 
-From a clone, `pip install -r requirements-web.txt` and add `--reload`.
+From a clone, `pip install -r requirements/web.txt` and add `--reload`.
 
 Then open <http://127.0.0.1:8000>; the backend serves the frontend, so that is the only
 command. The history view scans `./datasets/` by default, grouping files named
@@ -853,21 +853,21 @@ datasemver/
 └── cli/main.py           typer entry point
 
 CHANGELOG.md              the project's own versions
-docs/rules.md             rule catalogue
-examples/                 alternative rule profiles
-scripts/                  CI helper for pull requests, and the standalone-executable build
 datasemver_web/           FastAPI backend and static frontend for the dashboard
+docs/                     rule catalogue, the PyPI readme, the demo recording and the images
+examples/                 alternative rule profiles
+requirements/             the plain `pip install -r` path, mirroring the extras
+scripts/                  CI helper for pull requests, and the standalone-executable build
 datasets/                 sample versioned datasets for the dashboard history view
-.github/workflows/        pull request analysis, the test matrix, the release and the executables
 tests/                    pytest suite and dataset fixtures
-demo.cast                 asciinema recording used in the demo above
+.github/                  workflows, and the contributing, security and conduct documents
 ```
 
 Releases publish through Trusted Publishing, so there is no API token stored in this
 repository. The workflow mints a short-lived OpenID Connect token that names the
 repository, the workflow file and the environment it came from, and the index verifies
 that against what it was told to expect. What each index has to be told, once, is in
-[CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md#releasing).
+[CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/.github/CONTRIBUTING.md#releasing).
 
 ## Changelog
 
@@ -878,9 +878,9 @@ already depend on, **Minor** for new capability that leaves existing contracts i
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md) for the
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/.github/CONTRIBUTING.md) for the
 development setup, the test workflow and the style expected in a patch. Everyone taking
-part is expected to follow the [Code of Conduct](https://github.com/IzanVil/datasemver/blob/main/CODE_OF_CONDUCT.md).
+part is expected to follow the [Code of Conduct](https://github.com/IzanVil/datasemver/blob/main/.github/CODE_OF_CONDUCT.md).
 
 ```bash
 pip install -e ".[dev]"

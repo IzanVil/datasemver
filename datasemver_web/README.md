@@ -28,7 +28,7 @@ From the repository root:
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-pip install -r requirements-web.txt
+pip install -r requirements/web.txt
 
 uvicorn datasemver_web.backend.main:app --reload
 ```

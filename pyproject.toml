@@ -8,7 +8,7 @@ version = "0.6.0"
 description = "Semantic versioning for datasets: diff two dataset versions and get the bump they deserve."
 # The project page has to stand on its own: the repository it would otherwise link
 # to and pull images from is not always public, and a broken page outlives that.
-readme = "README.pypi.md"
+readme = "docs/README.pypi.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]

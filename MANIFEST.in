@@ -1,26 +1,28 @@
 include LICENSE
 include README.md
-include README.pypi.md
 include README.es.md
-include CONTRIBUTING.md
 include CHANGELOG.md
-include CODE_OF_CONDUCT.md
-include SECURITY.md
-include requirements.txt
-include requirements-web.txt
-include requirements-sql.txt
 include datasemver/py.typed
 include datasemver/rules/*.yaml
 
 recursive-include docs *.md
 recursive-include examples *.yaml
+recursive-include requirements *.txt
 recursive-include datasemver_web *.html *.css *.js *.md *.svg
 recursive-include tests *.py *.csv *.json *.parquet
 
 prune .github
 prune datasets
 prune scripts
-exclude demo.cast
+
+# After the prune, which would otherwise take them: these describe the project rather than
+# build it, and belong in a source distribution even though the CI configuration beside them
+# does not. `demo.cast` is a recording and is left out; `docs/*.md` above already carries the
+# PyPI readme, which is what `readme` in pyproject.toml points at.
+include .github/CONTRIBUTING.md
+include .github/CODE_OF_CONDUCT.md
+include .github/SECURITY.md
+exclude docs/demo.cast
 
 global-exclude *.py[cod]
 global-exclude __pycache__

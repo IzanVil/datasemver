@@ -249,19 +249,19 @@ datasemver diff old.csv new.csv --current-version "$(cat VERSION)" --output CHAN
 
 ## Demo
 
-En [`demo.cast`](https://github.com/IzanVil/datasemver/blob/main/demo.cast) hay una grabación de la CLI que se reproduce en local:
+En [`demo.cast`](https://github.com/IzanVil/datasemver/blob/main/docs/demo.cast) hay una grabación de la CLI que se reproduce en local:
 
 ```bash
 pip install asciinema
-asciinema play demo.cast
+asciinema play docs/demo.cast
 ```
 
 Vuelve a grabarla tras un cambio en la salida de la CLI, y súbela para obtener un
 reproductor compartible:
 
 ```bash
-asciinema rec demo.cast --overwrite --cols 90 --rows 40
-asciinema upload demo.cast
+asciinema rec docs/demo.cast --overwrite --cols 90 --rows 40
+asciinema upload docs/demo.cast
 ```
 
 ## Versionado semántico para datos
@@ -802,7 +802,7 @@ pip install "datasemver[web]"
 uvicorn datasemver_web.backend.main:app
 ```
 
-Desde un clon, `pip install -r requirements-web.txt` y añade `--reload`.
+Desde un clon, `pip install -r requirements/web.txt` y añade `--reload`.
 
 Después abre <http://127.0.0.1:8000>; el backend sirve el frontend, así que ese es el único
 comando. La vista de histórico escanea `./datasets/` por defecto, agrupando ficheros
@@ -870,14 +870,14 @@ datasemver/
 └── cli/main.py           punto de entrada de typer
 
 CHANGELOG.md              las versiones del propio proyecto
-docs/rules.md             catálogo de reglas
-examples/                 perfiles de reglas alternativos
-scripts/                  ayudante de CI para pull requests, y la construcción del ejecutable
 datasemver_web/           backend FastAPI y frontend estático del panel
+docs/                     catálogo de reglas, el readme de PyPI, la grabación y las imágenes
+examples/                 perfiles de reglas alternativos
+requirements/             la vía `pip install -r`, en paralelo a los extras
+scripts/                  ayudante de CI para pull requests, y la construcción del ejecutable
 datasets/                 datasets versionados de ejemplo para el histórico del panel
-.github/workflows/        análisis de pull requests, matriz de tests, publicación y ejecutables
 tests/                    suite de pytest y fixtures de datasets
-demo.cast                 grabación de asciinema usada en la demo de arriba
+.github/                  workflows, y los documentos de contribución, seguridad y conducta
 ```
 
 La publicación usa Trusted Publishing, así que no hay ningún token de API guardado en
@@ -885,7 +885,7 @@ este repositorio. El workflow emite un token OpenID Connect de vida corta que di
 qué repositorio, de qué fichero de workflow y de qué entorno viene, y el índice lo
 verifica contra lo que se le dijo que esperara. Lo que hay que configurar una vez en
 cada índice está en
-[CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md#releasing).
+[CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/.github/CONTRIBUTING.md#releasing).
 
 ## Changelog
 
@@ -897,10 +897,10 @@ significado.
 
 ## Contribuir
 
-Las issues y los pull requests son bienvenidos. Empieza por [CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md)
+Las issues y los pull requests son bienvenidos. Empieza por [CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/.github/CONTRIBUTING.md)
 (en inglés) para el entorno de desarrollo, el flujo de tests y el estilo que se espera en un
 parche. Se espera que todo el mundo que participe siga el
-[Código de Conducta](https://github.com/IzanVil/datasemver/blob/main/CODE_OF_CONDUCT.md).
+[Código de Conducta](https://github.com/IzanVil/datasemver/blob/main/.github/CODE_OF_CONDUCT.md).
 
 ```bash
 pip install -e ".[dev]"

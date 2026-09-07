@@ -8,6 +8,17 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- The dashboard has a mark: two blocks for the two versions, split by the seam that is the
+  comparison between them. It is inline SVG taking its colours from the theme tokens the page
+  already switches on, so it follows light and dark without a second copy, and there is a
+  matching favicon which carries its own palette because a favicon is fetched on its own and
+  inherits nothing from the page.
+- `.svg` was missing from both the wheel's package data and `MANIFEST.in`, which is the same
+  gap that once shipped the dashboard's dependencies without the dashboard. The favicon would
+  have been served as a 404 from an installed copy and from nowhere else. Two tests hold it:
+  the page carries its mark, and the favicon is served.
+
 ## [0.6.0] - 2026-09-07
 
 ### Minor

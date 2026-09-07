@@ -103,7 +103,7 @@ datasemver = ["rules/*.yaml", "py.typed"]
 # The frontend is not Python and would be left out of the wheel otherwise, which is what
 # made `pip install "datasemver[web]"` install the dashboard's dependencies and none of the
 # dashboard.
-datasemver_web = ["frontend/*.html", "frontend/*.css", "frontend/*.js"]
+datasemver_web = ["frontend/*.html", "frontend/*.css", "frontend/*.js", "frontend/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

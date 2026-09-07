@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>DataSemver</title>
+  <!--
+    The dashboard's mark: two versions of a dataset, and the comparison running between them.
+
+    Drawn heavier than the one in the masthead and with less padding around it, because a
+    favicon is read at 16px: the proportions that look balanced at 30px close up at that size.
+
+    The colours are written out rather than taken from the page, since a favicon is fetched on
+    its own and inherits nothing. The media query is what keeps it legible against a dark
+    browser chrome, and it is the same pair of palettes the dashboard itself uses.
+  -->
+  <style>
+    .block { fill: #14171c; opacity: 0.85; }
+    .seam  { fill: #2f6df6; }
+    @media (prefers-color-scheme: dark) {
+      .block { fill: #e6e9ee; }
+      .seam  { fill: #6c9bff; }
+    }
+  </style>
+  <rect class="block" x="1.5" y="4.5" width="12" height="23" rx="2.6" />
+  <rect class="block" x="18.5" y="4.5" width="12" height="23" rx="2.6" />
+  <rect class="seam" x="14.4" y="1" width="3.2" height="30" rx="1.6" />
+</svg>

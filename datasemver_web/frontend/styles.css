@@ -65,6 +65,17 @@ main,
   padding-top: 28px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  color: var(--text);
+}
 .masthead h1 {
   margin: 0;
   font-size: 1.6rem;

@@ -80,6 +80,12 @@ This project follows [Semantic Versioning](https://semver.org).
   from a broken pipeline cannot do anything useful with either.
 
 ### Patch
+- The suite no longer depends on how wide the terminal running it is. Rich wraps to the
+  console it finds, so a correct message broke across a line in a different place on a Windows
+  runner than on the machine the assertion was written on, and a test about the message failed
+  over the wrap. The width is pinned for the whole suite, and the assertions that span a space
+  collapse the line breaks first. Caught by CI on Windows, then reproduced locally by running
+  the suite at a narrow width, which also found an older test with the same fragility.
 - Two rows that both hold no value compared as different, and a column whose type widened from
   `int64` to `float64` compared as every row changed. Both came out of comparing values as text:
   a pandas NA does not survive `==` as a boolean, and `1` and `1.0` are the same number written

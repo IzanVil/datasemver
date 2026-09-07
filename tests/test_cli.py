@@ -14,6 +14,17 @@ def run(*args):
     return runner.invoke(app, list(args))
 
 
+def flat(result) -> str:
+    """The output with its line breaks collapsed, for asserting on a phrase.
+
+    Rich wraps to the console width, and the width depends on the terminal the suite runs in
+    -- a long temporary path on a Windows runner pushed `repeat a key` across a line break and
+    failed an assertion about a message that was perfectly correct. Any assertion spanning a
+    space has to go through this.
+    """
+    return " ".join(result.output.split())
+
+
 def test_reports_the_suggested_bump(old_csv, new_csv):
     result = run("diff", str(old_csv), str(new_csv))
 
@@ -173,7 +184,7 @@ def test_square_brackets_in_an_error_reach_the_terminal(old_csv, new_csv, monkey
     result = run("diff", str(old_csv), str(new_csv))
 
     assert result.exit_code == 2
-    assert "datasemver[sql]" in result.output
+    assert "datasemver[sql]" in flat(result)
 
 
 def test_the_console_does_not_use_the_pre_vt_windows_api():
@@ -242,7 +253,7 @@ def test_writing_a_profile_reports_where_it_went(tmp_path, old_csv):
 
     assert result.exit_code == 0
     assert destination.exists()
-    assert "profile written" in result.output
+    assert "profile written" in flat(result)
 
 
 def test_a_profile_can_be_compared_against_without_the_dataset(tmp_path, old_csv, new_csv):
@@ -307,7 +318,7 @@ def test_a_key_that_cannot_identify_a_row_fails_cleanly(tmp_path):
     result = run("diff", str(old), str(new), "--key", "id")
 
     assert result.exit_code == 2
-    assert "repeat a key" in result.output
+    assert "repeat a key" in flat(result)
 
 
 # --- the schema-only shortcut -------------------------------------------------------------------

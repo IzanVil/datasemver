@@ -8,6 +8,19 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- The release workflow compares the tag against the version in `pyproject.toml` whenever the
+  ref is a tag, not only on a `release` event. Every release since 0.3.0 was published by
+  dispatching the workflow from a tag, which is the path the check was not covering: it was
+  skipped, the upload went ahead, and a tag disagreeing with `pyproject.toml` would have
+  reached the index unnoticed. A dispatch from a branch still skips it, because there the ref
+  is a branch name and there is nothing to compare.
+- The test suite the sdist ships can be run from the sdist. `MANIFEST.in` prunes `.github`
+  and `scripts` and includes `tests`, so three test modules travelled to a place where what
+  they read does not exist; two of them failed at import, and a collection error stops the
+  whole run, so unpacking the sdist and running `pytest` executed no tests at all. They skip
+  with the reason now, and still run in a checkout, where they are the ones doing the work.
+
 ## [0.5.0] - 2026-09-07
 
 ### Minor

@@ -18,6 +18,12 @@ This project follows [Semantic Versioning](https://semver.org).
   gap that once shipped the dashboard's dependencies without the dashboard. The favicon would
   have been served as a 404 from an installed copy and from nowhere else. Two tests hold it:
   the page carries its mark, and the favicon is served.
+- The mark reaches the surfaces a reader meets first: both READMEs and the PyPI page carry it,
+  and the project site has it in its nav along with a favicon it did not have at all. The seam
+  takes each surface's own accent token rather than naming a colour -- teal on the site, blue
+  in the dashboard -- so the form is what identifies the project and the colour is whatever the
+  page it sits on already uses. GitHub gets a `<picture>` so the mark follows the reader's
+  theme there too; PyPI gets a plain image, because it strips the element that would.
 
 ## [0.6.0] - 2026-09-07
 

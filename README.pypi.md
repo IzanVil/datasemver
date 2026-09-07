@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/logo.svg" alt="" width="64" height="64">
+
 # DataSemver
 
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)

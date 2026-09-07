@@ -1,5 +1,10 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/logo-dark.svg">
+  <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/logo.svg" alt="" width="72" height="72">
+</picture>
+
 # DataSemver
 
 **Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.**

@@ -18,7 +18,10 @@ from pathlib import Path
 
 import pytest
 
-from scripts import build_executables as build
+build = pytest.importorskip(
+    "scripts.build_executables",
+    reason="the scripts directory is not shipped in the sdist",
+)
 
 # --- the platform guard ---------------------------------------------------------------------
 

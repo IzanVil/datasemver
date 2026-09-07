@@ -13,7 +13,10 @@ import subprocess
 
 import pytest
 
-from scripts import run_datasemver_on_pr as pr
+pr = pytest.importorskip(
+    "scripts.run_datasemver_on_pr",
+    reason="the scripts directory is not shipped in the sdist",
+)
 
 OLD_CSV = """id,name,phone,score,legacy_code
 1,ana,600111222,10.5,a

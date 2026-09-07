@@ -37,8 +37,11 @@ jobs:
       - name: Check the metadata
         run: python -m twine check dist/*
 
+      # Whenever the ref is a tag, rather than only on a release: publishing is also driven
+      # by hand from a tag, and gating on the event let that path upload without ever
+      # comparing the two. A dispatch from a branch has no tag to compare and is skipped.
       - name: Verify the tag matches the package version
-        if: github.event_name == 'release'
+        if: github.ref_type == 'tag'
         run: |
           version=$(python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
           tag="${GITHUB_REF_NAME#v}"

@@ -19,6 +19,12 @@ import yaml
 
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "publish.yml"
 
+# MANIFEST.in prunes `.github` from the sdist and ships `tests` in it, so this file travels
+# to where the workflow it reads does not exist. Skipping keeps that a packaging fact rather
+# than eleven errors and a failure against a source tree that is intact.
+if not WORKFLOW.is_file():
+    pytest.skip("the workflows are not shipped in the sdist", allow_module_level=True)
+
 PUBLISH_ACTION = "pypa/gh-action-pypi-publish"
 
 # The environment name is half of what each index verifies, so these are the names
@@ -49,6 +55,19 @@ def test_publishing_carries_no_password(workflow, job_name):
 @pytest.mark.parametrize("job_name", PUBLISH_JOBS)
 def test_publishing_can_mint_the_token_it_authenticates_with(workflow, job_name):
     assert workflow["jobs"][job_name]["permissions"]["id-token"] == "write"
+
+
+def test_the_tag_check_covers_every_way_a_tag_is_published(workflow):
+    """It ran only on `release`, so a publish dispatched from a tag skipped it entirely.
+
+    That is the path the last three releases actually took, which made the check look like
+    cover it was not providing. Keying on the ref type covers both, and still skips the
+    dispatch from a branch, where `GITHUB_REF_NAME` is a branch name and matches nothing.
+    """
+    steps = workflow["jobs"]["build"]["steps"]
+    check = next(s for s in steps if s["name"].startswith("Verify the tag"))
+
+    assert check["if"] == "github.ref_type == 'tag'"
 
 
 def test_the_build_job_cannot_mint_that_token():

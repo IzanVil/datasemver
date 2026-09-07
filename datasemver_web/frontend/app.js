@@ -20,6 +20,7 @@ const dom = {
   changes: document.querySelector("#changes-table tbody"),
   columns: document.querySelector("#columns-table tbody"),
   changelog: document.getElementById("changelog"),
+  saveProfile: document.getElementById("save-profile"),
   copyChangelog: document.getElementById("copy-changelog"),
   historyPath: document.getElementById("history-path"),
   historyList: document.getElementById("history-list"),
@@ -58,9 +59,13 @@ async function loadMeta() {
     dom.metaVersion.textContent = meta.version;
     dom.uploadHint.textContent =
       `Accepted: ${meta.supported_extensions.join(", ")} · up to ${meta.max_upload_mb} MB per file`;
-    const accept = meta.supported_extensions.join(",");
+    // A stored profile is offered on both sides: it is what makes a comparison against a
+    // version too large to upload, or no longer on disk anywhere, possible from here.
+    const accept = [...meta.supported_extensions, meta.profile_suffix].join(",");
     dom.form.querySelector('input[name="old"]').setAttribute("accept", accept);
     dom.form.querySelector('input[name="new"]').setAttribute("accept", accept);
+    dom.uploadHint.textContent +=
+      ` · either side may be a ${meta.profile_suffix} written by "Save profile"`;
   } catch (error) {
     dom.uploadHint.textContent = `Backend unreachable: ${error.message}`;
   }
@@ -88,6 +93,40 @@ dom.form.addEventListener("submit", async (event) => {
     button.disabled = false;
   }
 });
+
+dom.saveProfile.addEventListener("click", async () => {
+  const input = dom.form.querySelector('input[name="new"]');
+  const file = input.files[0];
+  if (!file) {
+    showStatus("Choose a new version first: its profile is what gets saved.", true);
+    return;
+  }
+
+  const data = new FormData();
+  data.append("dataset", file);
+  dom.saveProfile.disabled = true;
+  showStatus("Profiling…");
+  try {
+    const profile = await request("/api/profile", { method: "POST", body: data });
+    download(`${file.name.split(".")[0]}.profile.json`, JSON.stringify(profile, null, 2));
+    showStatus("");
+  } catch (error) {
+    showStatus(error.message, true);
+  } finally {
+    dom.saveProfile.disabled = false;
+  }
+});
+
+function download(name, text) {
+  // Held only long enough for the click: an object URL keeps its blob alive until it is
+  // revoked, and a dashboard someone leaves open would accumulate them one profile at a time.
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const link = element("a", { href: url, download: name });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
 async function loadHistory() {
   dom.historyList.textContent = "Loading…";

@@ -51,9 +51,14 @@
               <span class="field-label">Rules <span class="muted">(optional YAML)</span></span>
               <input type="file" name="rules" accept=".yaml,.yml" />
             </label>
+            <label class="field">
+              <span class="field-label">Key <span class="muted">(optional, compares rows)</span></span>
+              <input type="text" name="key" placeholder="id, or id,region" />
+            </label>
           </div>
           <div class="form-footer">
             <p class="hint" id="upload-hint"></p>
+            <button type="button" class="button button-quiet" id="save-profile">Save profile</button>
             <button type="submit" class="button">Compare</button>
           </div>
         </form>

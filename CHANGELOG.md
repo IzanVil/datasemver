@@ -9,6 +9,17 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- The dashboard does what the library does. It was two releases behind: profiles, the row
+  comparison and the distribution statistics reached the CLI and stopped there, so the
+  interface most people meet first answered 0.5.0's questions with 0.6.0's engine. Either side
+  of a comparison can now be a stored profile, which is what lets one reach a version past the
+  upload limit or gone from disk entirely; `POST /api/profile` returns the profile of an upload
+  and the **Save profile** button downloads it; and a **Key** field compares rows.
+- Uploading a profile needed the compound suffix to survive being stored. The server names an
+  upload itself, so that nothing a caller sends reaches a path, and `Path("x.profile.json")`
+  has a suffix of `.json` -- which is a dataset format here, so a profile would have been read
+  back as an array of records. It keeps both parts now, and `/api/meta` reports the profile
+  suffix apart from the dataset formats, because a profile is not one of them.
 - The pull request script takes `--fail-on` and the workflow can refuse a merge. `--fail-on`
   reached the CLI in 0.6.0 and stopped there, so the surface people actually consume this
   through -- the comment on a pull request -- could still only describe what it found. The

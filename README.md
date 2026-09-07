@@ -821,6 +821,14 @@ curl -X POST http://127.0.0.1:8000/api/diff \
 Endpoints, configuration and the dataset naming convention are documented in
 [datasemver_web/README.md](https://github.com/IzanVil/datasemver/blob/main/datasemver_web/README.md).
 
+### Working from the dashboard
+
+Either side of a comparison may be a stored profile rather than a dataset, which is what lets
+it reach a version too large to upload or no longer on disk: the profile is a few hundred
+bytes. **Save profile** writes the profile of the new version, so the dashboard can produce
+one for someone who never opens a terminal. A **Key** field turns the comparison into a
+row-level one, naming one column or several separated by commas.
+
 ## Project structure
 
 ```

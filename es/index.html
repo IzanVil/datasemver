@@ -32,6 +32,7 @@
     </a>
     <ul>
       <li><a href="#decide" class="hide-sm">Cómo decide</a></li>
+      <li><a href="#measures" class="hide-sm">Qué mide</a></li>
       <li><a href="#surfaces" class="hide-sm">Cómo usarlo</a></li>
       <li><a href="https://github.com/IzanVil/datasemver">GitHub</a></li>
       <li><a href="https://pypi.org/project/datasemver/">PyPI</a></li>
@@ -64,8 +65,8 @@
   <dl class="facts">
     <div><dt>Lee</dt><dd>CSV, JSON, Parquet, SQL</dd></div>
     <div><dt>Python</dt><dd>3.10 a 3.14</dd></div>
-    <div><dt>Reglas por defecto</dt><dd>16</dd></div>
-    <div><dt>Tests</dt><dd>194 al 99%</dd></div>
+    <div><dt>Reglas por defecto</dt><dd>20</dd></div>
+    <div><dt>Tests</dt><dd>534 al 99%</dd></div>
     <div><dt>Licencia</dt><dd>MIT</dd></div>
   </dl>
 </div>
@@ -103,6 +104,7 @@
         <ul class="rules">
           <li>column_removed</li><li>type_changed_incompatible</li>
           <li>column_renamed</li><li>distribution_shift</li>
+          <li>psi_greater_than</li>
         </ul>
       </div>
       <div class="rung">
@@ -114,6 +116,7 @@
         <ul class="rules">
           <li>column_added</li><li>row_count_increased</li>
           <li>new_category_added</li><li>cardinality_changed</li>
+          <li>category_balance_shift</li><li>rows_modified</li>
         </ul>
       </div>
       <div class="rung">
@@ -170,6 +173,64 @@
     </div>
   </section>
 
+  <section id="measures">
+    <h2>Compara distribuciones, no solo esquemas</h2>
+    <p class="say">
+      Una media es un punto de una distribución, y una columna puede reconstruirse a su
+      alrededor sin moverla. Tres cambios que rompen a cualquier consumidor aguas abajo, y que
+      una comparación de esquemas y promedios reporta como nada en absoluto:
+    </p>
+
+    <div class="surfaces">
+      <div>
+        <h3>Una forma, no un centro</h3>
+        <p>La dispersión se multiplica por cuarenta y la media no se mueve. Se mide con un estadístico de Kolmogorov-Smirnov sobre una rejilla de cuantiles guardada.</p>
+        <code>std 0.998 &rarr; 39.96</code>
+      </div>
+      <div>
+        <h3>Un balance, no un conjunto</h3>
+        <p>Una etiqueta pasa de equilibrada a una entre cien con ambos valores todavía presentes, así que el conjunto de categorías no cambia. Se mide con el Population Stability Index.</p>
+        <code>'ok' 50.3% &rarr; 99.0%</code>
+      </div>
+      <div>
+        <h3>Una ventana en el tiempo</h3>
+        <p>Una columna de fecha se compara por dónde se sitúa de verdad, así que un export que se ha deslizado o que ahora cubre medio periodo es un cambio y no un silencio.</p>
+        <code>2020-01-01 &rarr; 2026-01-01</code>
+      </div>
+    </div>
+
+    <p class="after-ladder">
+      Ambas se pesan contra lo que la muestra puede sostener. Un estadístico KS no tiene una
+      lectura fija: con cuatro filas contra cinco, añadir una sola mueve la distribución un
+      quinto, así que un desplazamiento tiene que superar el valor crítico para esos tamaños
+      además del umbral configurado. Con un puñado de filas no se reporta nada, porque no hay
+      nada que reportar. Y con <code>--key</code> las filas se emparejan en lugar de resumirse:
+      una versión donde se ha reescrito un tercio de ellas con valores de la misma distribución
+      tiene el mismo perfil que la anterior, y es un dataset distinto para quien haga un join.
+    </p>
+  </section>
+
+  <section id="profiles">
+    <h2>El perfil sobrevive a los datos</h2>
+    <p class="say">
+      Una comparación lee un perfil: las columnas, sus tipos, sus ratios de nulos, una rejilla
+      de cuantiles y los conteos por categoría. Es lo bastante pequeño para guardarlo junto al
+      dataset, y entonces la versión anterior no hay que descargarla nunca &mdash; ni que exista.
+    </p>
+
+    <dl class="facts">
+      <div><dt>Dataset</dt><dd>63,6 MB</dd></div>
+      <div><dt>Su perfil</dt><dd>2,9 KB</dd></div>
+      <div><dt>Ratio</dt><dd>21.916:1</dd></div>
+    </dl>
+
+<pre><b># escríbelo una vez, junto a los datos</b>
+datasemver profile customers_v3.parquet
+
+<b># compara contra él más adelante, con el fichero ya desaparecido</b>
+datasemver diff customers_v3.profile.json customers_v4.parquet</pre>
+  </section>
+
   <section id="surfaces">
     <h2>Cinco formas de usarlo, un informe</h2>
     <div class="surfaces">
@@ -195,7 +256,7 @@
       </div>
       <div>
         <h3>GitHub Action</h3>
-        <p>Analiza los datasets que toca un pull request y publica el salto sugerido, reescribiendo el mismo comentario en cada push.</p>
+        <p>Analiza los datasets que toca un pull request y publica el salto sugerido, reescribiendo el mismo comentario en cada push. Define un umbral y rechaza el merge &mdash; después de comentar, para que el rechazo llegue con su motivo.</p>
         <code>scripts/run_datasemver_on_pr.py</code>
       </div>
     </div>
@@ -204,7 +265,13 @@
 BUMP=$(datasemver diff old.csv new.csv <i>--json</i> | jq -r '.bump')
 
 <b># anteponer la entrada de changelog a un fichero que tú mantienes</b>
-datasemver diff old.csv new.csv <i>--current-version</i> "$(cat VERSION)" <i>--output</i> CHANGELOG.md</pre>
+datasemver diff old.csv new.csv <i>--current-version</i> "$(cat VERSION)" <i>--output</i> CHANGELOG.md
+
+<b># rechazar un cambio que rompe: 0 salió limpio, 1 fue rechazado, 2 no pudo ejecutarse</b>
+datasemver diff old.csv new.csv <i>--fail-on</i> major
+
+<b># qué filas cambiaron, no solo si cambió la forma</b>
+datasemver diff old.csv new.csv <i>--key</i> id</pre>
   </section>
 
   <section>

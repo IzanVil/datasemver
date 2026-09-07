@@ -32,6 +32,7 @@
     </a>
     <ul>
       <li><a href="#decide" class="hide-sm">How it decides</a></li>
+      <li><a href="#measures" class="hide-sm">What it measures</a></li>
       <li><a href="#surfaces" class="hide-sm">Ways in</a></li>
       <li><a href="https://github.com/IzanVil/datasemver">GitHub</a></li>
       <li><a href="https://pypi.org/project/datasemver/">PyPI</a></li>
@@ -64,8 +65,8 @@
   <dl class="facts">
     <div><dt>Reads</dt><dd>CSV, JSON, Parquet, SQL</dd></div>
     <div><dt>Python</dt><dd>3.10 to 3.14</dd></div>
-    <div><dt>Default rules</dt><dd>16</dd></div>
-    <div><dt>Tests</dt><dd>194 at 99%</dd></div>
+    <div><dt>Default rules</dt><dd>20</dd></div>
+    <div><dt>Tests</dt><dd>534 at 99%</dd></div>
     <div><dt>Licence</dt><dd>MIT</dd></div>
   </dl>
 </div>
@@ -103,6 +104,7 @@
         <ul class="rules">
           <li>column_removed</li><li>type_changed_incompatible</li>
           <li>column_renamed</li><li>distribution_shift</li>
+          <li>psi_greater_than</li>
         </ul>
       </div>
       <div class="rung">
@@ -114,6 +116,7 @@
         <ul class="rules">
           <li>column_added</li><li>row_count_increased</li>
           <li>new_category_added</li><li>cardinality_changed</li>
+          <li>category_balance_shift</li><li>rows_modified</li>
         </ul>
       </div>
       <div class="rung">
@@ -170,6 +173,64 @@
     </div>
   </section>
 
+  <section id="measures">
+    <h2>It compares distributions, not just schemas</h2>
+    <p class="say">
+      A mean is one point of a distribution, and a column can be rebuilt around it without
+      moving it. Three changes that break every consumer downstream, and that a comparison of
+      schemas and averages reports as nothing at all:
+    </p>
+
+    <div class="surfaces">
+      <div>
+        <h3>A shape, not a centre</h3>
+        <p>The spread grows fortyfold and the mean does not move. Measured with a Kolmogorov-Smirnov statistic over a stored quantile grid.</p>
+        <code>std 0.998 &rarr; 39.96</code>
+      </div>
+      <div>
+        <h3>A balance, not a set</h3>
+        <p>A label goes from even to one-in-a-hundred with both values still present, so the category set is unchanged. Measured with the Population Stability Index.</p>
+        <code>'ok' 50.3% &rarr; 99.0%</code>
+      </div>
+      <div>
+        <h3>A window in time</h3>
+        <p>A date column is compared on when it actually sits, so an export that slid forward or now covers half the period is a change rather than a silence.</p>
+        <code>2020-01-01 &rarr; 2026-01-01</code>
+      </div>
+    </div>
+
+    <p class="after-ladder">
+      Both are weighed against what the sample can support. A KS statistic has no fixed
+      reading: on four rows against five, appending a single row moves the distribution by a
+      fifth, so a shift has to clear the critical value for those sample sizes as well as the
+      configured threshold. On a handful of rows nothing is reported, because there is nothing
+      to report. And with a <code>--key</code>, rows are matched rather than summarised: a
+      version where a third of them were rewritten with values drawn the same way has the same
+      profile as the one before it, and is a different dataset to anyone joining against it.
+    </p>
+  </section>
+
+  <section id="profiles">
+    <h2>The profile outlives the data</h2>
+    <p class="say">
+      A comparison reads a profile: the columns, their types, their null ratios, a quantile
+      grid and the counts per category. It is small enough to commit beside the dataset, and
+      then the previous version never has to be fetched &mdash; or exist.
+    </p>
+
+    <dl class="facts">
+      <div><dt>Dataset</dt><dd>63.6 MB</dd></div>
+      <div><dt>Its profile</dt><dd>2.9 KB</dd></div>
+      <div><dt>Ratio</dt><dd>21,916:1</dd></div>
+    </dl>
+
+<pre><b># write it once, next to the data</b>
+datasemver profile customers_v3.parquet
+
+<b># compare against it later, with the file long gone</b>
+datasemver diff customers_v3.profile.json customers_v4.parquet</pre>
+  </section>
+
   <section id="surfaces">
     <h2>Five ways in, one report</h2>
     <div class="surfaces">
@@ -195,7 +256,7 @@
       </div>
       <div>
         <h3>GitHub Action</h3>
-        <p>Analyses the datasets a pull request touches and posts the suggested bump, rewriting the same comment on each push.</p>
+        <p>Analyses the datasets a pull request touches and posts the suggested bump, rewriting the same comment on each push. Set a threshold and it refuses the merge &mdash; after commenting, so the refusal arrives with its reason.</p>
         <code>scripts/run_datasemver_on_pr.py</code>
       </div>
     </div>
@@ -204,7 +265,13 @@
 BUMP=$(datasemver diff old.csv new.csv <i>--json</i> | jq -r '.bump')
 
 <b># prepend the changelog entry to a file you keep</b>
-datasemver diff old.csv new.csv <i>--current-version</i> "$(cat VERSION)" <i>--output</i> CHANGELOG.md</pre>
+datasemver diff old.csv new.csv <i>--current-version</i> "$(cat VERSION)" <i>--output</i> CHANGELOG.md
+
+<b># refuse a breaking change: 0 ran clean, 1 was refused, 2 could not run</b>
+datasemver diff old.csv new.csv <i>--fail-on</i> major
+
+<b># which rows changed, not only whether the shape did</b>
+datasemver diff old.csv new.csv <i>--key</i> id</pre>
   </section>
 
   <section>

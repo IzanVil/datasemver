@@ -185,3 +185,80 @@ def test_the_console_does_not_use_the_pre_vt_windows_api():
 
     assert console.legacy_windows is False
     assert error_console.legacy_windows is False
+
+
+# --- the gate -------------------------------------------------------------------------------
+
+
+def test_a_breaking_change_exits_zero_when_nothing_was_asked_of_it(old_csv, new_csv):
+    """The gate is opt-in: without --fail-on the command reports and says nothing about it."""
+    assert run("diff", str(old_csv), str(new_csv)).exit_code == 0
+
+
+def test_a_breaking_change_is_refused_when_the_gate_is_set(old_csv, new_csv):
+    result = run("diff", str(old_csv), str(new_csv), "--fail-on", "major")
+
+    assert result.exit_code == 1
+    assert "refused" in result.output
+
+
+def test_the_gate_lets_through_what_it_was_not_asked_to_stop(old_csv):
+    """Identical datasets suggest no bump at all, so even the lowest threshold passes."""
+    assert run("diff", str(old_csv), str(old_csv), "--fail-on", "patch").exit_code == 0
+
+
+def test_a_run_that_could_not_happen_is_not_the_same_as_one_that_was_refused(new_csv):
+    """Exit 2 means the command failed; a caller that cannot tell them apart is stuck."""
+    assert run("diff", "no-such-file.csv", str(new_csv), "--fail-on", "major").exit_code == 2
+
+
+def test_the_gate_still_prints_the_report_it_is_refusing(old_csv, new_csv):
+    result = run("diff", str(old_csv), str(new_csv), "--fail-on", "major")
+
+    assert "MAJOR" in result.output
+
+
+def test_the_gate_leaves_json_output_parseable(old_csv, new_csv):
+    """The refusal goes to stderr so a caller can gate on the code and still read the JSON."""
+    result = runner.invoke(
+        app, ["diff", str(old_csv), str(new_csv), "--json", "--fail-on", "major"]
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["bump"] == "major"
+
+
+def test_an_unknown_severity_is_rejected_by_the_parser(old_csv, new_csv):
+    assert run("diff", str(old_csv), str(new_csv), "--fail-on", "enormous").exit_code == 2
+
+
+# --- the profile command --------------------------------------------------------------------
+
+
+def test_writing_a_profile_reports_where_it_went(tmp_path, old_csv):
+    destination = tmp_path / "old.profile.json"
+
+    result = run("profile", str(old_csv), "-o", str(destination))
+
+    assert result.exit_code == 0
+    assert destination.exists()
+    assert "profile written" in result.output
+
+
+def test_a_profile_can_be_compared_against_without_the_dataset(tmp_path, old_csv, new_csv):
+    copied = tmp_path / "old.csv"
+    copied.write_bytes(old_csv.read_bytes())
+    destination = tmp_path / "old.profile.json"
+    run("profile", str(copied), "-o", str(destination))
+    copied.unlink()
+
+    payload = json.loads(run("diff", str(destination), str(new_csv), "--json").stdout)
+
+    assert payload["bump"] == "major"
+
+
+def test_profiling_something_that_is_not_there_fails_cleanly(tmp_path):
+    result = run("profile", str(tmp_path / "absent.csv"))
+
+    assert result.exit_code == 2
+    assert "error" in result.output

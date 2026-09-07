@@ -15,6 +15,11 @@ from datasemver.core.models import (
     DiffResult,
 )
 from datasemver.utils.similarity import column_similarity
+from datasemver.utils.statistics import (
+    ks_critical_value,
+    ks_statistic,
+    population_stability_index,
+)
 
 COMPATIBLE_WIDENINGS: set[tuple[str, str]] = {
     ("bool", "int64"),
@@ -32,6 +37,14 @@ class DiffConfig:
     distribution_sigma: float = 0.5
     stat_change_tolerance: float = 0.01
     cardinality_tolerance: float = 0.1
+    # A KS statistic is the largest gap between two cumulative distributions, so 0.1 means
+    # the two versions disagree about where a tenth of the column sits.
+    ks_threshold: float = 0.1
+    # The conventional reading of PSI: below 0.1 the population is stable. The rules file
+    # draws the second line, at 0.25, between "worth knowing" and "no longer the same data".
+    psi_threshold: float = 0.1
+    # PSI has no critical value to compare against, so the guard is a plain row count.
+    min_rows_for_balance: int = 30
 
 
 def diff_schemas(
@@ -203,7 +216,7 @@ def _row_count_changes(old: DatasetSchema, new: DatasetSchema) -> Iterator[Chang
 def _column_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     yield from _type_changes(old, new)
     yield from _null_changes(old, new, config)
-    yield from _category_changes(old, new)
+    yield from _category_changes(old, new, config)
     yield from _numeric_changes(old, new, config)
     yield from _cardinality_changes(old, new, config)
 
@@ -260,7 +273,7 @@ def _null_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Ite
         )
 
 
-def _category_changes(old: ColumnStats, new: ColumnStats) -> Iterator[Change]:
+def _category_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     if old.categories is None or new.categories is None:
         return
 
@@ -285,6 +298,50 @@ def _category_changes(old: ColumnStats, new: ColumnStats) -> Iterator[Change]:
             details={"categories": lost[:20]},
         )
 
+    yield from _balance_changes(old, new, config)
+
+
+def _balance_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
+    """Compare how the values are distributed, not only which values occur.
+
+    Gaining and losing categories are set operations, and a column can keep every value it
+    ever had while the proportions between them are rebuilt entirely -- a label going from
+    balanced to one-in-a-hundred is the case that breaks a model without changing the set.
+    """
+    if not old.category_counts or not new.category_counts:
+        return
+    if min(old.non_null_count, new.non_null_count) < config.min_rows_for_balance:
+        # Same reason the KS check has a critical value: on a handful of rows a proportion
+        # cannot move by a little, so every move looks like a large one.
+        return
+
+    index = population_stability_index(old.category_counts, new.category_counts)
+    if index < config.psi_threshold:
+        return
+
+    moved = _largest_move(old.category_counts, new.category_counts)
+    yield Change(
+        type=ChangeType.CATEGORY_BALANCE_SHIFT,
+        column=new.name,
+        description=(
+            f"Column '{new.name}' balance shifted (PSI {index:.3f}): "
+            f"'{moved[0]}' {moved[1]:.1%} -> {moved[2]:.1%}"
+        ),
+        metrics={"psi": index},
+        details={"largest_move": moved[0]},
+    )
+
+
+def _largest_move(old: dict[str, int], new: dict[str, int]) -> tuple[str, float, float]:
+    """The category whose share moved most, which is the one worth naming in one sentence."""
+    old_total = sum(old.values()) or 1
+    new_total = sum(new.values()) or 1
+    shares = [
+        (name, old.get(name, 0) / old_total, new.get(name, 0) / new_total)
+        for name in set(old) | set(new)
+    ]
+    return max(shares, key=lambda item: abs(item[2] - item[1]))
+
 
 def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> Iterator[Change]:
     if not (old.is_numeric and new.is_numeric):
@@ -294,15 +351,78 @@ def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> 
     if _is_sequential_key(old) and _is_sequential_key(new):
         return
 
+    base = abs(old.mean) or 1.0
+    relative = round(abs(new.mean - old.mean) / base * 100, 4)
+    metrics = {"mean_old": old.mean, "mean_new": new.mean, "mean_shift_pct": relative}
+
+    if old.quantiles and new.quantiles:
+        yield from _shape_changes(old, new, config, metrics, relative)
+        return
+    yield from _mean_only_changes(old, new, config, metrics, relative)
+
+
+def _shape_changes(
+    old: ColumnStats,
+    new: ColumnStats,
+    config: DiffConfig,
+    metrics: dict[str, float],
+    relative: float,
+) -> Iterator[Change]:
+    """Compare the two columns as distributions, which is what the quantiles are stored for.
+
+    The mean is a single point of a distribution, and a column can be rebuilt around a
+    different spread or split into two modes without moving it at all. KS reads the whole
+    shape, so those changes are the ones this sees and the mean could not.
+    """
+    statistic = ks_statistic(old.quantiles or [], new.quantiles or [])
+    metrics = metrics | {"ks_statistic": statistic}
+
+    # Two floors, and a shift has to clear both: large enough to care about, and larger than
+    # two identical distributions would produce at these sample sizes.
+    floor = max(config.ks_threshold, ks_critical_value(old.non_null_count, new.non_null_count))
+    if statistic >= floor:
+        yield Change(
+            type=ChangeType.DISTRIBUTION_SHIFT,
+            column=new.name,
+            description=(
+                f"Column '{new.name}' distribution moved (KS {statistic:.3f}): "
+                f"mean {old.mean:.4g} -> {new.mean:.4g}, "
+                f"std {_spread(old.std)} -> {_spread(new.std)}"
+            ),
+            metrics=metrics,
+        )
+    elif relative >= config.stat_change_tolerance * 100:
+        yield Change(
+            type=ChangeType.MINOR_STAT_CHANGE,
+            column=new.name,
+            description=(
+                f"Column '{new.name}' mean moved from {old.mean:.4g} to {new.mean:.4g} "
+                f"({relative:.2f}%)"
+            ),
+            metrics=metrics,
+        )
+
+
+def _mean_only_changes(
+    old: ColumnStats,
+    new: ColumnStats,
+    config: DiffConfig,
+    metrics: dict[str, float],
+    relative: float,
+) -> Iterator[Change]:
+    """The comparison available when a profile predates the quantile grid.
+
+    A profile written by an older version has a mean and a standard deviation and nothing
+    else, so this is what it can be compared with. New profiles never reach here.
+    """
+    if old.mean is None or new.mean is None:  # pragma: no cover - the caller has checked
+        return
     shift = abs(new.mean - old.mean)
     if shift == 0:
         return
 
-    base = abs(old.mean) or 1.0
-    relative = round(shift / base * 100, 4)
     spread = old.std or 0.0
     sigma = round(shift / spread, 4) if spread else float("inf")
-    metrics = {"mean_old": old.mean, "mean_new": new.mean, "mean_shift_pct": relative}
 
     if spread and sigma >= config.distribution_sigma:
         yield Change(
@@ -324,6 +444,10 @@ def _numeric_changes(old: ColumnStats, new: ColumnStats, config: DiffConfig) -> 
             ),
             metrics=metrics,
         )
+
+
+def _spread(value: float | None) -> str:
+    return "-" if value is None else f"{value:.4g}"
 
 
 def _is_sequential_key(stats: ColumnStats) -> bool:

@@ -3,6 +3,9 @@ major:
   - type_changed_incompatible
   - column_renamed
   - distribution_shift
+  # A PSI above 0.25 is the conventional line past which a categorical column is no longer
+  # describing the same population, so anything fitted on the old version stops holding.
+  - psi_greater_than: 0.25
   - row_count_decrease_greater_than: 20
   - null_ratio_increase_greater_than: 10
 
@@ -14,6 +17,9 @@ minor:
   - category_removed
   - cardinality_changed
   - nulls_introduced
+  # Between 0.1 and 0.25: the balance moved enough to be worth knowing about, not enough to
+  # call the column a different one.
+  - category_balance_shift
 
 patch:
   - nulls_fixed

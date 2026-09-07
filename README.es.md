@@ -42,6 +42,7 @@ datos, ni ningún servicio corriendo.
 - [Referencia de comandos](#referencia-de-comandos)
 - [Bases de datos](#bases-de-datos)
 - [DVC](#dvc)
+- [Perfiles guardados](#perfiles-guardados)
 - [Configuración: reglas en YAML](#configuración-reglas-en-yaml)
 - [API de Python](#api-de-python)
 - [GitHub Action](#github-action)
@@ -285,6 +286,7 @@ Lo que DataSemver mira:
 
 ```bash
 datasemver diff OLD NEW [OPTIONS]
+datasemver profile FUENTE [OPTIONS]
 datasemver dvc [DATASETS...] [OPTIONS]
 datasemver rules [RULES_FILE]
 python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
@@ -296,6 +298,7 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--current-version TEXT` | `-c` | Versión desde la que se salta el dataset nuevo (por defecto `0.0.0`) |
 | `--output PATH` | `-o` | Escribe la entrada de changelog en un fichero, anteponiéndola si ya existe |
 | `--json` | | Imprime el informe completo como JSON en lugar de las tablas |
+| `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
 
 Ejemplos:
 
@@ -306,6 +309,9 @@ datasemver diff old.csv new.csv --rules examples/strict_rules.yaml
 datasemver diff old.csv new.csv --output CHANGELOG.md
 datasemver diff old.csv new.csv --json | jq '.classified[] | {severity, rule: .rule}'
 datasemver rules examples/lenient_rules.yaml
+datasemver diff old.csv new.csv --fail-on major   # sale con 1 si el cambio rompe
+datasemver profile customers_v3.parquet           # escribe customers_v3.profile.json
+datasemver diff customers_v3.profile.json customers_v4.parquet
 ```
 
 Los formatos se detectan por extensión: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`,
@@ -319,6 +325,10 @@ y los structs de Parquet se aplanan con un separador `.`, de modo que
 `{"user": {"name": "..."}}` se perfila como la columna `user.name`. El comando sale con `2`
 si falta el fichero, la extensión no está soportada, el dataset no se puede leer o el
 fichero de reglas es inválido.
+
+Tres códigos de salida, para que un pipeline pueda distinguirlos: `0` se ejecutó y no había
+nada que rechazar, `1` se ejecutó y el salto alcanzó `--fail-on`, `2` no se pudo ejecutar.
+Sin `--fail-on` el comando es informativo y sale siempre con `0`, encuentre lo que encuentre.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-delimiter.png" width="880"
@@ -340,6 +350,29 @@ reporta los mismos cambios:
 ```bash
 datasemver diff tests/fixtures/old.csv tests/fixtures/new.parquet
 ```
+
+## Perfiles guardados
+
+Una comparación lee un *perfil*: las columnas, sus tipos, sus ratios de nulos, una rejilla de
+cuantiles por columna numérica y los conteos por categoría. Eso son unos cientos de bytes
+donde el dataset son megabytes, así que puede escribirse a un fichero y conservarse.
+
+```bash
+datasemver profile customers_v3.parquet          # escribe customers_v3.profile.json
+datasemver diff customers_v3.profile.json customers_v4.parquet
+```
+
+El dataset que describe un perfil ya no tiene por qué existir. Guarda el perfil junto a los
+datos —al lado del puntero de DVC, en el mismo pull request— y la siguiente comparación solo
+necesita la versión nueva, en lugar de descargar una anterior que puede ser grande, remota o
+haber desaparecido. También hace auditable una sugerencia meses después: el perfil sigue
+diciendo exactamente con qué se calculó el salto.
+
+Un perfil se lee allí donde se lee un dataset, en cualquiera de los dos lados de una
+comparación, así que esto funciona también desde la API de Python y desde el panel.
+`.profile.json` es la extensión que lo marca, distinta de `.json` a propósito, porque esa es
+un formato que DataSemver lee como datos. Un perfil escrito por una versión más nueva de
+DataSemver se rechaza en lugar de interpretarse a medias.
 
 ## Configuración: reglas en YAML
 
@@ -374,6 +407,23 @@ y como lo ha entendido el motor:
 umbral en una severidad inferior, que entonces actúa como respaldo. Los nombres de regla
 desconocidos, las severidades desconocidas y los umbrales sobre reglas que no los aceptan
 se rechazan con un error en lugar de ignorarse.
+
+Dos reglas comparan distribuciones en lugar de números sueltos, que es lo que detecta un
+cambio que deja todos los estadísticos resumen donde estaban. `distribution_shift` se dispara
+con el estadístico de Kolmogorov-Smirnov entre las dos versiones de una columna numérica, de
+modo que una dispersión que se multiplica por cuarenta con la media intacta, o una columna que
+se parte en dos modas alrededor del mismo centro, es un cambio y no una casualidad.
+`category_balance_shift` se dispara con el Population Stability Index de una columna
+categórica, que ve una etiqueta pasar de equilibrada a una-entre-cien mientras ambos valores
+siguen presentes —invisible para una comparación de los conjuntos de categorías—. Los umbrales
+por defecto son la lectura convencional del PSI: 0,1 inestable, 0,25 ya no es la misma
+población.
+
+Ambas se miden contra lo que el tamaño de muestra puede sostener. Un estadístico KS no
+significa nada por sí solo: con cuatro filas contra cinco, añadir una sola fila mueve la
+distribución un quinto, así que un desplazamiento tiene que superar el valor crítico para esos
+tamaños además del umbral configurado. Con un puñado de filas no se reporta nada, porque no
+hay nada que reportar.
 
 El catálogo completo de reglas, métricas y umbrales está en [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md)
 (en inglés). En [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples) se incluyen dos perfiles listos para usar:

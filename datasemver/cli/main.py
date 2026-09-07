@@ -15,6 +15,12 @@ from rich.table import Table
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.changelog import render_entry, severity_label, write_changelog
 from datasemver.core.models import AnalysisReport, ColumnStatus, Severity
+from datasemver.core.profile import (
+    ProfileError,
+    default_profile_path,
+    write_profile,
+)
+from datasemver.formats.loader import load_schema
 from datasemver.integrations import dvc as dvc_integration
 from datasemver.rules.engine import EVALUATION_ORDER, RuleError, load_rules
 from datasemver.utils.version import InvalidVersionError
@@ -37,6 +43,15 @@ _SOURCE_HELP = "{which} version of the dataset: a file, or a database URL with t
 # anything, and the redirected output that CI and scripts actually use now works.
 console = Console(legacy_windows=False)
 error_console = Console(stderr=True, legacy_windows=False)
+
+# Exit 2 already means "the command could not run", so the gate takes 1: a run that worked
+# and found what it was told to refuse is not the same thing as a run that failed, and a
+# caller that cannot tell them apart cannot tell a broken pipeline from a rejected dataset.
+GATE_EXIT_CODE = 1
+
+_FAIL_ON_HELP = "Exit with code 1 when the suggested bump reaches this severity or higher."
+_PROFILE_OUTPUT_HELP = "Where to write it; defaults to <name>.profile.json beside the dataset."
+
 
 SEVERITY_COLORS: dict[Severity, str] = {
     Severity.MAJOR: "bold red",
@@ -72,6 +87,10 @@ def diff(
         str,
         typer.Option("--current-version", "-c", help="Version the new dataset is bumped from."),
     ] = DEFAULT_VERSION,
+    fail_on: Annotated[
+        Severity | None,
+        typer.Option("--fail-on", help=_FAIL_ON_HELP),
+    ] = None,
 ) -> None:
     """Compare two dataset versions and suggest a semantic version bump."""
     try:
@@ -85,9 +104,25 @@ def diff(
 
     if as_json:
         console.print_json(json.dumps(report.model_dump(mode="json")))
-        return
+    else:
+        _render_report(report, output)
 
-    _render_report(report, output)
+    _apply_gate(report.bump, fail_on)
+
+
+def _apply_gate(bump: Severity | None, fail_on: Severity | None) -> None:
+    """Turn the suggested bump into an exit code, so a pipeline can refuse to continue.
+
+    Without this the command is advisory whatever it finds: it prints a breaking change and
+    exits 0, and the only way to act on it is to parse the JSON.
+    """
+    if fail_on is None or bump is None or bump < fail_on:
+        return
+    error_console.print(
+        f"[bold red]refused:[/] suggested bump is {bump.value}, "
+        f"which reaches the --fail-on threshold of {fail_on.value}"
+    )
+    raise typer.Exit(code=GATE_EXIT_CODE)
 
 
 def _render_report(report: AnalysisReport, output: Path | None) -> None:
@@ -198,6 +233,10 @@ def dvc(
             help="Version to bump from when a dataset records none beside it.",
         ),
     ] = DEFAULT_VERSION,
+    fail_on: Annotated[
+        Severity | None,
+        typer.Option("--fail-on", help=_FAIL_ON_HELP),
+    ] = None,
 ) -> None:
     """Analyse the datasets DVC reports as changed between two revisions."""
     try:
@@ -220,9 +259,17 @@ def dvc(
 
     if as_json:
         console.print_json(json.dumps(dvc_integration.as_payload(reports, skipped, rev, to_rev)))
-        return
+    else:
+        _render_dvc_run(reports, skipped, rev, to_rev, output)
 
-    _render_dvc_run(reports, skipped, rev, to_rev, output)
+    # The run's severity is its worst dataset: one breaking change in one dataset is a
+    # breaking change in the revision being proposed.
+    worst = max((report.bump for report in reports if report.bump), default=None, key=_rank)
+    _apply_gate(Severity(worst) if worst else None, fail_on)
+
+
+def _rank(bump: str) -> int:
+    return Severity(bump).rank
 
 
 def _render_dvc_run(
@@ -273,6 +320,34 @@ def _dvc_table(reports: list[dvc_integration.DatasetReport]) -> Table:
             str(len(report.changes)),
         )
     return table
+
+
+@app.command("profile")
+def profile(
+    source: Annotated[str, typer.Argument(help=_SOURCE_HELP.format(which="The"))],
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help=_PROFILE_OUTPUT_HELP),
+    ] = None,
+) -> None:
+    """Write a dataset's profile to a file that can be compared against later.
+
+    The profile is what a comparison reads, and it is a few hundred bytes where the dataset
+    is megabytes. Store it beside the data and the next comparison needs only the new
+    version: `datasemver diff customers.profile.json customers_v4.parquet`.
+    """
+    try:
+        schema = load_schema(source)
+    except (FileNotFoundError, ValueError, ProfileError) as error:
+        error_console.print(f"[bold red]error:[/] {escape(str(error))}")
+        raise typer.Exit(code=2) from error
+
+    destination = write_profile(schema, output or default_profile_path(source))
+    size = destination.stat().st_size
+    console.print(
+        f"[bold green]profile written[/] {destination} "
+        f"[dim]({len(schema.columns)} columns, {schema.row_count} rows, {size} bytes)[/]"
+    )
 
 
 @app.command("rules")

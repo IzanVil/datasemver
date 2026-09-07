@@ -9,6 +9,7 @@ import pandas as pd
 from pandas.api import types as ptypes
 
 from datasemver.core.models import ColumnStats
+from datasemver.utils.statistics import QUANTILE_LEVELS
 
 MAX_TRACKED_CATEGORIES = 200
 MAX_CATEGORY_UNIQUENESS = 0.5
@@ -134,6 +135,9 @@ def profile_column(series: pd.Series, name: str) -> ColumnStats:
             stats.std = float(numeric.std(ddof=0))
             stats.minimum = float(numeric.min())
             stats.maximum = float(numeric.max())
+            # The column's shape, as eleven numbers. This is what lets a later comparison
+            # measure how the distribution moved instead of only where its centre went.
+            stats.quantiles = [float(value) for value in numeric.quantile(QUANTILE_LEVELS).tolist()]
     else:
         modes = non_null.mode()
         if not modes.empty:
@@ -143,7 +147,11 @@ def profile_column(series: pd.Series, name: str) -> ColumnStats:
             and stats.cardinality / len(non_null) <= MAX_CATEGORY_UNIQUENESS
         )
         if looks_categorical:
-            stats.categories = sorted(str(value) for value in non_null.unique())
+            counts = non_null.astype(str).value_counts()
+            stats.categories = sorted(counts.index)
+            # The proportions, not only the set: a column whose values all still appear but
+            # in a completely different balance is invisible to the set alone.
+            stats.category_counts = {str(name): int(count) for name, count in counts.items()}
     return stats
 
 

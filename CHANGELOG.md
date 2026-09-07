@@ -57,6 +57,13 @@ This project follows [Semantic Versioning](https://semver.org).
   write already names its encoding, so a Windows default of cp1252 never applies; there is no
   `chmod`, no `os.name` branch and no `shell=True`; and Rich has not used colorama since it
   began driving the Windows console API itself.
+- The Trusted Publishing setup the release workflow depends on is checked by the suite rather
+  than by the next release. It is authenticated by a handful of YAML lines nothing else reads:
+  a `password:` restored from an older example would disable the attestations the action
+  produces while still uploading successfully, a dropped `id-token: write` fails the job, and
+  a renamed environment fails it in a way that reads like a misconfigured index rather than a
+  typo in this repository. Both READMEs now say publishing needs no stored token and point at
+  the setup each index is given once.
 
 ## [0.4.0] - 2026-09-06
 

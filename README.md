@@ -754,6 +754,12 @@ tests/                    pytest suite and dataset fixtures
 demo.cast                 asciinema recording used in the demo above
 ```
 
+Releases publish through Trusted Publishing, so there is no API token stored in this
+repository. The workflow mints a short-lived OpenID Connect token that names the
+repository, the workflow file and the environment it came from, and the index verifies
+that against what it was told to expect. What each index has to be told, once, is in
+[CONTRIBUTING.md](https://github.com/IzanVil/datasemver/blob/main/CONTRIBUTING.md#releasing).
+
 ## Changelog
 
 Every released version is described in [CHANGELOG.md](https://github.com/IzanVil/datasemver/blob/main/CHANGELOG.md), which uses the same

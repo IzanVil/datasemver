@@ -20,6 +20,11 @@ This project follows [Semantic Versioning](https://semver.org).
   without being told, because its upload list is derived from the supported formats.
 
 ### Patch
+- A tutorial, in `docs/tutorial.md`. It works through the Titanic passenger list and four
+  changes a data team would defend one at a time -- drop a column that is 77% empty, fill the
+  missing ages, round the fares, scope the report to first and second class -- which together
+  move the survival rate from 38% to 56% without touching a column name. Every command in it
+  was run and every number in it came back from the tool rather than from an estimate.
 - The dashboard's own README describes the dashboard as it is. Its endpoint table listed four
   where there are five, the file tree still carried the directory name from before the package
   was renamed, and the request it documents was missing both the `key` field and the fact that

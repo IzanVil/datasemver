@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-08
+
 ### Minor
 - Excel. `.xlsx` and `.xlsm` are read through the `excel` extra, and a source names a sheet
   after `#` the way a database source names a table -- `quarterly.xlsx#Q2` -- because a
@@ -553,7 +555,8 @@ First working version.
 - GitHub Action that analyses the datasets a pull request touches and posts the suggested
   bump as a comment, rewriting the same comment on every push.
 
-[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/IzanVil/datasemver/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/IzanVil/datasemver/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/IzanVil/datasemver/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/IzanVil/datasemver/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/IzanVil/datasemver/compare/v0.3.0...v0.4.0

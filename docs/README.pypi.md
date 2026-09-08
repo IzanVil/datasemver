@@ -5,7 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![Platforms](https://img.shields.io/badge/tested%20on-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 **[datasemver on the web](https://izanvil.github.io/datasemver/)** — what it does and why, with the output shown rather than described.
 
@@ -204,4 +204,4 @@ open a socket, and write nothing unless you pass `--output`.
 
 ## License
 
-GNU General Public License v3.0 or later. Releases up to and including 0.7.0 were published under the MIT licence and remain available under it.
+Apache License 2.0. The licence grants no right to the DataSemver name or marks. Releases up to and including 0.7.0 were published under the MIT licence and remain available under it.

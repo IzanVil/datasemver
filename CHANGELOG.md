@@ -9,16 +9,18 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Major
-- The licence is the GNU General Public License v3.0 or later, where it was MIT. This is a
-  change to the terms the project is offered under rather than to anything it does, and it is
-  recorded as major for the same reason a dataset's contract change is: what someone is
-  allowed to build on top of this is now different. Releases up to and including 0.7.0 were
-  published under MIT and stay available under it -- a licence cannot be withdrawn from what
-  has already been distributed, so this applies from the next release onwards. The existing
-  contributions made under MIT are carried in under its own permission to sublicense, which
-  is the direction MIT allows.
-
-## [0.7.0] - 2026-09-08
+- The licence is the Apache License 2.0, where it was MIT. It is recorded as major for the
+  same reason a dataset's contract change is: what someone is allowed to build on this is now
+  stated differently. In practice the permissions are the ones MIT already gave -- use, modify
+  and redistribute, commercially and inside closed software -- with three things written down
+  that MIT leaves silent: an explicit patent grant, a requirement that modified files say they
+  were modified, and a clause reserving the project's name and marks. A fork stays free to
+  exist and is not free to present itself as this project, which is the protection that
+  matters for a small project and the one a copyleft licence would not have given.
+- Releases up to and including 0.7.0 were published under MIT and stay available under it. A
+  licence already granted on a published artefact cannot be withdrawn, so this applies from
+  the next release onwards. Contributions made by others while the project was MIT are carried
+  in under MIT's own permission to sublicense.
 
 ### Minor
 - Excel. `.xlsx` and `.xlsm` are read through the `excel` extra, and a source names a sheet

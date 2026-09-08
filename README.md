@@ -13,7 +13,7 @@
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![Platforms](https://img.shields.io/badge/tested%20on-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-green.svg)](https://github.com/IzanVil/datasemver/blob/main/LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://github.com/IzanVil/datasemver/blob/main/LICENSE)
 
 [**Website**](https://izanvil.github.io/datasemver/) · **English** · [Español](https://github.com/IzanVil/datasemver/blob/main/README.es.md)
 
@@ -914,13 +914,12 @@ pytest
 
 ## License
 
-GNU General Public License v3.0 or later. See [LICENSE](https://github.com/IzanVil/datasemver/blob/main/LICENSE).
+Apache License 2.0. See [LICENSE](https://github.com/IzanVil/datasemver/blob/main/LICENSE) and [NOTICE](https://github.com/IzanVil/datasemver/blob/main/NOTICE).
 
-Copyright © 2026 Izan Vilchez. DataSemver is free software: you can redistribute it and
-modify it under the terms of the GPL as published by the Free Software Foundation, either
-version 3 or, at your option, any later version. It is distributed in the hope that it will
-be useful, but **without any warranty** — without even the implied warranty of
-merchantability or fitness for a particular purpose.
+Copyright © 2026 Izan Vilchez. You may use, modify and redistribute this, including
+commercially and inside closed software, provided the licence and the notice travel with it
+and modified files say they were changed. The licence grants no right to the DataSemver name
+or marks: a fork is free to exist, and is not free to present itself as this project.
 
 Releases up to and including 0.7.0 were published under the MIT licence and remain available
-under it; the change applies from the next release onwards.
+under it; Apache 2.0 applies from the next release onwards.

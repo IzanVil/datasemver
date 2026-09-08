@@ -10,8 +10,8 @@ description = "Semantic versioning for datasets: diff two dataset versions and g
 # to and pull images from is not always public, and a broken page outlives that.
 readme = "docs/README.pypi.md"
 requires-python = ">=3.10"
-license = "GPL-3.0-or-later"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Izan Vilchez", email = "izanvilchez6@gmail.com" }]
 maintainers = [{ name = "Izan Vilchez", email = "izanvilchez6@gmail.com" }]
 keywords = [

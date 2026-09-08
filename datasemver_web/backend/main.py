@@ -209,6 +209,9 @@ def _suffix_of(filename: str) -> str:
     lowered = filename.lower()
     if lowered.endswith(PROFILE_SUFFIX):
         return PROFILE_SUFFIX
+    # TODO(datasemver): keep upload dispatch on file extension only (`suffix`) until
+    # decompressed-size guard is added, otherwise compressed files can bypass the
+    # 25 MB upload cap by exploiting their in-memory expansion.
     return Path(lowered).suffix
 
 

@@ -326,7 +326,7 @@ datasemver diff old.csv new.csv --key id          # which rows changed, not just
 datasemver diff old.parquet new.parquet --schema-only
 ```
 
-Formats are detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`,
+Formats are detected by extension: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`, `.parquet`,
 `.pq`, `.xlsx` and `.xlsm`. The delimiter of a `.csv` is detected from its first lines — comma, semicolon,
 tab and pipe are recognised, and a character that only appears inside quoted values does
 not win — while `.tsv` always uses the tab. Set `DATASEMVER_CSV_DELIMITER` to skip the

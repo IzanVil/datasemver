@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from datasemver.formats.loader import SUPPORTED_EXTENSIONS
+from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
 
 VERSION_PATTERN = re.compile(r"^(?P<name>.+?)[._-]v(?P<version>\d+(?:[._]\d+)*)$", re.IGNORECASE)
 
@@ -62,11 +62,13 @@ def scan_datasets(directory: Path) -> History:
     for path in sorted(directory.iterdir()):
         if not path.is_file() or path.name.startswith("."):
             continue
-        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        suffix = dataset_suffix(path)
+        if suffix not in SUPPORTED_EXTENSIONS:
             ignored.append(path.name)
             continue
 
-        match = VERSION_PATTERN.match(path.stem)
+        stem = path.name[: -len(suffix)] if suffix else path.stem
+        match = VERSION_PATTERN.match(stem)
         if match is None:
             ignored.append(path.name)
             continue
@@ -76,7 +78,7 @@ def scan_datasets(directory: Path) -> History:
             DatasetVersion(
                 version=match["version"].replace("_", "."),
                 filename=path.name,
-                extension=path.suffix.lower(),
+                extension=suffix,
                 size_bytes=stats.st_size,
                 modified_at=datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc),
             )

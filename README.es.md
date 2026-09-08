@@ -45,6 +45,7 @@ datos, ni ningún servicio corriendo.
 - [Demo](#demo)
 - [Versionado semántico para datos](#versionado-semántico-para-datos)
 - [Referencia de comandos](#referencia-de-comandos)
+- [Libros de Excel](#libros-de-excel)
 - [Bases de datos](#bases-de-datos)
 - [DVC](#dvc)
 - [Filas, no solo forma](#filas-no-solo-forma)
@@ -96,6 +97,7 @@ pip install -e ".[dev]"
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Ejecutar los tests y medir la cobertura |
 | `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Leer una [tabla de base de datos](#bases-de-datos) |
 | `exe` | `pyinstaller` | Construir un [ejecutable independiente](#sin-python) |
+| `excel` | `openpyxl` | Leer libros `.xlsx` y `.xlsm` |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | El [panel web](#panel-web) |
 
 ```bash
@@ -326,7 +328,7 @@ datasemver diff old.parquet new.parquet --schema-only
 ```
 
 Los formatos se detectan por extensión: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`,
-`.parquet` y `.pq`. El delimitador de un `.csv` se detecta a partir de sus primeras líneas
+`.parquet`, `.pq`, `.xlsx` y `.xlsm`. El delimitador de un `.csv` se detecta a partir de sus primeras líneas
 —se reconocen coma, punto y coma, tabulador y barra vertical, y un carácter que solo
 aparece dentro de valores entrecomillados no gana—, mientras que `.tsv` siempre usa el
 tabulador. Define `DATASEMVER_CSV_DELIMITER` para saltarte la detección y forzar un único
@@ -468,6 +470,26 @@ hay nada que reportar.
 El catálogo completo de reglas, métricas y umbrales está en [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md)
 (en inglés). En [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples) se incluyen dos perfiles listos para usar:
 `strict_rules.yaml` y `lenient_rules.yaml`.
+
+## Libros de Excel
+
+Un fichero `.xlsx` o `.xlsm` contiene varias hojas, así que la fuente nombra una después de
+`#` —el mismo separador que usa una fuente de base de datos para su tabla, porque un libro y
+una base de datos son las dos fuentes aquí que llevan más de un dataset:
+
+```bash
+datasemver diff trimestral.xlsx#Q1 trimestral.xlsx#Q2
+datasemver diff año-pasado.xlsx informe.xlsx#'2024'   # entrecomillado: una hoja llamada 2024
+```
+
+Sin fragmento se lee la primera hoja, que es lo que es un export de una sola; un número suelto
+es una posición, así que `#1` es la segunda hoja. Nombrar una hoja que no existe responde con
+las que sí. Los tipos se infieren como en un CSV, porque una columna de números guardados como
+texto es el estado normal de una hoja de cálculo.
+
+```bash
+pip install "datasemver[excel]"
+```
 
 ## Bases de datos
 

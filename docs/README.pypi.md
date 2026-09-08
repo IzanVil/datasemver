@@ -101,7 +101,7 @@ are reported as unclassified and never inflate it.
 
 ## Formats
 
-Detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`, `.pq`.
+Detected by extension: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`, `.parquet`, `.pq`.
 
 The delimiter of a `.csv` is detected from its first lines — comma, semicolon, tab and pipe
 are recognised, and a character that only appears inside quoted values does not win — while

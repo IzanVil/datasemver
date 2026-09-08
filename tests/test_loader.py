@@ -1,3 +1,5 @@
+import gzip as _gzip
+
 import pandas as pd
 import pytest
 
@@ -7,6 +9,7 @@ from datasemver.formats.loader import (
     DatasetReadError,
     UnsupportedFormatError,
     csv_delimiter,
+    dataset_suffix,
     detect_delimiter,
     load_frame,
     load_parquet,
@@ -516,7 +519,10 @@ def test_a_long_boolean_column_still_converts():
 # gzip-compressed CSV / TSV
 # ---------------------------------------------------------------------------
 
-import gzip as _gzip
+
+def test_dataset_suffix_keeps_compound_compressed_extensions():
+    assert dataset_suffix("data.csv.gz") == ".csv.gz"
+    assert dataset_suffix("data.tsv.gz") == ".tsv.gz"
 
 
 def test_load_csv_gz_comma_delimited(tmp_path):

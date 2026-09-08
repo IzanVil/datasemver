@@ -24,6 +24,7 @@ from datasemver.core.profile import PROFILE_SUFFIX, Profile, is_profile, read_pr
 from datasemver.core.rows import compare_rows
 from datasemver.formats.loader import (
     SUPPORTED_EXTENSIONS,
+    dataset_suffix,
     describe_source,
     load_frame,
     schema_from_frame,
@@ -209,7 +210,7 @@ def _suffix_of(filename: str) -> str:
     lowered = filename.lower()
     if lowered.endswith(PROFILE_SUFFIX):
         return PROFILE_SUFFIX
-    return Path(lowered).suffix
+    return dataset_suffix(lowered)
 
 
 def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:

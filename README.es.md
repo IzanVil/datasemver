@@ -330,7 +330,7 @@ datasemver diff old.csv new.csv --key id          # qué filas cambiaron, no sol
 datasemver diff old.parquet new.parquet --schema-only
 ```
 
-Los formatos se detectan por extensión: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`,
+Los formatos se detectan por extensión: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`,
 `.parquet`, `.pq`, `.xlsx` y `.xlsm`. El delimitador de un `.csv` se detecta a partir de sus primeras líneas
 —se reconocen coma, punto y coma, tabulador y barra vertical, y un carácter que solo
 aparece dentro de valores entrecomillados no gana—, mientras que `.tsv` siempre usa el

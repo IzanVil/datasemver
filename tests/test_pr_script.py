@@ -282,6 +282,7 @@ def test_recorded_version_separates_absent_from_zero(repo):
 def test_only_dataset_extensions_are_collected(repo):
     (repo / "data" / "notes.txt").write_text("x", encoding="utf-8")
     (repo / "data" / "events.parquet").write_bytes(b"not really parquet")
+    (repo / "data" / "compressed.csv.gz").write_bytes(b"gzip fixture")
     run_git(repo, "add", "-A")
     run_git(repo, "commit", "-qm", "mixed files")
 
@@ -289,6 +290,7 @@ def test_only_dataset_extensions_are_collected(repo):
 
     assert "data/customers.csv" in paths
     assert "data/events.parquet" in paths
+    assert "data/compressed.csv.gz" in paths
     assert not any(path.endswith((".txt", ".md")) for path in paths)
 
 

@@ -36,12 +36,17 @@ class DatasetReadError(ValueError):
     """Raised when a file has a supported extension but cannot be read."""
 
 
-def _file_suffix(path: Path) -> str:
-    """Return the effective suffix for dispatch, including compound ones like '.csv.gz'."""
+def dataset_suffix(path: str | Path) -> str:
+    """Return the effective dataset suffix, including supported compound suffixes.
+
+    ``Path.suffix`` returns only ``.gz`` for a compressed CSV or TSV. Keeping this
+    rule here gives every integration one definition of a dataset's format.
+    """
+    path = Path(path)
     name = path.name.lower()
-    for ext in (".csv.gz", ".tsv.gz"):
-        if name.endswith(ext):
-            return ext
+    for extension in sorted(SUPPORTED_EXTENSIONS, key=len, reverse=True):
+        if name.endswith(extension):
+            return extension
     return path.suffix.lower()
 
 
@@ -61,7 +66,7 @@ def load_frame(path: str | Path) -> pd.DataFrame:
         return infer_types(load_excel(path))
 
     path = _existing_path(path)
-    suffix = _file_suffix(path)
+    suffix = dataset_suffix(path)
 
     if suffix in PARQUET_EXTENSIONS:
         return load_parquet(path)
@@ -183,7 +188,7 @@ def csv_delimiter(path: str | Path) -> str:
     override = _delimiter_override()
     if override is not None:
         return override
-    suffix = _file_suffix(Path(path))
+    suffix = dataset_suffix(path)
     if suffix in (".tsv", ".tsv.gz"):
         return "\t"
     return detect_delimiter(path)

@@ -22,8 +22,11 @@ curl -o passengers_v1.csv \
   https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv
 ```
 
-That is 891 rows and 12 columns. Now produce the tidied version, which is the "v2" a pipeline
-would have written:
+That is 891 rows and 12 columns. DataSemver also reads gzip-compressed delimited files:
+use `.csv.gz` or `.tsv.gz` when the same data is stored compressed; delimiter detection runs
+on the decompressed text.
+
+Now produce the tidied version, which is the "v2" a pipeline would have written:
 
 ```python
 # clean.py

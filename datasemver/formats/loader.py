@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,7 @@ from datasemver.formats.metadata import schema_from_metadata
 from datasemver.formats.sql import is_sql_source, load_sql, redacted
 from datasemver.formats.utils import infer_types, profile_frame
 
-CSV_EXTENSIONS = {".csv", ".tsv"}
+CSV_EXTENSIONS = {".csv", ".tsv", ".csv.gz", ".tsv.gz"}
 DELIMITER_CANDIDATES = (",", ";", "\t", "|")
 DEFAULT_DELIMITER = ","
 DELIMITER_ENV_VAR = "DATASEMVER_CSV_DELIMITER"
@@ -35,6 +36,20 @@ class DatasetReadError(ValueError):
     """Raised when a file has a supported extension but cannot be read."""
 
 
+def dataset_suffix(path: str | Path) -> str:
+    """Return the effective dataset suffix, including supported compound suffixes.
+
+    ``Path.suffix`` returns only ``.gz`` for a compressed CSV or TSV. Keeping this
+    rule here gives every integration one definition of a dataset's format.
+    """
+    path = Path(path)
+    name = path.name.lower()
+    for extension in sorted(SUPPORTED_EXTENSIONS, key=len, reverse=True):
+        if name.endswith(extension):
+            return extension
+    return path.suffix.lower()
+
+
 def load_frame(path: str | Path) -> pd.DataFrame:
     """Read a file or a database table into a flat dataframe with usable types.
 
@@ -51,7 +66,7 @@ def load_frame(path: str | Path) -> pd.DataFrame:
         return infer_types(load_excel(path))
 
     path = _existing_path(path)
-    suffix = path.suffix.lower()
+    suffix = dataset_suffix(path)
 
     if suffix in PARQUET_EXTENSIONS:
         return load_parquet(path)
@@ -165,14 +180,16 @@ def csv_delimiter(path: str | Path) -> str:
     """Resolve the delimiter a delimited text file should be read with.
 
     An explicit `DATASEMVER_CSV_DELIMITER` wins over everything, including the tab that a
-    `.tsv` extension otherwise forces; write a tab as the two characters `\\t`, which an
-    environment variable can carry, and leave the variable empty to mean unset. Without an
-    override, `.tsv` is a tab and any other extension is sniffed by `detect_delimiter`.
+    `.tsv` or `.tsv.gz` extension otherwise forces; write a tab as the two characters `\\t`,
+    which an environment variable can carry, and leave the variable empty to mean unset.
+    Without an override, `.tsv` and `.tsv.gz` are tabs and any other extension is sniffed
+    by `detect_delimiter`.
     """
     override = _delimiter_override()
     if override is not None:
         return override
-    if Path(path).suffix.lower() == ".tsv":
+    suffix = dataset_suffix(path)
+    if suffix in (".tsv", ".tsv.gz"):
         return "\t"
     return detect_delimiter(path)
 
@@ -212,7 +229,9 @@ def detect_delimiter(path: str | Path, default: str = DEFAULT_DELIMITER) -> str:
 
 
 def _sample_lines(path: Path) -> list[str]:
-    with path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
+    """Read the first few non-empty lines from a plain or gzip-compressed text file."""
+    opener = gzip.open if path.name.lower().endswith(".gz") else open
+    with opener(path, "rt", encoding="utf-8", errors="replace", newline="") as handle:
         lines = []
         for line in handle:
             stripped = line.strip("\r\n")

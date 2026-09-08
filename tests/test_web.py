@@ -105,10 +105,33 @@ def test_diff_rejects_unsupported_extension(client, old_csv, tmp_path):
     assert "unsupported extension" in response.json()["detail"]
 
 
+def test_uploads_stay_on_compound_suffix_dispatch_for_profiles_only(tmp_path, old_csv, client):
+    """The upload endpoint keeps `Path.suffix` to prevent upload-size bypasses for `.gz` files."""
+    gzip_upload = tmp_path / "old.csv.gz"
+    gzip_upload.write_bytes(old_csv.read_bytes())
+
+    response = upload(client, gzip_upload, old_csv)
+
+    assert response.status_code == 400
+    assert "unsupported extension" in response.json()["detail"]
+
+
 def test_diff_rejects_an_invalid_version(client, old_csv, new_csv):
     response = upload(client, old_csv, new_csv, current_version="not-a-version")
 
     assert response.status_code == 400
+
+
+def test_history_groups_gzip_files_by_version(tmp_path):
+    directory = tmp_path / "datasets"
+    directory.mkdir()
+    (directory / "customers_v3.csv.gz").write_bytes(b"compressed fixture")
+
+    history = scan_datasets(directory)
+
+    assert history.ignored == []
+    assert history.datasets[0].name == "customers"
+    assert history.datasets[0].versions[0].extension == ".csv.gz"
 
 
 def test_history_groups_files_by_version(client, datasets_dir):

@@ -20,7 +20,7 @@ from pathlib import Path
 
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.profile import PROFILE_SUFFIX
-from datasemver.formats.loader import SUPPORTED_EXTENSIONS
+from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
 from datasemver.rules.engine import RuleError
 
 INSTALL_HINT = "install it with: pip install dvc"
@@ -196,7 +196,7 @@ def read_entry(status: str, entry: object) -> Change | None:
 
 def is_dataset(path: str) -> bool:
     """Whether a path is one of the formats DataSemver reads."""
-    return Path(path).suffix.lower() in SUPPORTED_EXTENSIONS
+    return dataset_suffix(path) in SUPPORTED_EXTENSIONS
 
 
 def fetch(repo: Path, path: str, rev: str, destination: Path) -> Path:
@@ -304,7 +304,7 @@ def analyse_change(
         try:
             old_file = stored_profile(
                 repo, old_path, rev, scratch / f"old{PROFILE_SUFFIX}"
-            ) or fetch(repo, old_path, rev, scratch / f"old{Path(old_path).suffix}")
+            ) or fetch(repo, old_path, rev, scratch / f"old{dataset_suffix(old_path)}")
             new_file = resolve_new_side(repo, new_path, to_rev, scratch)
         except DvcError as error:
             raise SkippedDataset(str(error)) from error
@@ -337,7 +337,7 @@ def resolve_new_side(repo: Path, path: str, to_rev: str | None, scratch: Path) -
         if not working.is_file():
             raise SkippedDataset(f"'{path}' is not in the working tree; run `dvc checkout`")
         return working
-    return fetch(repo, path, to_rev, scratch / f"new{Path(path).suffix}")
+    return fetch(repo, path, to_rev, scratch / f"new{dataset_suffix(path)}")
 
 
 # --- output --------------------------------------------------------------------------------

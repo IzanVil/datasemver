@@ -18,8 +18,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, overload
 
+from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
+
 MARKER = "<!-- datasemver-report -->"
-DATASET_EXTENSIONS = (".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq")
+DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS
 VERSION_SUFFIX = ".version"
 PROFILE_SUFFIX = ".profile.json"
 DEFAULT_VERSION = "0.0.0"
@@ -156,7 +158,7 @@ def changed_datasets(base_ref: str, head_ref: str) -> list[str]:
     output = git("diff", "--name-only", "-z", "--diff-filter=ACMRT", target, text=True)
 
     paths = [path for path in output.split("\0") if path]
-    return sorted(path for path in paths if path.lower().endswith(DATASET_EXTENSIONS))
+    return sorted(path for path in paths if dataset_suffix(path) in DATASET_EXTENSIONS)
 
 
 def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetReport:
@@ -177,7 +179,7 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
     current_version = recorded or args.default_version
 
     with tempfile.TemporaryDirectory() as directory:
-        suffix = PROFILE_SUFFIX if stored is not None else Path(path).suffix
+        suffix = PROFILE_SUFFIX if stored is not None else dataset_suffix(path)
         old_file = Path(directory) / f"base{suffix}"
         old_file.write_bytes(previous)
         payload = run_datasemver(old_file, new_file, current_version, args.rules)

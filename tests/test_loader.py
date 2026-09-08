@@ -1,3 +1,5 @@
+import gzip as _gzip
+
 import pandas as pd
 import pytest
 
@@ -7,6 +9,7 @@ from datasemver.formats.loader import (
     DatasetReadError,
     UnsupportedFormatError,
     csv_delimiter,
+    dataset_suffix,
     detect_delimiter,
     load_frame,
     load_parquet,
@@ -510,3 +513,72 @@ def test_a_long_boolean_column_still_converts():
     frame = pd.DataFrame({"flag": ["true", "false"] * 1_500})
 
     assert canonical_dtype(infer_types(frame)["flag"]) == "bool"
+
+
+# ---------------------------------------------------------------------------
+# gzip-compressed CSV / TSV
+# ---------------------------------------------------------------------------
+
+
+def test_dataset_suffix_keeps_compound_compressed_extensions():
+    assert dataset_suffix("data.csv.gz") == ".csv.gz"
+    assert dataset_suffix("data.tsv.gz") == ".tsv.gz"
+
+
+def test_load_csv_gz_comma_delimited(tmp_path):
+    """A comma-delimited .csv.gz is read and typed correctly."""
+    csv_content = "id,name,score\n1,alice,9.5\n2,bob,8.0\n"
+    gz_path = tmp_path / "data.csv.gz"
+    with _gzip.open(gz_path, "wt", encoding="utf-8") as f:
+        f.write(csv_content)
+
+    frame = load_frame(gz_path)
+
+    assert list(frame.columns) == ["id", "name", "score"]
+    assert canonical_dtype(frame["id"]) == "int64"
+    assert canonical_dtype(frame["score"]) == "float64"
+    assert canonical_dtype(frame["name"]) == "string"
+
+
+def test_load_csv_gz_semicolon_delimited(tmp_path):
+    """A semicolon-delimited .csv.gz has its delimiter detected inside the compressed file."""
+    csv_content = "id;value\n1;hello\n2;world\n"
+    gz_path = tmp_path / "data.csv.gz"
+    with _gzip.open(gz_path, "wt", encoding="utf-8") as f:
+        f.write(csv_content)
+
+    frame = load_frame(gz_path)
+
+    assert list(frame.columns) == ["id", "value"]
+    assert len(frame) == 2
+
+
+def test_load_tsv_gz_tab_delimited(tmp_path):
+    """A .tsv.gz file is read with tab delimiter without sniffing."""
+    tsv_content = "id\tname\n1\talice\n2\tbob\n"
+    gz_path = tmp_path / "data.tsv.gz"
+    with _gzip.open(gz_path, "wt", encoding="utf-8") as f:
+        f.write(tsv_content)
+
+    frame = load_frame(gz_path)
+
+    assert list(frame.columns) == ["id", "name"]
+    assert frame["name"].tolist() == ["alice", "bob"]
+
+
+def test_csv_gz_and_plain_csv_produce_same_profile(tmp_path):
+    """A .csv.gz and its uncompressed equivalent produce identical schemas."""
+    csv_content = "x,y\n1,2.5\n3,4.0\n"
+
+    plain_path = tmp_path / "data.csv"
+    plain_path.write_text(csv_content, encoding="utf-8")
+
+    gz_path = tmp_path / "data.csv.gz"
+    with _gzip.open(gz_path, "wt", encoding="utf-8") as f:
+        f.write(csv_content)
+
+    plain_schema = load_schema(plain_path)
+    gz_schema = load_schema(gz_path)
+
+    diff = diff_schemas(plain_schema, gz_schema)
+    assert diff.changes == [], f"schemas differ: {diff.changes}"

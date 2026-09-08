@@ -141,7 +141,9 @@ def test_files_that_are_not_datasets_are_left_out(name):
     assert dvc.parse_diff(json.dumps({"modified": [{"path": name}]})) == []
 
 
-@pytest.mark.parametrize("name", ["a.csv", "a.tsv", "a.json", "a.parquet", "a.CSV"])
+@pytest.mark.parametrize(
+    "name", ["a.csv", "a.csv.gz", "a.tsv.gz", "a.tsv", "a.json", "a.parquet", "a.CSV"]
+)
 def test_every_supported_format_is_picked_up(name):
     assert len(dvc.parse_diff(json.dumps({"modified": [{"path": name}]}))) == 1
 

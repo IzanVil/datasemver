@@ -13,7 +13,7 @@
 [![PyPI](https://img.shields.io/pypi/v/datasemver.svg)](https://pypi.org/project/datasemver/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![Platforms](https://img.shields.io/badge/tested%20on-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://github.com/IzanVil/datasemver/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/IzanVil/datasemver/blob/main/LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-green.svg)](https://github.com/IzanVil/datasemver/blob/main/LICENSE)
 
 [**Web**](https://izanvil.github.io/datasemver/es/) · [English](https://github.com/IzanVil/datasemver/blob/main/README.md) · **Español**
 
@@ -934,4 +934,13 @@ pytest
 
 ## Licencia
 
-MIT. Ver [LICENSE](https://github.com/IzanVil/datasemver/blob/main/LICENSE).
+GNU General Public License v3.0 o posterior. Ver [LICENSE](https://github.com/IzanVil/datasemver/blob/main/LICENSE).
+
+Copyright © 2026 Izan Vilchez. DataSemver es software libre: puedes redistribuirlo y
+modificarlo bajo los términos de la GPL publicada por la Free Software Foundation, en su
+versión 3 o, si lo prefieres, cualquier versión posterior. Se distribuye con la esperanza de
+que resulte útil, pero **sin garantía alguna** — ni siquiera la garantía implícita de
+comerciabilidad o de idoneidad para un propósito concreto.
+
+Las versiones hasta la 0.7.0 incluida se publicaron bajo licencia MIT y siguen disponibles
+bajo ella; el cambio se aplica a partir de la siguiente.

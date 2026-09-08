@@ -8,6 +8,16 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Major
+- The licence is the GNU General Public License v3.0 or later, where it was MIT. This is a
+  change to the terms the project is offered under rather than to anything it does, and it is
+  recorded as major for the same reason a dataset's contract change is: what someone is
+  allowed to build on top of this is now different. Releases up to and including 0.7.0 were
+  published under MIT and stay available under it -- a licence cannot be withdrawn from what
+  has already been distributed, so this applies from the next release onwards. The existing
+  contributions made under MIT are carried in under its own permission to sublicense, which
+  is the direction MIT allows.
+
 ## [0.7.0] - 2026-09-08
 
 ### Minor

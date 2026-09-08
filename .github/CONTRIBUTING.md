@@ -32,6 +32,24 @@ workflow: `base.txt` is what the library needs to run and matches `dependencies`
 `dev.txt` adds the test and release tooling, and `web.txt` and `sql.txt` the two optional
 sources.
 
+## What happens to a pull request
+
+`main` is protected. A change reaches it through a pull request, and the pull request cannot
+merge until the suite passes on every supported platform: Linux across Python 3.10 to 3.14,
+and macOS and Windows at both ends of that range, plus the lint, format and type checks.
+Eleven checks in total, and the branch has to be up to date with `main` before it merges, so
+what CI proved is what lands.
+
+No approving review is required, because a project with one maintainer would deadlock on a
+rule nobody could satisfy — GitHub does not let anyone approve their own pull request. What
+the rule does guarantee is that nothing merges red, that `main` cannot be force-pushed or
+deleted, and that an open review comment has to be resolved rather than scrolled past.
+
+Merging is the maintainer's. A fork cannot merge into this repository whatever its branch
+protection says: a fork is a copy, and integrating anything here needs write access that
+forking does not grant. Opening the pull request is the contribution; landing it is a
+separate act.
+
 ## Running the tests
 
 ```bash

@@ -24,7 +24,6 @@ from datasemver.core.profile import PROFILE_SUFFIX, Profile, is_profile, read_pr
 from datasemver.core.rows import compare_rows
 from datasemver.formats.loader import (
     SUPPORTED_EXTENSIONS,
-    dataset_suffix,
     describe_source,
     load_frame,
     schema_from_frame,
@@ -210,7 +209,10 @@ def _suffix_of(filename: str) -> str:
     lowered = filename.lower()
     if lowered.endswith(PROFILE_SUFFIX):
         return PROFILE_SUFFIX
-    return dataset_suffix(lowered)
+    # TODO(datasemver): keep upload dispatch on file extension only (`suffix`) until
+    # decompressed-size guard is added, otherwise compressed files can bypass the
+    # 25 MB upload cap by exploiting their in-memory expansion.
+    return Path(lowered).suffix
 
 
 def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:

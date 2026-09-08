@@ -10,6 +10,7 @@ import pandas as pd
 
 from datasemver.core.models import DatasetSchema
 from datasemver.core.profile import is_profile, read_profile
+from datasemver.formats.excel import EXCEL_EXTENSIONS, is_excel_source, load_excel
 from datasemver.formats.metadata import schema_from_metadata
 from datasemver.formats.sql import is_sql_source, load_sql, redacted
 from datasemver.formats.utils import infer_types, profile_frame
@@ -22,7 +23,7 @@ ESCAPED_DELIMITERS = {"\\t": "\t"}
 SNIFF_LINES = 20
 JSON_EXTENSIONS = {".json", ".jsonl", ".ndjson"}
 PARQUET_EXTENSIONS = {".parquet", ".pq"}
-SUPPORTED_EXTENSIONS = CSV_EXTENSIONS | JSON_EXTENSIONS | PARQUET_EXTENSIONS
+SUPPORTED_EXTENSIONS = CSV_EXTENSIONS | JSON_EXTENSIONS | PARQUET_EXTENSIONS | EXCEL_EXTENSIONS
 NESTED_SEPARATOR = "."
 
 
@@ -43,6 +44,11 @@ def load_frame(path: str | Path) -> pd.DataFrame:
     """
     if isinstance(path, str) and is_sql_source(path):
         return infer_types(load_sql(path))
+
+    # Before `_existing_path`, because a workbook source may carry a sheet after `#` and the
+    # whole string is not a path that exists.
+    if is_excel_source(path):
+        return infer_types(load_excel(path))
 
     path = _existing_path(path)
     suffix = path.suffix.lower()

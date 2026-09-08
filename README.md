@@ -44,6 +44,7 @@ and it needs no schema registry, no database and no service running.
 - [Demo](#demo)
 - [Semantic versioning for data](#semantic-versioning-for-data)
 - [Command reference](#command-reference)
+- [Workbooks](#workbooks)
 - [Databases](#databases)
 - [DVC](#dvc)
 - [Rows, not just shape](#rows-not-just-shape)
@@ -94,6 +95,7 @@ pip install -e ".[dev]"
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Running the test suite and measuring coverage |
 | `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Reading a [database table](#databases) |
 | `exe` | `pyinstaller` | Building a [standalone executable](#without-python) |
+| `excel` | `openpyxl` | Reading `.xlsx` and `.xlsm` workbooks |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | The [web dashboard](#web-dashboard) |
 
 ```bash
@@ -321,8 +323,8 @@ datasemver diff old.csv new.csv --key id          # which rows changed, not just
 datasemver diff old.parquet new.parquet --schema-only
 ```
 
-Formats are detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`
-and `.pq`. The delimiter of a `.csv` is detected from its first lines — comma, semicolon,
+Formats are detected by extension: `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`,
+`.pq`, `.xlsx` and `.xlsm`. The delimiter of a `.csv` is detected from its first lines — comma, semicolon,
 tab and pipe are recognised, and a character that only appears inside quoted values does
 not win — while `.tsv` always uses the tab. Set `DATASEMVER_CSV_DELIMITER` to skip the
 detection and force a single character, the tab included and written as `\t`; it overrides
@@ -457,6 +459,26 @@ report.
 The full catalogue of rules, metrics and thresholds is in [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md).
 Two ready-made profiles ship in [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples): `strict_rules.yaml` and
 `lenient_rules.yaml`.
+
+## Workbooks
+
+A `.xlsx` or `.xlsm` file holds several sheets, so a source names one after `#` — the same
+separator a database source uses for its table, because a workbook and a database are the two
+sources here that carry more than one dataset:
+
+```bash
+datasemver diff quarterly.xlsx#Q1 quarterly.xlsx#Q2
+datasemver diff last-year.xlsx report.xlsx#'2024'   # quoted: a sheet actually called 2024
+```
+
+Without a fragment the first sheet is read, which is what a single-sheet export is; a bare
+number is a position, so `#1` is the second sheet. Naming a sheet that is not there answers
+with the ones that are. Types are inferred as they are for CSV, because a column of numbers
+stored as text is the normal state of a spreadsheet.
+
+```bash
+pip install "datasemver[excel]"
+```
 
 ## Databases
 

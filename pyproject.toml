@@ -78,6 +78,12 @@ sql = [
     "psycopg2-binary>=2.9",
     "pymysql>=1.1.1",  # CVE-2024-36039, SQL injection through unescaped keys
 ]
+excel = [
+    # The reader pandas reaches for on .xlsx and .xlsm. 3.1.1 is the floor because everything
+    # below it carries CVE-2024-28219 through Pillow, and the two before that are the fix for
+    # a quadratic parse on a crafted workbook -- this reads files nobody vouched for.
+    "openpyxl>=3.1.5",
+]
 web = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",

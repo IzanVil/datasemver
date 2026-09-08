@@ -171,7 +171,7 @@ saca sus cuatro binarios de cuatro runners.
 
 ## Inicio rápido
 
-> ¿Es tu primera vez? El [tutorial de cinco minutos](https://github.com/IzanVil/datasemver/blob/main/docs/tutorial.md) recorre un dataset
+> ¿Es tu primera vez? El [tutorial de cinco minutos](https://github.com/IzanVil/datasemver/blob/main/docs/tutorial.es.md) recorre un dataset
 > público real y los cuatro cambios razonables que lo convierten en otra respuesta.
 
 ```bash

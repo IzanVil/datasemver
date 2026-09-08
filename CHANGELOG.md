@@ -8,6 +8,17 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- Excel. `.xlsx` and `.xlsm` are read through the `excel` extra, and a source names a sheet
+  after `#` the way a database source names a table -- `quarterly.xlsx#Q2` -- because a
+  workbook and a database are the two sources here that hold more than one dataset and there
+  is no reason to invent a second spelling. Without a fragment the first sheet is read; a bare
+  number is a position and a quoted one is a name, so a sheet actually called `2024` is
+  reachable. Naming a sheet that is not there answers with the ones that are, which is what
+  the reader needs next. Types are inferred as for CSV, since numbers stored as text are the
+  normal state of a spreadsheet rather than an edge case. The dashboard accepts workbooks
+  without being told, because its upload list is derived from the supported formats.
+
 ### Patch
 - The dashboard's own README describes the dashboard as it is. Its endpoint table listed four
   where there are five, the file tree still carried the directory name from before the package

@@ -47,7 +47,13 @@ MAX_NAME_CHARS = 120
 # A stored profile is accepted wherever a dataset is. It is a few hundred bytes where the
 # dataset is megabytes, which is what lets a comparison here reach a version far past the
 # upload limit -- or one whose file no longer exists anywhere.
-UPLOAD_EXTENSIONS = SUPPORTED_EXTENSIONS | {PROFILE_SUFFIX}
+# The dashboard takes a narrower set than the library reads. Compressed sources are held
+# back until #8 puts a guard on the decompressed size: the upload limit counts the bytes
+# that arrive, and ordinary data compresses about 344:1, so a 25 MB upload can become
+# several gigabytes in memory.
+COMPRESSED_EXTENSIONS = {suffix for suffix in SUPPORTED_EXTENSIONS if suffix.endswith(".gz")}
+UPLOAD_DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS - COMPRESSED_EXTENSIONS
+UPLOAD_EXTENSIONS = UPLOAD_DATASET_EXTENSIONS | {PROFILE_SUFFIX}
 
 
 class Meta(BaseModel):
@@ -70,7 +76,7 @@ def meta() -> Meta:
     settings = get_settings()
     return Meta(
         version=__version__,
-        supported_extensions=sorted(SUPPORTED_EXTENSIONS),
+        supported_extensions=sorted(UPLOAD_DATASET_EXTENSIONS),
         profile_suffix=PROFILE_SUFFIX,
         datasets_dir=str(settings.datasets_dir),
         max_upload_mb=settings.max_upload_mb,

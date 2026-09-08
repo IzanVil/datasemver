@@ -34,6 +34,11 @@ This project follows [Semantic Versioning](https://semver.org).
   without being told, because its upload list is derived from the supported formats.
 
 ### Patch
+- The tutorial is in Spanish too, at `docs/tutorial.es.md`, which is the last document that was
+  only in one language. The tool prints English, so the output blocks and the commands are
+  reproduced exactly as they come back rather than translated -- a page showing a terminal that
+  says something the terminal does not say is worse than an English one. The comments in the
+  example script the reader writes themselves are translated, since those are prose.
 - A tutorial, in `docs/tutorial.md`. It works through the Titanic passenger list and four
   changes a data team would defend one at a time -- drop a column that is 77% empty, fill the
   missing ages, round the fares, scope the report to first and second class -- which together

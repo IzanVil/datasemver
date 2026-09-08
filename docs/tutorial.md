@@ -14,6 +14,8 @@ Every one of those is defensible. Together they produce a dataset where the surv
 This walkthrough takes about five minutes and needs no account, no service and no sample data
 beyond one public file.
 
+> This tutorial is also available [in Spanish](https://github.com/IzanVil/datasemver/blob/main/docs/tutorial.es.md).
+
 ## Setting up
 
 ```bash

@@ -9,7 +9,7 @@ duplicated logic. The frontend is plain HTML, CSS and JavaScript with no build s
 there is nothing to compile and no `node_modules`.
 
 ```
-web/
+datasemver_web/
 ├── backend/
 │   ├── config.py     settings read from the environment
 │   ├── history.py    discovery of versioned datasets on disk
@@ -17,6 +17,7 @@ web/
 └── frontend/
     ├── index.html    compare and history views
     ├── styles.css    responsive layout, light and dark
+    ├── favicon.svg   the mark, carrying its own palette
     └── app.js        fetch calls and rendering
 ```
 
@@ -57,15 +58,17 @@ DATASEMVER_DATASETS_DIR=/data/snapshots uvicorn datasemver_web.backend.main:app 
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/meta` | Library version, supported extensions and upload limit |
-| `POST` | `/api/diff` | Compare two uploaded files (`multipart/form-data`) |
+| `GET` | `/api/meta` | Library version, supported extensions, profile suffix and upload limit |
+| `POST` | `/api/diff` | Compare two uploaded files or profiles (`multipart/form-data`) |
+| `POST` | `/api/profile` | Return the profile of one uploaded dataset |
 | `GET` | `/api/history` | Versioned datasets found in the datasets directory |
 | `GET` | `/api/history/{dataset}/diff` | Compare two versions already on disk |
 | `GET` | `/` | The dashboard itself |
 
 `POST /api/diff` takes the fields `old` and `new` (required files), `current_version`
-(optional, default `0.0.0`) and `rules` (optional YAML file overriding the defaults). It
-returns the same report the CLI prints with `--json`:
+(optional, default `0.0.0`), `rules` (optional YAML file overriding the defaults) and `key`
+(optional, one column or several separated by commas). It returns the same report the CLI
+prints with `--json`:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/diff \
@@ -94,9 +97,47 @@ curl -X POST http://127.0.0.1:8000/api/diff \
 directory and accepts an optional `current_version`; without it, the version is taken from
 the name of the older file (`v1` becomes `1.0.0`).
 
+## Profiles, and the upload limit
+
+Either side of a comparison may be a stored profile instead of a dataset. A profile is a few
+hundred bytes describing megabytes, so this is how a comparison here reaches a version too
+large to upload — or one whose file no longer exists anywhere:
+
+```bash
+# write one from the dataset you have
+curl -X POST http://127.0.0.1:8000/api/profile \
+  -F "dataset=@customers_v3.parquet" -o customers_v3.profile.json
+
+# compare against it, however large the new side is
+curl -X POST http://127.0.0.1:8000/api/diff \
+  -F "old=@customers_v3.profile.json" \
+  -F "new=@customers_v4.parquet"
+```
+
+The **Save profile** button does the first of those from the page, for the file chosen as the
+new version. Only the compound `.profile.json` marks one: a plain `.json` is a dataset format
+here and is read as data, which is why the two are never guessed between.
+
+## Comparing rows
+
+`key` names the column that identifies a row, or several separated by commas, and turns the
+comparison into a row-level one: how many rows were added, removed and changed, and which
+columns account for the changes.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/diff \
+  -F "old=@old.csv" -F "new=@new.csv" -F "key=id"
+```
+
+It needs rows on both sides, so a key given against a stored profile is refused rather than
+guessed at — a profile keeps none, and never will.
+
+## Errors
+
 Invalid input answers with a status code rather than a stack trace: `400` for an
-unsupported extension, an unreadable dataset, a broken rules file or a malformed version,
-`413` for a file over the limit, and `404` for a dataset or version that is not on disk.
+unsupported extension, an unreadable dataset, a broken rules file, a malformed version, a key
+that names no column or one repeated across rows, `413` for a file over the limit, and `404`
+for a dataset or version that is not on disk.
 
 ## The datasets directory
 

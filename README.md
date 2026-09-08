@@ -169,6 +169,9 @@ runners.
 
 ## Quick start
 
+> New here? The [five-minute tutorial](https://github.com/IzanVil/datasemver/blob/main/docs/tutorial.md) works through a real public
+> dataset and the four sensible changes that turn it into a different answer.
+
 ```bash
 pip install datasemver
 datasemver diff old.csv new.csv --current-version 1.4.2

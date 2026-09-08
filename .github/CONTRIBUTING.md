@@ -27,7 +27,10 @@ and on macOS and Windows at both ends of the range, because this library reads f
 line endings and shells out to git, and those differ by platform. `.gitattributes` pins text
 files to LF so a Windows checkout does not rewrite the fixtures and leave the suite measuring
 the clone. Development dependencies are declared in the `dev` extra
-of `pyproject.toml`; `requirements/base.txt` is kept for the plain `pip install -r` workflow.
+of `pyproject.toml`, and `requirements/` mirrors the extras for the plain `pip install -r`
+workflow: `base.txt` is what the library needs to run and matches `dependencies` exactly,
+`dev.txt` adds the test and release tooling, and `web.txt` and `sql.txt` the two optional
+sources.
 
 ## Running the tests
 

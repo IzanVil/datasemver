@@ -9,6 +9,15 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Patch
+- The dashboard's own README describes the dashboard as it is. Its endpoint table listed four
+  where there are five, the file tree still carried the directory name from before the package
+  was renamed, and the request it documents was missing both the `key` field and the fact that
+  either side may be a stored profile -- everything added to the thing the document is about.
+- `requirements/base.txt` listed `pytest` as something the library needs to run. It does not:
+  `pyproject.toml` has never had it among `dependencies`, so the file was overstating what an
+  install costs and putting a test runner into environments that only wanted to read a CSV. It
+  moved to `dev.txt`, where the rest of the tooling already was, and `base.txt` now matches
+  `dependencies` name for name.
 - The repository root holds what builds the project and little else. Seventeen tracked files
   there had become hard to read past: the community documents moved to `.github`, where GitHub
   reads them exactly as it did before and the security policy still fills the Security tab;

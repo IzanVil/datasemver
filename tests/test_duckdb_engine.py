@@ -234,10 +234,17 @@ def test_a_column_of_only_nulls_is_profiled_like_one(tmp_path):
 
 
 def test_a_column_past_the_tracked_limit_keeps_its_tail_in_one_bucket(tmp_path):
-    """More categories than are tracked individually, summed the way the other path sums."""
+    """More categories than are tracked individually, summed the way the other path sums.
+
+    Each city appears a different number of times on purpose. Which categories make the top
+    200 is only well defined when nothing ties across the cut: with every count equal, both
+    paths take an arbitrary 200 of 260 and the two arbitrary answers are allowed to differ --
+    as they did here between pandas versions, which is a fact about ties and not about either
+    engine.
+    """
     path = tmp_path / "cities.parquet"
-    cities = [f"city-{index:03d}" for index in range(260)]
-    pd.DataFrame({"city": cities * 3}).to_parquet(path)
+    rows = [f"city-{index:03d}" for index in range(260) for _ in range(260 - index)]
+    pd.DataFrame({"city": rows}).to_parquet(path)
 
     expected = load_schema(path).columns["city"]
     actual = duck(path).columns["city"]

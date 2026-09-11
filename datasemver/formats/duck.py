@@ -252,6 +252,11 @@ def _categories(
     repeat -- the same division the dataframe path makes, and for its reason: a column where
     nearly every value is distinct is an identifier, and the balance of an identifier is not a
     thing. Ties go to the first value in order, which is what `Series.mode` returns.
+
+    Which categories survive the cut is only well defined when nothing ties across it. Where
+    counts are equal on the boundary, this takes them in value order and the dataframe path
+    takes them in whatever order its own version produces; both sum everything below into the
+    same bucket, so the balance they report moves by the difference between two equal counts.
     """
     quoted = _quoted(stats.name)
     top = _all(

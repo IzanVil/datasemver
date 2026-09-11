@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-11
+
 ### Major
 - A profile written without `-o` keeps the whole dataset name, where it kept only the part
   before the first dot. `sales.2024.csv` and `sales.2025.csv` are two versions of one dataset
@@ -102,15 +104,6 @@ This project follows [Semantic Versioning](https://semver.org).
   `--schema-only` is deliberately left alone: a Feather file carries no per-column statistics
   in its metadata the way a Parquet footer does, so there is nothing to read there instead of
   the rows. Closes #3.
-- Excel. `.xlsx` and `.xlsm` are read through the `excel` extra, and a source names a sheet
-  after `#` the way a database source names a table -- `quarterly.xlsx#Q2` -- because a
-  workbook and a database are the two sources here that hold more than one dataset and there
-  is no reason to invent a second spelling. Without a fragment the first sheet is read; a bare
-  number is a position and a quoted one is a name, so a sheet actually called `2024` is
-  reachable. Naming a sheet that is not there answers with the ones that are, which is what
-  the reader needs next. Types are inferred as for CSV, since numbers stored as text are the
-  normal state of a spreadsheet rather than an edge case. The dashboard accepts workbooks
-  without being told, because its upload list is derived from the supported formats.
 
 ### Patch
 - Regenerating the terminal captures is reproducible. Two of the four show a changelog entry,
@@ -142,33 +135,19 @@ This project follows [Semantic Versioning](https://semver.org).
   reproduced exactly as they come back rather than translated -- a page showing a terminal that
   says something the terminal does not say is worse than an English one. The comments in the
   example script the reader writes themselves are translated, since those are prose.
-- A tutorial, in `docs/tutorial.md`. It works through the Titanic passenger list and four
-  changes a data team would defend one at a time -- drop a column that is 77% empty, fill the
-  missing ages, round the fares, scope the report to first and second class -- which together
-  move the survival rate from 38% to 56% without touching a column name. Every command in it
-  was run and every number in it came back from the tool rather than from an estimate.
-- The dashboard's own README describes the dashboard as it is. Its endpoint table listed four
-  where there are five, the file tree still carried the directory name from before the package
-  was renamed, and the request it documents was missing both the `key` field and the fact that
-  either side may be a stored profile -- everything added to the thing the document is about.
-- `requirements/base.txt` listed `pytest` as something the library needs to run. It does not:
-  `pyproject.toml` has never had it among `dependencies`, so the file was overstating what an
-  install costs and putting a test runner into environments that only wanted to read a CSV. It
-  moved to `dev.txt`, where the rest of the tooling already was, and `base.txt` now matches
-  `dependencies` name for name.
-- The repository root holds what builds the project and little else. Seventeen tracked files
-  there had become hard to read past: the community documents moved to `.github`, where GitHub
-  reads them exactly as it did before and the security policy still fills the Security tab;
-  the demo recording and the PyPI readme moved to `docs`; and the four `requirements-*.txt`
-  became `requirements/`, whose `-r` lines pip resolves relative to the file holding them.
-  Eight files are left. Nothing was deleted and nothing changed what it does.
-- Every reference moved with them, which is most of the work: the links in three READMEs and
-  on both pages of the site, `readme` in `pyproject.toml`, the install commands, the project
-  layout listings and the dashboard's own README. `MANIFEST.in` needed its includes placed
-  after `prune .github`, or the prune would have taken the three documents it is not aimed at
-  and a source distribution would have quietly lost them.
+
+## [0.7.0] - 2026-09-08
 
 ### Minor
+- Excel. `.xlsx` and `.xlsm` are read through the `excel` extra, and a source names a sheet
+  after `#` the way a database source names a table -- `quarterly.xlsx#Q2` -- because a
+  workbook and a database are the two sources here that hold more than one dataset and there
+  is no reason to invent a second spelling. Without a fragment the first sheet is read; a bare
+  number is a position and a quoted one is a name, so a sheet actually called `2024` is
+  reachable. Naming a sheet that is not there answers with the ones that are, which is what
+  the reader needs next. Types are inferred as for CSV, since numbers stored as text are the
+  normal state of a spreadsheet rather than an edge case. The dashboard accepts workbooks
+  without being told, because its upload list is derived from the supported formats.
 - The dashboard does what the library does. It was two releases behind: profiles, the row
   comparison and the distribution statistics reached the CLI and stopped there, so the
   interface most people meet first answered 0.5.0's questions with 0.6.0's engine. Either side
@@ -195,6 +174,31 @@ This project follows [Semantic Versioning](https://semver.org).
   test fails on any name in `__all__` that stops resolving.
 
 ### Patch
+- A tutorial, in `docs/tutorial.md`. It works through the Titanic passenger list and four
+  changes a data team would defend one at a time -- drop a column that is 77% empty, fill the
+  missing ages, round the fares, scope the report to first and second class -- which together
+  move the survival rate from 38% to 56% without touching a column name. Every command in it
+  was run and every number in it came back from the tool rather than from an estimate.
+- The dashboard's own README describes the dashboard as it is. Its endpoint table listed four
+  where there are five, the file tree still carried the directory name from before the package
+  was renamed, and the request it documents was missing both the `key` field and the fact that
+  either side may be a stored profile -- everything added to the thing the document is about.
+- `requirements/base.txt` listed `pytest` as something the library needs to run. It does not:
+  `pyproject.toml` has never had it among `dependencies`, so the file was overstating what an
+  install costs and putting a test runner into environments that only wanted to read a CSV. It
+  moved to `dev.txt`, where the rest of the tooling already was, and `base.txt` now matches
+  `dependencies` name for name.
+- The repository root holds what builds the project and little else. Seventeen tracked files
+  there had become hard to read past: the community documents moved to `.github`, where GitHub
+  reads them exactly as it did before and the security policy still fills the Security tab;
+  the demo recording and the PyPI readme moved to `docs`; and the four `requirements-*.txt`
+  became `requirements/`, whose `-r` lines pip resolves relative to the file holding them.
+  Eight files are left. Nothing was deleted and nothing changed what it does.
+- Every reference moved with them, which is most of the work: the links in three READMEs and
+  on both pages of the site, `readme` in `pyproject.toml`, the install commands, the project
+  layout listings and the dashboard's own README. `MANIFEST.in` needed its includes placed
+  after `prune .github`, or the prune would have taken the three documents it is not aimed at
+  and a source distribution would have quietly lost them.
 - The terminal captures in the READMEs show what the tool prints. They were generated the day
   before the release that changed it, so `datasemver rules` was pictured with a rule set that
   no longer exists and described in its alt text as six rules under major where there are

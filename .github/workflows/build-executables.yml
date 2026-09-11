@@ -41,31 +41,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The sql extra is installed on purpose. Someone running the binary has no way to add
-      # an extra later, so a binary built without it could never read a database at all.
-      - name: Install the package and the build tooling
-        run: pip install ".[sql]" "pyinstaller>=6.0"
-
-      - name: Build the executable
-        run: python scripts/build_executables.py --platform ${{ matrix.platform }}
-
-      # A binary that builds and does not run is the failure worth catching here, and the
-      # bundled rules file is the part most likely to go missing without anything saying so.
-      - name: Check that the executable runs
+      # The extras come from the script rather than from this line. Someone running the
+      # binary has no way to add one later, so what goes in is what they will ever have --
+      # and a list maintained in two places is a list that ends up different in two places.
+      - name: Install the package with the extras the binary carries
         shell: bash
         run: |
-          binary=dist/datasemver
-          if [ "${{ matrix.platform }}" = "windows" ]; then binary=dist/datasemver.exe; fi
-          "$binary" --help > /dev/null
-          # Written to a file rather than piped into grep: `grep -q` stops reading at the
-          # first match, the binary takes a broken pipe, and under `pipefail` the whole step
-          # fails with no output at all to say why.
-          "$binary" rules > rules.txt
-          grep -q column_removed rules.txt
-          "$binary" diff tests/fixtures/old.csv tests/fixtures/new.csv --json > /dev/null
-          python -c "import pandas; pandas.DataFrame({'id':[1,2],'a':['x','y']}).to_parquet('one.parquet'); pandas.DataFrame({'id':[1,2,3],'a':['x','y','z'],'b':[1,2,3]}).to_parquet('two.parquet')"
-          "$binary" diff one.parquet two.parquet --json > /dev/null
-          echo "the executable runs, reads its bundled rules, and reads Parquet"
+          extras=$(python -c "import sys; sys.path.insert(0, 'scripts'); import build_executables as b; print(','.join(sorted(b.BUNDLED_EXTRAS)))")
+          echo "the binary is declared to carry: $extras"
+          pip install ".[$extras]" "pyinstaller>=6.0"
+
+      # The script checks the binary it just built -- help, the bundled rules, and one file
+      # of every format it claims to read -- and fails the build when any of that is missing,
+      # so there is no separate smoke test here to drift out of step with it.
+      - name: Build and verify the executable
+        run: python scripts/build_executables.py --platform ${{ matrix.platform }}
 
       - name: Upload the archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7

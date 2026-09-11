@@ -71,6 +71,111 @@ def test_only_windows_gets_an_extension():
     assert build.executable_name("macos") == "datasemver"
 
 
+def test_the_binary_declares_the_extras_it_carries():
+    """What goes in is what a reader will ever have, so it is a list and not an accident.
+
+    Someone holding the executable cannot add an extra afterwards. Reading the list from this
+    constant rather than from whatever the build machine has installed is what makes two
+    builds of the same tag the same binary.
+    """
+    assert set(build.BUNDLED_EXTRAS) == {"sql", "excel"}
+    assert build.BUNDLED_EXTRAS["sql"] == ("sqlalchemy",)
+    assert build.BUNDLED_EXTRAS["excel"] == ("openpyxl",)
+
+
+def test_what_is_left_out_is_left_out_by_name():
+    """Excluding them is what stops a developer's own environment leaking into the binary."""
+    assert "duckdb" in build.EXCLUDED_MODULES
+    assert not set(build.BUNDLED_EXTRAS) & set(build.EXCLUDED_MODULES)
+
+
+def test_the_excluded_modules_are_passed_to_pyinstaller(recorded):
+    """Declared and not passed is the same binary as never declared."""
+    calls, output = recorded
+    build.build(build.detect_platform(), output)
+    command = calls[0]
+    excluded = [
+        command[index + 1]
+        for index, argument in enumerate(command)
+        if argument == "--exclude-module"
+    ]
+
+    assert set(build.EXCLUDED_MODULES) <= set(excluded)
+
+
+def test_a_missing_extra_stops_the_build_and_says_which(monkeypatch):
+    """Missing, it does not fail the build -- it fails a reader holding the wrong binary."""
+    monkeypatch.setattr(build, "_importable", lambda name: name != "openpyxl")
+
+    with pytest.raises(build.BuildError) as error:
+        build.require_extras()
+
+    assert "excel" in str(error.value)
+    assert 'pip install ".[excel,sql,exe]"' in str(error.value)
+
+
+def test_the_workflow_installs_the_extras_the_script_declares():
+    """The list lives in one place, and this is the line that keeps it there."""
+    workflow = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+    workflow = workflow / "build-executables.yml"
+    if not workflow.is_file():
+        pytest.skip("the workflows are not shipped in the sdist")
+
+    text = workflow.read_text(encoding="utf-8")
+
+    assert "b.BUNDLED_EXTRAS" in text
+    assert 'pip install ".[$extras]"' in text
+
+
+@pytest.fixture
+def fake_cli(tmp_path):
+    """A stand-in for the built binary: answers everything, refuses the excluded engine.
+
+    Verification runs the file it was handed, so this is what the real check looks like from
+    the script's side, without a minute of PyInstaller.
+    """
+    pytest.importorskip("openpyxl", reason="writing the workbook fixture needs the excel extra")
+    if sys.platform.startswith("win"):  # pragma: no cover - the shell script is POSIX
+        pytest.skip("the stand-in is a shell script")
+
+    def write(body: str) -> Path:
+        path = tmp_path / "fake-datasemver"
+        path.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
+        path.chmod(0o755)
+        return path
+
+    return write
+
+
+def test_a_binary_that_answers_everything_passes_verification(fake_cli, capsys):
+    binary = fake_cli(
+        'case "$*" in *"--engine duckdb"*)'
+        ' echo "not part of the standalone executable" >&2; exit 2;; esac\nexit 0'
+    )
+
+    build.verify(binary)
+
+    printed = capsys.readouterr().out
+    assert "workbook ok" in printed
+    assert "duckdb refused" in printed
+
+
+def test_a_binary_that_cannot_read_a_format_fails_the_build(fake_cli):
+    """The gap between a build that succeeded and a binary that works is what this closes."""
+    binary = fake_cli('case "$*" in *.xlsx*) exit 1;; esac\nexit 0')
+
+    with pytest.raises(build.BuildError, match="cannot do workbook"):
+        build.verify(binary)
+
+
+def test_a_binary_that_accepts_an_excluded_engine_fails_the_build(fake_cli):
+    """Accepting it means the exclusion did not hold and the binary is not the declared one."""
+    binary = fake_cli("exit 0")
+
+    with pytest.raises(build.BuildError, match="refuse --engine duckdb"):
+        build.verify(binary)
+
+
 def test_a_missing_pyinstaller_says_how_to_get_it(monkeypatch):
     monkeypatch.setattr(build.shutil, "which", lambda name: None)
     monkeypatch.setattr(build, "_importable", lambda name: False)
@@ -303,6 +408,9 @@ def stubbed(monkeypatch, tmp_path):
     packaged: list[Path] = []
 
     monkeypatch.setattr(build, "require_pyinstaller", lambda: None)
+    monkeypatch.setattr(build, "require_extras", lambda: None)
+    # The binary here is a text file, so running it is not a check of anything.
+    monkeypatch.setattr(build, "verify", lambda binary: None)
     monkeypatch.setattr(build, "build", lambda *a, **k: binary)
     monkeypatch.setattr(
         build, "package", lambda *a, **k: packaged.append(binary) or tmp_path / "a.tar.gz"

@@ -150,12 +150,18 @@ xattr -d com.apple.quarantine ./datasemver
 Or open it once through Finder with right-click → Open, which offers a button the warning
 dialog does not.
 
-The executable is around 100 MB, most of it pyarrow, pandas and numpy, which are large
-libraries and are what makes the tool read Parquet. It includes database support, so
-`sqlite://`, `postgresql://` and `mysql://` sources work with nothing else installed. What it
-does not carry is the rest of the extras: workbooks and the `duckdb` engines are not in it, and
-neither is the [web dashboard](#web-dashboard) — those need a Python install, and the message
-the binary prints for them names a `pip install` that only applies there. On Linux
+The executable is around 110 MB, most of it pyarrow, pandas and numpy, which are large
+libraries and are what makes the tool read Parquet. It carries the `sql` and `excel` extras, so
+`sqlite://`, `postgresql://` and `mysql://` sources and `.xlsx` workbooks work with nothing
+else installed — someone holding a single file has no way to add an extra later, which is why
+those two are in it.
+
+The `duckdb` engines are not: they cost 22 MB of the download for answers the default engine
+already gives. Neither is the [web dashboard](#web-dashboard), which is a server rather than a
+command. Ask for either and the binary says so and points at a Python install, instead of
+naming a `pip install` that does not apply to the file you are holding. That list lives in
+`scripts/build_executables.py` and everything outside it is excluded by name, so the binary is
+the same whatever happens to be installed on the machine that built it. On Linux
 it needs glibc 2.28 or newer — that is the floor pyarrow's own wheels set, so it covers
 RHEL 8, Debian 10 and Ubuntu 18.10 onwards.
 
@@ -725,7 +731,7 @@ Five lines in a workflow, and every pull request gets the bump its datasets dese
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0          # the base version of each dataset lives in the history
-      - uses: IzanVil/datasemver@v0.8.1
+      - uses: IzanVil/datasemver@v0.8.2
         with:
           fail-on: major          # optional: refuse the merge on a breaking change
 ```
@@ -828,7 +834,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: IzanVil/datasemver@v0.8.1
+      - uses: IzanVil/datasemver@v0.8.2
         with:
           rules: .datasemver/rules.yaml
           fail-on: major

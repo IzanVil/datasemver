@@ -17,13 +17,18 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from datasemver.utils.extras import install_hint as _install_hint
+
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
 
 EXCEL_EXTENSIONS = {".xlsx", ".xlsm"}
 SHEET_SEPARATOR = "#"
 
-INSTALL_HINT = 'reading a workbook needs the excel extra: pip install "datasemver[excel]"'
+
+def install_hint() -> str:
+    """Read at call time: the advice differs inside the standalone executable."""
+    return _install_hint("excel", "reading a workbook")
 
 
 class ExcelSourceError(ValueError):
@@ -76,7 +81,7 @@ def load_excel(source: str | Path) -> pd.DataFrame:
     try:
         frame = pd.read_excel(location, sheet_name=0 if sheet is None else sheet)
     except ImportError as error:  # pragma: no cover - exercised by the extra being absent
-        raise _read_error(f"{INSTALL_HINT} ({error})") from error
+        raise _read_error(f"{install_hint()} ({error})") from error
     except ValueError as error:
         raise _sheet_error(error, sheet, location) from error
     except Exception as error:

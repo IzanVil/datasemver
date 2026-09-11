@@ -432,8 +432,14 @@ def test_the_archive_is_skipped_when_it_is_not_wanted(stubbed, tmp_path):
 
 
 def test_a_build_error_becomes_an_exit_code_and_a_message(monkeypatch, capsys, tmp_path):
-    """A traceback here would bury the one line saying what to do about it."""
+    """A traceback here would bury the one line saying what to do about it.
+
+    Both preconditions are stubbed, not just the slow one: a suite runs where the extras the
+    binary carries are not installed -- CI is exactly that machine -- and this test is about
+    what a failure from PyInstaller looks like, not about which check fires first.
+    """
     monkeypatch.setattr(build, "require_pyinstaller", lambda: None)
+    monkeypatch.setattr(build, "require_extras", lambda: None)
 
     def refuse(*args, **kwargs):
         raise build.BuildError("pyinstaller exited with 1")

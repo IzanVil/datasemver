@@ -1,0 +1,206 @@
+name: DataSemver
+description: >-
+  Compare the datasets a pull request changes against the base branch, report the version
+  bump they deserve, and optionally refuse the change.
+author: Izan Vilchez
+
+branding:
+  icon: git-branch
+  color: blue
+
+inputs:
+  base-ref:
+    description: >-
+      Ref holding the previous version of each dataset. Defaults to the pull request's base
+      branch, or to the commit before the push.
+    required: false
+    default: ""
+  paths:
+    description: Analyse these datasets instead of the ones the branch changed, space separated.
+    required: false
+    default: ""
+  rules:
+    description: Rules file replacing the bundled defaults.
+    required: false
+    default: ""
+  fail-on:
+    description: >-
+      Fail the job when the worst suggested bump reaches this severity: patch, minor or major.
+      Empty leaves the run advisory, which is what it is without this.
+    required: false
+    default: ""
+  engine:
+    description: >-
+      How datasets are profiled: pandas, duckdb or duckdb-sketch. The DuckDB engines
+      aggregate over the file rather than loading it, and the extra is installed for you.
+    required: false
+    default: "pandas"
+  default-version:
+    description: Version assumed for a dataset with no `.version` sidecar beside it.
+    required: false
+    default: "0.0.0"
+  comment:
+    description: >-
+      Post the report as a pull request comment, rewriting the previous one rather than
+      stacking. Needs `pull-requests: write`, and is skipped for a pull request from a fork.
+    required: false
+    default: "true"
+  python-version:
+    description: Python used to run DataSemver.
+    required: false
+    default: "3.11"
+  token:
+    description: Token the comment is posted with.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  bump:
+    description: The worst bump across every dataset analysed, or `none`.
+    value: ${{ steps.analyse.outputs.max_bump }}
+  dataset-count:
+    description: How many datasets were analysed.
+    value: ${{ steps.analyse.outputs.dataset_count }}
+  has-report:
+    description: Whether anything was analysed, as `true` or `false`.
+    value: ${{ steps.analyse.outputs.has_report }}
+  report:
+    description: Path to the Markdown report, written whether or not it was posted.
+    value: ${{ steps.paths.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check out enough history to compare against
+      shell: bash
+      run: |
+        # The comparison reads the base ref, which a shallow clone does not have. Saying so
+        # here costs one line; finding out from `git` costs a confusing failure.
+        if [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = "true" ]; then
+          echo "::error::DataSemver needs the history of the base branch." \
+               " Check out with 'fetch-depth: 0' before this step."
+          exit 1
+        fi
+
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install DataSemver
+      shell: bash
+      env:
+        ENGINE: ${{ inputs.engine }}
+      run: |
+        # From the action's own checkout rather than from the index, so the library and the
+        # script that drives it are the pair that was tagged together.
+        if [ "${ENGINE#duckdb}" != "$ENGINE" ]; then
+          pip install --disable-pip-version-check "$GITHUB_ACTION_PATH[duckdb]"
+        else
+          pip install --disable-pip-version-check "$GITHUB_ACTION_PATH"
+        fi
+
+    - name: Resolve the base ref
+      id: base
+      shell: bash
+      # Values from the event reach the shell through the environment, never through ${{ }}
+      # interpolation: expanded inline they would be pasted into the script before bash
+      # parses it, so a ref named to look like shell would run as shell.
+      env:
+        GIVEN: ${{ inputs.base-ref }}
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_REF: ${{ github.base_ref }}
+        BEFORE: ${{ github.event.before }}
+      run: |
+        if [ -n "$GIVEN" ]; then
+          base="$GIVEN"
+        elif [ "$EVENT_NAME" = "pull_request" ]; then
+          base="origin/$BASE_REF"
+          git fetch --no-tags origin "$BASE_REF"
+        else
+          base="$BEFORE"
+          if [ -z "$base" ] || ! git rev-parse --verify --quiet "$base^{commit}" > /dev/null; then
+            base="HEAD^"
+          fi
+        fi
+        echo "ref=$base" >> "$GITHUB_OUTPUT"
+
+    - name: Decide where the report goes
+      id: paths
+      shell: bash
+      run: echo "report=$RUNNER_TEMP/datasemver-report.md" >> "$GITHUB_OUTPUT"
+
+    - name: Analyse the datasets that changed
+      id: analyse
+      shell: bash
+      # The gate's failure is caught rather than raised, so the comment below still posts: a
+      # refusal that suppressed its own explanation would block a merge and never say which
+      # dataset or why. The last step turns the caught failure back into one.
+      env:
+        BASE_REF: ${{ steps.base.outputs.ref }}
+        REPORT_PATH: ${{ steps.paths.outputs.report }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        RULES: ${{ inputs.rules }}
+        PATHS: ${{ inputs.paths }}
+        DEFAULT_VERSION: ${{ inputs.default-version }}
+        DATASEMVER_ENGINE: ${{ inputs.engine }}
+      run: |
+        set +e
+        python "$GITHUB_ACTION_PATH/scripts/run_datasemver_on_pr.py" \
+          --base-ref "$BASE_REF" \
+          --output "$REPORT_PATH" \
+          --default-version "$DEFAULT_VERSION" \
+          ${RULES:+--rules "$RULES"} \
+          ${FAIL_ON:+--fail-on "$FAIL_ON"} \
+          ${PATHS:+--paths $PATHS}
+        status=$?
+        set -e
+        echo "refused=$([ "$status" -eq 0 ] && echo false || echo true)" >> "$GITHUB_OUTPUT"
+        if [ "$status" -ne 0 ] && [ -z "$FAIL_ON" ]; then
+          exit "$status"
+        fi
+
+    - name: Comment on the pull request
+      if: >-
+        inputs.comment == 'true' &&
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        steps.analyse.outputs.has_report == 'true'
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+      env:
+        REPORT_PATH: ${{ steps.paths.outputs.report }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const fs = require('fs');
+          const marker = '<!-- datasemver-report -->';
+          const body = fs.readFileSync(process.env.REPORT_PATH, 'utf8');
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            owner,
+            repo,
+            issue_number,
+            per_page: 100,
+          });
+          const existing = comments.find(
+            (comment) => comment.user.type === 'Bot' && comment.body.includes(marker)
+          );
+
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+          }
+
+    - name: Refuse the change
+      if: steps.analyse.outputs.refused == 'true'
+      shell: bash
+      env:
+        MAX_BUMP: ${{ steps.analyse.outputs.max_bump }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        echo "::error::the datasets in this branch suggest a $MAX_BUMP bump, which reaches" \
+             " the fail-on threshold of $FAIL_ON. The report is in the pull request comment."
+        exit 1

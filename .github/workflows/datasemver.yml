@@ -23,97 +23,18 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
+          # The comparison reads each dataset as the base branch has it, which a shallow
+          # clone does not carry.
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+      # The action in this repository, run from the working tree rather than from a tag. It
+      # is the same one `uses: IzanVil/datasemver@v1` runs elsewhere, so every pull request
+      # here is a rehearsal of what the action does for everyone else -- and a change that
+      # breaks it fails on the branch that made it rather than in someone else's repository.
+      - name: Run DataSemver
+        uses: ./
         with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install DataSemver
-        run: pip install -e .
-
-      - name: Resolve the base ref
-        id: base
-        # Values from the event reach the shell through the environment, never through
-        # ${{ }} interpolation: expanded inline they would be pasted into the script before
-        # bash parses it, so a ref named to look like shell would run as shell.
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          BEFORE: ${{ github.event.before }}
-        run: |
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            base="origin/$BASE_REF"
-            git fetch --no-tags origin "$BASE_REF"
-          else
-            base="$BEFORE"
-            if [ -z "$base" ] || ! git rev-parse --verify --quiet "$base^{commit}" > /dev/null; then
-              base="HEAD^"
-            fi
-          fi
-          echo "ref=$base" >> "$GITHUB_OUTPUT"
-
-      - name: Analyse the datasets that changed
-        id: datasemver
-        # The gate runs, but its failure is caught here so that the comment below still
-        # posts: a refusal that suppressed its own explanation would block a merge and never
-        # say which dataset or why. The last step turns the caught failure back into one.
-        continue-on-error: true
-        env:
-          BASE_REF: ${{ steps.base.outputs.ref }}
-          REPORT_PATH: ${{ runner.temp }}/datasemver-report.md
           # Unset here, because this repository's datasets are dashboard fixtures and
           # changing them is ordinary work. Set the variable to patch, minor or major in a
           # repository that wants its data reviewed the way its code is.
-          FAIL_ON: ${{ vars.DATASEMVER_FAIL_ON }}
-        run: |
-          python scripts/run_datasemver_on_pr.py \
-            --base-ref "$BASE_REF" \
-            --output "$REPORT_PATH" \
-            ${FAIL_ON:+--fail-on "$FAIL_ON"}
-
-      - name: Comment on the pull request
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          steps.datasemver.outputs.has_report == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
-        env:
-          REPORT_PATH: ${{ runner.temp }}/datasemver-report.md
-        with:
-          script: |
-            const fs = require('fs');
-            const marker = '<!-- datasemver-report -->';
-            const body = fs.readFileSync(process.env.REPORT_PATH, 'utf8');
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number,
-              per_page: 100,
-            });
-            const existing = comments.find(
-              (comment) => comment.user.type === 'Bot' && comment.body.includes(marker)
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
-
-      - name: Refuse the change
-        # After the comment, never before it. `outcome` is what the step really did;
-        # `conclusion` is what continue-on-error turned it into.
-        if: steps.datasemver.outcome == 'failure'
-        env:
-          MAX_BUMP: ${{ steps.datasemver.outputs.max_bump }}
-        run: |
-          echo "::error::the datasets in this branch suggest a $MAX_BUMP bump, which the"\
-               " configured DATASEMVER_FAIL_ON threshold refuses. The report is in the"\
-               " pull request comment."
-          exit 1
+          fail-on: ${{ vars.DATASEMVER_FAIL_ON }}

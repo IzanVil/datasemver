@@ -75,6 +75,14 @@ This project follows [Semantic Versioning](https://semver.org).
   without being told, because its upload list is derived from the supported formats.
 
 ### Patch
+- Regenerating the terminal captures is reproducible. Two of the four show a changelog entry,
+  which carries the date it was generated, so the script rewrote those two images on any day
+  but the one before -- and a regeneration then could not answer the only question it raises,
+  which is whether the tool's output actually moved. The date the committed images already
+  carry is pinned in the script, and a run on current `main` now reproduces all four byte for
+  byte, `cli-dvc` included: the capture #5 was opened about turns out to have been up to date
+  since the DVC integration landed, and the report that it was stale came from a machine where
+  the script found no DVC and said so.
 - The dashboard no longer offers a format it then refuses. `/api/meta` reported the whole set
   of extensions the library reads, and the frontend builds the file picker's `accept` list and
   the hint below it from exactly that -- so the picker invited a `.csv.gz` and the server

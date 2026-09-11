@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from rich.console import Console
@@ -26,10 +27,17 @@ from rich.terminal_theme import TerminalTheme
 from typer.testing import CliRunner
 
 import datasemver.cli.main as cli
+import datasemver.core.analyzer as analyzer
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ASSETS = REPO_ROOT / "docs" / "assets"
 WIDTH = 104
+
+# Two of the captures show a changelog entry, which is dated, so a regeneration on any other
+# day produced two different images from a tool that had not changed -- and buried the one
+# question worth asking afterwards: did anything actually move? Pinned to the date the
+# committed captures already carry, so from here a diff means the output changed.
+CAPTURE_DATE = date(2026, 9, 8)
 
 # Matches the palette of the architecture notes: a calm dark ground with the severity hues
 # the CLI already assigns to major, minor and patch.
@@ -93,8 +101,17 @@ class Capture:
     cwd: Path | None = None
 
 
+class _FrozenDate:
+    """Stands in for `date` where the analyser reads today, which is all it reads."""
+
+    @staticmethod
+    def today() -> date:
+        return CAPTURE_DATE
+
+
 def main() -> int:
     ASSETS.mkdir(parents=True, exist_ok=True)
+    analyzer.date = _FrozenDate  # type: ignore[assignment, misc]
     with tempfile.TemporaryDirectory() as tmp:
         sales = _write_semicolon_pair(Path(tmp))
         captures = [

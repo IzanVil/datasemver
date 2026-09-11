@@ -47,7 +47,7 @@ working on it. Either way the app is addressed as `datasemver_web.backend.main`.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATASEMVER_DATASETS_DIR` | `./datasets` | Directory scanned by the history view |
-| `DATASEMVER_MAX_UPLOAD_MB` | `25` | Size limit applied to every uploaded file |
+| `DATASEMVER_MAX_UPLOAD_MB` | `25` | Size limit applied to every uploaded file, and to what a compressed one becomes |
 | `DATASEMVER_FRONTEND_DIR` | `datasemver_web/frontend` | Static files served at `/` |
 
 ```bash
@@ -113,6 +113,13 @@ curl -X POST http://127.0.0.1:8000/api/diff \
   -F "old=@customers_v3.profile.json" \
   -F "new=@customers_v4.parquet"
 ```
+
+A compressed dataset is measured twice: the bytes that arrive, and the bytes they turn into.
+The second is the number that decides what reading the file costs — ordinary data compresses
+about 344:1, so a quarter of a megabyte inside every stated limit can become most of a
+gigabyte of dataframe — so a `.csv.gz` whose contents exceed the limit is refused with `413`
+before anything parses it. The check stops one chunk past the limit, which is what keeps the
+refusal cheaper than the upload it refuses.
 
 The **Save profile** button does the first of those from the page, for the file chosen as the
 new version. Only the compound `.profile.json` marks one: a plain `.json` is a dataset format

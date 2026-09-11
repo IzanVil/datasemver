@@ -6,6 +6,7 @@ The dashboard is a client of the library: it uploads or locates two dataset file
 
 from __future__ import annotations
 
+import gzip
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -24,6 +25,7 @@ from datasemver.core.profile import PROFILE_SUFFIX, Profile, is_profile, read_pr
 from datasemver.core.rows import compare_rows
 from datasemver.formats.loader import (
     SUPPORTED_EXTENSIONS,
+    dataset_suffix,
     describe_source,
     load_frame,
     schema_from_frame,
@@ -47,12 +49,12 @@ MAX_NAME_CHARS = 120
 # A stored profile is accepted wherever a dataset is. It is a few hundred bytes where the
 # dataset is megabytes, which is what lets a comparison here reach a version far past the
 # upload limit -- or one whose file no longer exists anywhere.
-# The dashboard takes a narrower set than the library reads. Compressed sources are held
-# back until #8 puts a guard on the decompressed size: the upload limit counts the bytes
-# that arrive, and ordinary data compresses about 344:1, so a 25 MB upload can become
-# several gigabytes in memory.
+# The dashboard takes every format the library reads, compressed ones included. They are
+# the reason the limit is enforced twice: on the bytes that arrive, and again on what they
+# become, since those are different numbers for a `.gz` and only the second one decides what
+# reading the file costs.
 COMPRESSED_EXTENSIONS = {suffix for suffix in SUPPORTED_EXTENSIONS if suffix.endswith(".gz")}
-UPLOAD_DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS - COMPRESSED_EXTENSIONS
+UPLOAD_DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS
 UPLOAD_EXTENSIONS = UPLOAD_DATASET_EXTENSIONS | {PROFILE_SUFFIX}
 
 
@@ -202,6 +204,15 @@ async def store_upload(
         )
     if written == 0:
         raise HTTPException(status_code=400, detail=f"'{upload.filename}' is empty")
+
+    if _expands_past_limit(path, suffix, settings.max_upload_bytes, upload.filename or "file"):
+        path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"'{upload.filename}' holds more than {settings.max_upload_mb} MB once decompressed"
+            ),
+        )
     return path
 
 
@@ -215,10 +226,11 @@ def _suffix_of(filename: str) -> str:
     lowered = filename.lower()
     if lowered.endswith(PROFILE_SUFFIX):
         return PROFILE_SUFFIX
-    # TODO(datasemver): keep upload dispatch on file extension only (`suffix`) until
-    # decompressed-size guard is added, otherwise compressed files can bypass the
-    # 25 MB upload cap by exploiting their in-memory expansion.
-    return Path(lowered).suffix
+    # The library's own definition, so `.csv.gz` dispatches as `.csv.gz` here as well. It
+    # used to be `Path(...).suffix`, which made every compressed name arrive as `.gz` and
+    # be refused -- a stopgap for the expansion the upload limit could not see, and now
+    # `_expands_past_limit` sees it.
+    return dataset_suffix(lowered)
 
 
 def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:
@@ -242,6 +254,35 @@ def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:
     if written > limit:
         path.unlink(missing_ok=True)
     return written
+
+
+def _expands_past_limit(path: Path, suffix: str, limit: int, name: str) -> bool:
+    """Whether a compressed upload becomes more than the limit allows once decompressed.
+
+    The size the cap counts is the size that arrives, and for a `.gz` that is not the number
+    that decides what reading it costs: ordinary repetitive data compresses about 344:1 and a
+    crafted file reaches roughly 1030:1, so a quarter of a megabyte within every limit the
+    dashboard states can become most of a gigabyte of dataframe.
+
+    Decompressed here under the rule `_copy_within_limit` already follows -- read one chunk
+    past the limit and no further -- so the answer costs one chunk of memory whatever the file
+    claims to hold, and nothing has tried to parse it yet.
+    """
+    if suffix not in COMPRESSED_EXTENSIONS:
+        return False
+
+    total = 0
+    try:
+        with gzip.open(path, "rb") as stream:
+            while chunk := stream.read(min(CHUNK_BYTES, limit - total + 1)):
+                total += len(chunk)
+                if total > limit:
+                    return True
+    except (OSError, EOFError) as error:
+        raise HTTPException(
+            status_code=400, detail=f"'{name}' could not be decompressed: {error}"
+        ) from error
+    return False
 
 
 def run_analysis(

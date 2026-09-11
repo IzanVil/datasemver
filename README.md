@@ -387,6 +387,13 @@ datasemver profile customers_v3.parquet          # writes customers_v3.profile.j
 datasemver diff customers_v3.profile.json customers_v4.parquet
 ```
 
+Without `-o` the profile goes beside the dataset, named after it: the whole name stays and
+only the format suffix is replaced, so `sales.2024.csv` and `sales.2025.csv` keep one profile
+each. A source that is not a file has nothing to sit beside, so a table and a sheet are named
+after what they hold, in the working directory — `quarterly.xlsx#Q3` writes
+`quarterly-Q3.profile.json`, and a database table writes `customers.profile.json`, never the
+connection URL that would carry its password into the file name.
+
 The dataset a profile describes does not have to exist any more. Commit the profile beside
 the data — next to the DVC pointer, in the same pull request — and the next comparison needs
 only the new version, instead of fetching a previous one that may be large, remote or gone.

@@ -16,12 +16,8 @@ from datasemver import __version__
 from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.changelog import render_entry, severity_label, write_changelog
 from datasemver.core.models import AnalysisReport, ColumnStatus, Severity
-from datasemver.core.profile import (
-    ProfileError,
-    default_profile_path,
-    write_profile,
-)
-from datasemver.formats.loader import load_schema
+from datasemver.core.profile import ProfileError, write_profile
+from datasemver.formats.loader import default_profile_path, load_schema
 from datasemver.integrations import dvc as dvc_integration
 from datasemver.rules.engine import EVALUATION_ORDER, RuleError, load_rules
 from datasemver.utils.version import InvalidVersionError

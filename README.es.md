@@ -395,6 +395,14 @@ datasemver profile customers_v3.parquet          # escribe customers_v3.profile.
 datasemver diff customers_v3.profile.json customers_v4.parquet
 ```
 
+Sin `-o`, el perfil se escribe junto al dataset y con su nombre: se conserva el nombre entero
+y solo se sustituye el sufijo del formato, así que `sales.2024.csv` y `sales.2025.csv` tienen
+un perfil cada uno. Una fuente que no es un fichero no tiene junto a qué ponerse, así que una
+tabla y una hoja se nombran por lo que contienen, en el directorio actual: `quarterly.xlsx#Q3`
+escribe `quarterly-Q3.profile.json`, y una tabla de base de datos escribe
+`customers.profile.json`, nunca la URL de conexión que llevaría su contraseña al nombre del
+fichero.
+
 El dataset que describe un perfil ya no tiene por qué existir. Guarda el perfil junto a los
 datos —al lado del puntero de DVC, en el mismo pull request— y la siguiente comparación solo
 necesita la versión nueva, en lugar de descargar una anterior que puede ser grande, remota o

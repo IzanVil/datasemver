@@ -62,12 +62,6 @@ def is_profile(source: str | Path) -> bool:
     return str(source).lower().endswith(PROFILE_SUFFIX)
 
 
-def default_profile_path(source: str | Path) -> Path:
-    """Where a profile goes when the caller does not say: beside the dataset it describes."""
-    path = Path(str(source))
-    return path.with_name(f"{path.name.split('.')[0]}{PROFILE_SUFFIX}")
-
-
 def write_profile(schema: DatasetSchema, path: str | Path) -> Path:
     """Write a profile, creating the directory it goes in."""
     destination = Path(path)

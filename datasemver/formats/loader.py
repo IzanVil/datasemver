@@ -5,15 +5,18 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
 
 from datasemver.core.models import DatasetSchema
-from datasemver.core.profile import is_profile, read_profile
+from datasemver.core.profile import PROFILE_SUFFIX, is_profile, read_profile
 from datasemver.formats.excel import EXCEL_EXTENSIONS, is_excel_source, load_excel
+from datasemver.formats.excel import split_source as split_sheet
 from datasemver.formats.metadata import schema_from_metadata
-from datasemver.formats.sql import is_sql_source, load_sql, redacted
+from datasemver.formats.sql import SqlSourceError, is_sql_source, load_sql, redacted
+from datasemver.formats.sql import split_source as split_table
 from datasemver.formats.utils import infer_types, profile_frame
 
 CSV_EXTENSIONS = {".csv", ".tsv", ".csv.gz", ".tsv.gz"}
@@ -26,6 +29,10 @@ JSON_EXTENSIONS = {".json", ".jsonl", ".ndjson"}
 PARQUET_EXTENSIONS = {".parquet", ".pq"}
 SUPPORTED_EXTENSIONS = CSV_EXTENSIONS | JSON_EXTENSIONS | PARQUET_EXTENSIONS | EXCEL_EXTENSIONS
 NESTED_SEPARATOR = "."
+
+# What a table or sheet name may keep when it becomes a file name: letters, digits,
+# underscores, dots and dashes. Everything else -- separators above all -- becomes a dash.
+_UNSAFE_IN_NAME = re.compile(r"[^\w.-]+")
 
 
 class UnsupportedFormatError(ValueError):
@@ -133,6 +140,68 @@ def describe_source(path: str | Path) -> str:
     if isinstance(path, str) and is_sql_source(path):
         return redacted(path)
     return str(path)
+
+
+def default_profile_path(source: str | Path) -> Path:
+    """Where a profile goes when the caller does not say.
+
+    Beside the dataset it describes, under the same name with the format suffix replaced --
+    and everything before that suffix is kept. `sales.2024.csv` and `sales.2025.csv` are two
+    versions of one dataset, which is the case this tool exists for, and naming both of them
+    `sales.profile.json` made the second overwrite the first without saying so.
+
+    A source that is not a file has nothing to sit beside, so a table and a sheet are named
+    after what they hold, in the working directory. A connection URL never reaches the name:
+    it carries a password, a file name is not a place to keep one, and the profile's own
+    contents are redacted for that same reason.
+
+    This lives here rather than beside `write_profile` because naming a profile means knowing
+    what a dataset suffix is and what a connection URL is, which is what this module knows.
+    `core.profile` reaching for either would close the import circle it is already written
+    around.
+    """
+    if isinstance(source, str) and is_sql_source(source):
+        return Path(f"{_as_file_name(_table_of(source))}{PROFILE_SUFFIX}")
+
+    if is_excel_source(source):
+        workbook, sheet = split_sheet(str(source))
+        path = Path(workbook)
+        stem = _dataset_stem(path)
+        if sheet is not None:
+            stem = f"{stem}-{_as_file_name(str(sheet))}"
+        return path.with_name(f"{stem}{PROFILE_SUFFIX}")
+
+    path = Path(str(source))
+    return path.with_name(f"{_dataset_stem(path)}{PROFILE_SUFFIX}")
+
+
+def _dataset_stem(path: Path) -> str:
+    """The file name without the suffix that says which format it is in."""
+    suffix = dataset_suffix(path)
+    if suffix and path.name.lower().endswith(suffix):
+        return path.name[: -len(suffix)] or path.name
+    return path.name
+
+
+def _table_of(source: str) -> str:
+    """The table a database source names, or a stand-in when it names none.
+
+    A source with no table never reaches a profile -- reading it fails first -- but naming
+    one must not raise on its own.
+    """
+    try:
+        return split_table(source)[1]
+    except SqlSourceError:
+        return "dataset"
+
+
+def _as_file_name(name: str) -> str:
+    """A table or sheet name made safe to use as a file name.
+
+    It comes from a database or a workbook rather than from a file system, so nothing stopped
+    it holding a separator: `sales/2024` would otherwise name a directory that is not there.
+    """
+    return _UNSAFE_IN_NAME.sub("-", name).strip("-.") or "dataset"
 
 
 def schema_from_frame(frame: pd.DataFrame, source: str) -> DatasetSchema:

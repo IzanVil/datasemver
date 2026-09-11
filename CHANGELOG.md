@@ -38,6 +38,19 @@ This project follows [Semantic Versioning](https://semver.org).
   in under MIT's own permission to sublicense.
 
 ### Minor
+- Feather. `.feather` and `.arrow` -- the two names the Arrow IPC file format is written under
+  -- are read, which closes the last common columnar format this could not open. It needs no
+  new dependency: `pyarrow` has been a hard requirement since the beginning, and it is what
+  pandas reads a Feather file with. The types are trusted exactly as Parquet's are, and for
+  the same reason rather than a similar one: both are Arrow, so the file states what every
+  column is, and inferring again would be second-guessing a schema that was written down
+  instead of reading one that was not. A column of postcodes stays strings rather than
+  becoming integers with the leading zero gone. Structs are flattened into dotted columns the
+  way Parquet's and JSON's already were, and the dashboard accepts the two extensions without
+  being told, because its upload list is derived from the formats the library reads.
+  `--schema-only` is deliberately left alone: a Feather file carries no per-column statistics
+  in its metadata the way a Parquet footer does, so there is nothing to read there instead of
+  the rows. Closes #3.
 - Excel. `.xlsx` and `.xlsm` are read through the `excel` extra, and a source names a sheet
   after `#` the way a database source names a table -- `quarterly.xlsx#Q2` -- because a
   workbook and a database are the two sources here that hold more than one dataset and there

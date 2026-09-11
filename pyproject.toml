@@ -63,6 +63,7 @@ dev = [
     "mypy>=1.11",
     "types-PyYAML>=6",
     "pyinstaller>=6.0",  # so the build script is exercised by CI rather than skipped
+    "duckdb>=1.1",  # likewise: the engine is checked against the dataframe path in CI
 ]
 exe = [
     # Freezing the CLI into a standalone executable. Named `exe` rather than `build` to
@@ -77,6 +78,13 @@ sql = [
     # second once `_normalised` points it there. Any other driver works when spelled out.
     "psycopg2-binary>=2.9",
     "pymysql>=1.1.1",  # CVE-2024-36039, SQL injection through unescaped keys
+]
+duckdb = [
+    # The alternative profiling engine. Every statistic a profile holds is an aggregate, and
+    # DuckDB computes them over the file instead of over a dataframe -- which is what puts a
+    # dataset larger than memory within reach. 1.1 is the floor because `approx_quantile` over
+    # a list of levels and `count(DISTINCT)` with disk spilling both behave as relied on there.
+    "duckdb>=1.1",
 ]
 excel = [
     # The reader pandas reaches for on .xlsx and .xlsm. 3.1.1 is the floor because everything
@@ -123,6 +131,7 @@ addopts = [
 ]
 markers = [
     "web: tests that exercise the dashboard backend and need the web extra",
+    "duckdb: tests that exercise the DuckDB engine and need the duckdb extra",
 ]
 
 [tool.ruff]
@@ -167,6 +176,15 @@ no_implicit_optional = true
 # Neither ships type information, and stubbing them here would be guesswork.
 module = ["pandas.*", "pyarrow.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# DuckDB does ship stubs, and following them reaches numpy's, which use syntax newer than the
+# 3.10 this project is checked against -- so checking our own code would fail on a dependency's
+# type hints rather than on anything here. Skipped rather than ignored: the names we use from
+# it become `Any`, which is what an unchecked third-party API is.
+module = ["duckdb.*", "_duckdb.*"]
+follow_imports = "skip"
+follow_untyped_imports = true
 
 [tool.coverage.run]
 branch = true

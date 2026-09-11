@@ -45,6 +45,7 @@ datos, ni ningún servicio corriendo.
 - [Demo](#demo)
 - [Versionado semántico para datos](#versionado-semántico-para-datos)
 - [Referencia de comandos](#referencia-de-comandos)
+- [Motores](#motores)
 - [Libros de Excel](#libros-de-excel)
 - [Bases de datos](#bases-de-datos)
 - [DVC](#dvc)
@@ -98,6 +99,7 @@ pip install -e ".[dev]"
 | `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Leer una [tabla de base de datos](#bases-de-datos) |
 | `exe` | `pyinstaller` | Construir un [ejecutable independiente](#sin-python) |
 | `excel` | `openpyxl` | Leer libros `.xlsx` y `.xlsm` |
+| `duckdb` | `duckdb` | Perfilar un dataset [sin cargarlo](#motores) |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | El [panel web](#panel-web) |
 
 ```bash
@@ -312,6 +314,7 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
 | `--key COLUMNA` | `-k` | Columna que identifica una fila; repítela para una clave compuesta |
 | `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas |
+| `--engine NOMBRE` | | `pandas`, `duckdb` o `duckdb-sketch`; ver [motores](#motores) |
 | `--version` | | Imprime la versión instalada y termina |
 
 Ejemplos:
@@ -327,6 +330,7 @@ datasemver diff old.csv new.csv --fail-on major   # sale con 1 si el cambio romp
 datasemver profile customers_v3.parquet           # escribe customers_v3.profile.json
 datasemver diff customers_v3.profile.json customers_v4.parquet
 datasemver diff old.csv new.csv --key id          # qué filas cambiaron, no solo la forma
+datasemver diff old.csv new.csv --engine duckdb   # perfila sin cargar ninguno de los dos
 datasemver diff old.parquet new.parquet --schema-only
 ```
 
@@ -481,6 +485,52 @@ hay nada que reportar.
 El catálogo completo de reglas, métricas y umbrales está en [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md)
 (en inglés). En [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples) se incluyen dos perfiles listos para usar:
 `strict_rules.yaml` y `lenient_rules.yaml`.
+
+## Motores
+
+Perfilar lee todas las filas y se queda con un resumen. Dicho de otro modo: cada estadística de
+un perfil es un agregado, y un agregado no necesita el dataset en memoria — solo lo necesita
+quien lo calcula. Cargar un CSV en un dataframe cuesta unas diez veces el fichero en disco, y
+es ese múltiplo, no la herramienta, el que decide qué datasets se pueden versionar en una
+máquina concreta.
+
+```bash
+pip install "datasemver[duckdb]"
+datasemver diff snapshots/2026-08.csv snapshots/2026-09.csv --engine duckdb
+```
+
+Medido sobre 16 millones de filas, siete columnas, pico de RSS del proceso entero:
+
+| Motor | Parquet, 380 MB | CSV, 1,21 GB | Números |
+| --- | --- | --- | --- |
+| `pandas` _(por defecto)_ | 21,4 s · 3190 MB | 49,9 s · 3311 MB | la referencia |
+| `duckdb` | 16,1 s · 1736 MB | 20,9 s · 2856 MB | idénticos, salvo redondeo de float |
+| `duckdb-sketch` | 3,1 s · 1246 MB | 7,9 s · 1952 MB | rejilla de cuantiles estimada |
+
+`duckdb` responde exactamente lo que responde el motor por defecto: los mismos tipos, ratios de
+nulos, cardinalidades, categorías y rejillas de cuantiles, hasta el último float. Es una
+pregunta sobre lo que cuesta una ejecución y nunca sobre lo que significa un salto de versión.
+
+`duckdb-sketch` toma la rejilla de cuantiles de un t-digest en lugar de calcularla. Todo lo
+demás sigue siendo exacto — la cardinalidad en particular, porque un sketch de eso responde 616
+donde hay 500 valores distintos y la herramienta reportaría un cambio que nadie hizo. La rejilla
+se desvía como mucho un 0,23 % del rango de la columna en esos 16M de filas, y los dos extremos
+no se estiman en absoluto: `min` y `max` son agregados exactos que ya se calculan, y es justo
+ahí donde un sketch es peor. Sobre el par de arriba, el sketch movió un estadístico KS de 0,118
+a 0,119 y no cambió nada más: mismos cambios, mismas severidades, mismo salto.
+
+Ningún motor se elige por ti. Una ejecución que cambiara de motor porque el fichero parecía
+grande respondería a una pregunta que nadie hizo, y estos dos leen menos que la librería:
+`.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.parquet` y `.pq`, con una columna anidada, un libro de
+Excel o una tabla de base de datos rechazados por su nombre en lugar de devueltos en silencio al
+otro camino. `--key` también se rechaza: emparejar filas necesita las filas, que es lo único que
+estos motores nunca cargan.
+
+`DATASEMVER_ENGINE` fija el motor por defecto de una shell o de un job de CI, y `--engine` tiene
+prioridad. Lo obedece todo lo que perfila a través de la librería, la integración con DVC
+incluida; el panel no, porque lee subidas limitadas a 25 MB. `DATASEMVER_DUCKDB_MEMORY_LIMIT`
+limita lo que DuckDB puede retener — `1GB`, `500MB` — y lo que no cabe va a disco en vez de
+fallar.
 
 ## Libros de Excel
 

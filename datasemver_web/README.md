@@ -50,6 +50,11 @@ working on it. Either way the app is addressed as `datasemver_web.backend.main`.
 | `DATASEMVER_MAX_UPLOAD_MB` | `25` | Size limit applied to every uploaded file, and to what a compressed one becomes |
 | `DATASEMVER_FRONTEND_DIR` | `datasemver_web/frontend` | Static files served at `/` |
 
+`DATASEMVER_ENGINE` is read by everything that profiles through the library and not here: the
+dashboard loads each upload into a dataframe, because it compares rows when given a key and an
+upload is capped at 25 MB either way. The alternative engines are for datasets far past that,
+which reach this page as a stored profile rather than as a file.
+
 ```bash
 DATASEMVER_DATASETS_DIR=/data/snapshots uvicorn datasemver_web.backend.main:app --reload
 ```

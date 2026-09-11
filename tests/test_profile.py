@@ -9,6 +9,7 @@ and every way a file that is not a readable profile is refused instead of half-u
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -19,12 +20,11 @@ from datasemver.core.profile import (
     PROFILE_SUFFIX,
     PROFILE_VERSION,
     ProfileError,
-    default_profile_path,
     is_profile,
     read_profile,
     write_profile,
 )
-from datasemver.formats.loader import load_schema, schema_from_frame
+from datasemver.formats.loader import default_profile_path, load_schema, schema_from_frame
 
 # --- naming ---------------------------------------------------------------------------------
 
@@ -51,6 +51,69 @@ def test_a_profile_defaults_to_sitting_beside_its_dataset(tmp_path):
 
 def test_a_compound_extension_does_not_leak_into_the_profile_name(tmp_path):
     assert default_profile_path(tmp_path / "dump.csv.gz").name == f"dump{PROFILE_SUFFIX}"
+
+
+def test_two_dated_versions_of_a_dataset_get_two_profiles(tmp_path):
+    """The whole name is kept, not the part before the first dot.
+
+    Dating a file is how dataset versions are usually told apart, and it is this tool's own
+    case: a name that collapsed to `sales` had the second version overwrite the first's
+    profile silently, which is the one failure a stored profile cannot afford.
+    """
+    first = default_profile_path(tmp_path / "sales.2024.csv")
+    second = default_profile_path(tmp_path / "sales.2025.csv")
+
+    assert first.name == f"sales.2024{PROFILE_SUFFIX}"
+    assert second.name == f"sales.2025{PROFILE_SUFFIX}"
+    assert first != second
+
+
+def test_a_connection_password_never_reaches_the_profile_name():
+    """A file name is not a place to keep a password, and it outlives the command.
+
+    The profile's contents are redacted already. The name it is written under was not, so
+    profiling a table wrote the credential to disk -- and into whatever tracks that directory.
+    """
+    path = default_profile_path("postgresql://reader:s3cret@warehouse:5432/analytics#customers")
+
+    assert path == Path(f"customers{PROFILE_SUFFIX}")
+    assert "s3cret" not in str(path)
+
+
+def test_a_table_name_cannot_name_a_directory():
+    """It comes from a database, where nothing stopped it holding a path separator."""
+    path = default_profile_path("sqlite:///data.db#sales/2024")
+
+    assert path.name == f"sales-2024{PROFILE_SUFFIX}"
+    assert path.parent == Path()
+
+
+def test_two_sheets_of_one_workbook_get_two_profiles(tmp_path):
+    """A workbook holds several datasets, so the sheet is part of what is being profiled."""
+    third = default_profile_path(tmp_path / "quarterly.xlsx#Q3")
+    fourth = default_profile_path(tmp_path / "quarterly.xlsx#Q4")
+
+    assert third.name == f"quarterly-Q3{PROFILE_SUFFIX}"
+    assert fourth.name == f"quarterly-Q4{PROFILE_SUFFIX}"
+    assert third.parent == tmp_path
+
+
+def test_a_workbook_without_a_sheet_is_named_after_the_workbook(tmp_path):
+    """Naming no sheet means the first one, which is the whole of a single-sheet export."""
+    assert default_profile_path(tmp_path / "quarterly.xlsx").name == f"quarterly{PROFILE_SUFFIX}"
+
+
+def test_a_name_with_no_known_suffix_is_kept_whole(tmp_path):
+    """Nothing to strip is not a reason to guess: only a suffix this tool reads comes off."""
+    assert default_profile_path(tmp_path / "customers").name == f"customers{PROFILE_SUFFIX}"
+
+
+def test_a_database_url_naming_no_table_still_names_a_profile():
+    """Reading it fails first, so naming it is never the error that reports the problem."""
+    path = default_profile_path("postgresql://reader:s3cret@warehouse/analytics")
+
+    assert path == Path(f"dataset{PROFILE_SUFFIX}")
+    assert "s3cret" not in str(path)
 
 
 # --- the round trip -------------------------------------------------------------------------

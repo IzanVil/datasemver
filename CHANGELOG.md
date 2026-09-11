@@ -9,6 +9,21 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Major
+- A profile written without `-o` keeps the whole dataset name, where it kept only the part
+  before the first dot. `sales.2024.csv` and `sales.2025.csv` are two versions of one dataset
+  -- the case this tool exists for -- and both of them answered to `sales.profile.json`, so
+  profiling the second silently overwrote the first. The suffix that comes off is now the one
+  `dataset_suffix` already defines, which is what kept `dump.csv.gz` from becoming
+  `dump.csv.profile.json` and is the only reason the old rule reached for the first dot at
+  all. A workbook sheet and a database table are part of what is being profiled and now reach
+  the name too: `quarterly.xlsx#Q3` writes `quarterly-Q3.profile.json`, where two sheets of
+  one workbook used to share a file. Recorded as major because a script that hard-coded the
+  old name reads a file that is no longer written.
+- `default_profile_path` is imported from `datasemver.formats.loader` rather than
+  `datasemver.core.profile`. Naming a profile means knowing what a dataset suffix is and what
+  a connection URL is, and both are what the loader knows; `core.profile` cannot reach for
+  either without closing the import circle it is already written around. It was never
+  exported from the package root, whose contents are the interface the project promises.
 - The licence is the Apache License 2.0, where it was MIT. It is recorded as major for the
   same reason a dataset's contract change is: what someone is allowed to build on this is now
   stated differently. In practice the permissions are the ones MIT already gave -- use, modify
@@ -34,6 +49,13 @@ This project follows [Semantic Versioning](https://semver.org).
   without being told, because its upload list is derived from the supported formats.
 
 ### Patch
+- Profiling a database table no longer writes the connection password to disk. With no `-o`,
+  the whole source became the file name, so `postgresql://reader:s3cret@warehouse/analytics`
+  wrote `postgresql:/reader:s3cret@warehouse/analytics#customers.profile.json` -- creating
+  the directories on the way -- and the credential stayed there, in whatever tracks that
+  directory, long after the command. A table is now named after itself, in the working
+  directory: `customers.profile.json`. The contents were already redacted, for the reason the
+  name should have been.
 - The tutorial is in Spanish too, at `docs/tutorial.es.md`, which is the last document that was
   only in one language. The tool prints English, so the output blocks and the commands are
   reproduced exactly as they come back rather than translated -- a page showing a terminal that

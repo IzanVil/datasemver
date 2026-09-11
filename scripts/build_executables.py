@@ -205,9 +205,15 @@ def _write_fixtures(directory: Path) -> dict[str, str]:
         paths[f"{label}.parquet"] = str(parquet)
 
     database = directory / "check.db"
-    with sqlite3.connect(database) as connection:
+    # Closed explicitly: `with sqlite3.connect(...)` commits and leaves the handle open, and
+    # Windows refuses to delete a file that something still holds -- so the temporary
+    # directory failed to clean up and took the build with it, after the checks had passed.
+    connection = sqlite3.connect(database)
+    try:
         old.to_sql("v1", connection, index=False)
         new.to_sql("v2", connection, index=False)
+    finally:
+        connection.close()
     paths["sqlite_old"] = f"sqlite:///{database}#v1"
     paths["sqlite_new"] = f"sqlite:///{database}#v2"
 

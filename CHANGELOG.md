@@ -8,6 +8,18 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-11
+
+### Patch
+- The action can be published. Its description was 140 characters and the GitHub Marketplace
+  refuses anything over 125, which is a limit that exists only inside a form: the listing
+  validates on submit, so nothing in the repository knew, `action.yml` was perfectly valid
+  YAML, and the first sign of trouble was a person clicking Publish and being told no. It is
+  109 characters now -- the clause it lost, that a run can refuse the merge, is two paragraphs
+  down in both readmes -- and a test asserts the limit, so the next edit that grows past it
+  fails in the commit that does it rather than months later in a form. The `uses:` line in the
+  readmes points at this release, since it is the first tag the Marketplace will accept.
+
 ## [0.8.0] - 2026-09-11
 
 ### Major

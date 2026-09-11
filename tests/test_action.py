@@ -52,6 +52,18 @@ def test_the_action_is_a_composite_one(action):
     assert action["name"] and action["description"]
 
 
+def test_the_description_fits_what_the_marketplace_takes(action):
+    """125 characters, refused at 126 -- and only when someone tries to publish.
+
+    The listing is edited through a form that validates on submit, so a description that grew
+    past the limit is found by a person clicking Publish months later, with nothing in the
+    repository saying why it will not go. One assertion moves that to the commit that does it.
+    """
+    description = " ".join(action["description"].split())
+
+    assert len(description) < 125, f"{len(description)} characters"
+
+
 def test_every_action_it_uses_is_pinned_to_a_commit(action):
     """A tag is a movable pointer, and this one runs in other people's repositories."""
     used = [step["uses"] for step in steps(action) if "uses" in step]

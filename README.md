@@ -723,7 +723,7 @@ Five lines in a workflow, and every pull request gets the bump its datasets dese
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0          # the base version of each dataset lives in the history
-      - uses: IzanVil/datasemver@v0.8.0
+      - uses: IzanVil/datasemver@v0.8.1
         with:
           fail-on: major          # optional: refuse the merge on a breaking change
 ```
@@ -826,7 +826,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: IzanVil/datasemver@v0.8.0
+      - uses: IzanVil/datasemver@v0.8.1
         with:
           rules: .datasemver/rules.yaml
           fail-on: major

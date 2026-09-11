@@ -21,7 +21,7 @@ from datasemver.core.rows import compare_rows
 from datasemver.formats.loader import load_frame, load_schema, schema_from_frame
 from datasemver.rules.engine import RuleError, RuleSet, load_rules
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 __all__ = [
     "AnalysisReport",

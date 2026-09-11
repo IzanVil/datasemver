@@ -1,7 +1,9 @@
 name: DataSemver
+# Under 125 characters, which is what the Marketplace accepts and what `test_action.py`
+# holds. What it leaves out -- that the run can refuse the merge -- is in the readme.
 description: >-
-  Compare the datasets a pull request changes against the base branch, report the version
-  bump they deserve, and optionally refuse the change.
+  Compare the datasets a pull request changes against its base branch and report the version
+  bump they deserve.
 author: Izan Vilchez
 
 branding:

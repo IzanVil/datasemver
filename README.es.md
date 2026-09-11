@@ -740,7 +740,7 @@ datasets:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0          # la versión base de cada dataset vive en el historial
-      - uses: IzanVil/datasemver@v0.8.0
+      - uses: IzanVil/datasemver@v0.8.1
         with:
           fail-on: major          # opcional: rechaza el merge ante un cambio que rompe
 ```
@@ -844,7 +844,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: IzanVil/datasemver@v0.8.0
+      - uses: IzanVil/datasemver@v0.8.1
         with:
           rules: .datasemver/rules.yaml
           fail-on: major

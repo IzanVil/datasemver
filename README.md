@@ -152,8 +152,10 @@ dialog does not.
 
 The executable is around 100 MB, most of it pyarrow, pandas and numpy, which are large
 libraries and are what makes the tool read Parquet. It includes database support, so
-`sqlite://`, `postgresql://` and `mysql://` sources work with nothing else installed; the
-[web dashboard](#web-dashboard) is not part of it and still needs a Python install. On Linux
+`sqlite://`, `postgresql://` and `mysql://` sources work with nothing else installed. What it
+does not carry is the rest of the extras: workbooks and the `duckdb` engines are not in it, and
+neither is the [web dashboard](#web-dashboard) — those need a Python install, and the message
+the binary prints for them names a `pip install` that only applies there. On Linux
 it needs glibc 2.28 or newer — that is the floor pyarrow's own wheels set, so it covers
 RHEL 8, Debian 10 and Ubuntu 18.10 onwards.
 

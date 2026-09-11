@@ -118,6 +118,14 @@ def profile_column(series: pd.Series, name: str) -> ColumnStats:
     """Compute the statistics DataSemver compares between dataset versions."""
     total = len(series)
     non_null = series.dropna()
+    # A column holding arrays -- a JSON list field, a Parquet or Feather LIST column -- is
+    # profiled on the text of its values. Everything below needs a hashable one, and `nunique`
+    # raises `TypeError: unhashable type` rather than answer, which reached the command line
+    # as a traceback on a file nobody would call malformed. Refusing such a dataset was the
+    # other option and a column of tags is not a broken dataset: read as text, it still
+    # reports the cardinality and the balance that a comparison is about to compare.
+    if _holds_arrays(non_null):
+        non_null = non_null.astype(str)
     stats = ColumnStats(
         name=name,
         dtype=canonical_dtype(series),
@@ -157,6 +165,22 @@ def profile_column(series: pd.Series, name: str) -> ColumnStats:
                 stats.categories = sorted(counts.index)
             stats.category_counts = _bounded_counts(counts)
     return stats
+
+
+def _holds_arrays(values: pd.Series) -> bool:
+    """Whether the values are of a kind `hash` refuses, which is what profiling needs.
+
+    Read from the first one, as `_holds_mappings` does for structs: a column is one type in
+    every format this reads, and paying for a scan to confirm it would cost more than the
+    question is worth.
+    """
+    if values.empty:
+        return False
+    try:
+        hash(values.iloc[0])
+    except TypeError:
+        return True
+    return False
 
 
 def _profile_moments(stats: ColumnStats, non_null: pd.Series) -> None:

@@ -3,7 +3,9 @@ import gzip as _gzip
 import pandas as pd
 import pytest
 
+from datasemver import analyze
 from datasemver.core.differ import diff_schemas
+from datasemver.core.models import Severity
 from datasemver.formats.loader import (
     DELIMITER_ENV_VAR,
     DatasetReadError,
@@ -155,6 +157,56 @@ def test_pq_extension_is_recognised(tmp_path, old_parquet):
     path.write_bytes(old_parquet.read_bytes())
 
     assert len(load_frame(path)) == 8
+
+
+def test_a_json_array_column_is_profiled_as_text(tmp_path):
+    """A list field is ordinary JSON, and profiling one used to raise rather than answer.
+
+    Every statistic here needs a hashable value, and `nunique` refuses a list with
+    `TypeError: unhashable type`, which reached the command line as a traceback on a file
+    nobody would call malformed. Read as text, the column still says how many distinct values
+    it holds and how they are balanced, which is what a comparison is about to compare.
+    """
+    path = tmp_path / "posts.json"
+    path.write_text(
+        '[{"id": 1, "tags": ["a", "b"]}, {"id": 2, "tags": ["c"]}, {"id": 3, "tags": ["a", "b"]}]',
+        encoding="utf-8",
+    )
+
+    tags = load_schema(path).columns["tags"]
+
+    assert tags.dtype == "string"
+    assert tags.cardinality == 2
+    assert tags.null_ratio == 0.0
+
+
+@pytest.mark.parametrize("suffix", [".parquet", ".feather"])
+def test_an_arrow_list_column_is_profiled_as_text(tmp_path, suffix):
+    """The same column read from Arrow arrives as a numpy array, which `hash` refuses too."""
+    path = tmp_path / f"posts{suffix}"
+    frame = pd.DataFrame({"id": [1, 2, 3], "tags": [["a", "b"], ["c"], ["a", "b"]]})
+    frame.to_parquet(path) if suffix == ".parquet" else frame.to_feather(path)
+
+    tags = load_schema(path).columns["tags"]
+
+    assert tags.dtype == "string"
+    assert tags.cardinality == 2
+
+
+def test_a_dataset_with_an_array_column_can_be_compared(tmp_path):
+    """End to end, because what this broke was the command rather than one statistic."""
+    old = tmp_path / "old.json"
+    new = tmp_path / "new.json"
+    old.write_text('[{"id": 1, "tags": ["a"]}, {"id": 2, "tags": ["b"]}]', encoding="utf-8")
+    new.write_text(
+        '[{"id": 1, "tags": ["a"]}, {"id": 2, "tags": ["b"]}, {"id": 3, "tags": ["c"]}]',
+        encoding="utf-8",
+    )
+
+    report = analyze(old, new, current_version="1.0.0")
+
+    assert report.bump is Severity.MINOR
+    assert report.diff.new.columns["tags"].cardinality == 3
 
 
 def test_feather_is_loaded_through_the_shared_entry_point(old_csv, tmp_path):

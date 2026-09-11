@@ -60,6 +60,22 @@ def test_meta_reports_supported_extensions(client):
     assert payload["default_version"] == "0.0.0"
 
 
+def test_meta_offers_only_what_an_upload_is_accepted_for(client):
+    """The picker is built from this list, so anything in it is an invitation.
+
+    The dashboard takes less than the library reads while the decompressed size is
+    unguarded, and an interface that offers a format it then turns away is worse than one
+    that never offered it -- the reader did what it said. Held as a subset rather than as a
+    literal list, so a format added to the library does not have to be added here twice.
+    """
+    offered = client.get("/api/meta").json()["supported_extensions"]
+
+    assert set(offered) <= main.UPLOAD_EXTENSIONS
+    assert [extension for extension in offered if extension.endswith(".gz")] == []
+    assert PROFILE_SUFFIX not in offered
+    assert ".csv" in offered
+
+
 def test_diff_uploads_returns_the_report(client, old_csv, new_csv):
     response = upload(client, old_csv, new_csv, current_version="1.4.2")
     payload = response.json()
@@ -114,6 +130,24 @@ def test_uploads_stay_on_compound_suffix_dispatch_for_profiles_only(tmp_path, ol
 
     assert response.status_code == 400
     assert "unsupported extension" in response.json()["detail"]
+
+
+def test_the_refusal_cannot_name_the_extension_it_is_refusing(tmp_path, old_csv, client):
+    """A rejection listing the thing it rejected is how #9 announced itself.
+
+    The list in the message and the set the upload is checked against have to be the same
+    set, or the refusal reads as a bug in the server rather than as an answer. Asserted
+    against the part after `expected one of` on purpose: `detail` quotes the filename too,
+    so looking for `.csv.gz` in the whole string passes for the wrong reason.
+    """
+    gzip_upload = tmp_path / "old.csv.gz"
+    gzip_upload.write_bytes(old_csv.read_bytes())
+
+    response = upload(client, gzip_upload, old_csv)
+    offered = response.json()["detail"].split("expected one of ", 1)[1]
+
+    assert response.status_code == 400
+    assert ".csv.gz" not in offered
 
 
 def test_diff_rejects_an_invalid_version(client, old_csv, new_csv):

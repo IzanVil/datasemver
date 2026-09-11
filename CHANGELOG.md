@@ -62,6 +62,15 @@ This project follows [Semantic Versioning](https://semver.org).
   without being told, because its upload list is derived from the supported formats.
 
 ### Patch
+- The dashboard no longer offers a format it then refuses. `/api/meta` reported the whole set
+  of extensions the library reads, and the frontend builds the file picker's `accept` list and
+  the hint below it from exactly that -- so the picker invited a `.csv.gz` and the server
+  turned it away, with a message that enumerated `.csv.gz` among the extensions it said it
+  wanted. Compressed sources stay out of the upload path until the decompressed size is
+  guarded (#8), and what `/api/meta` reports is now what an upload is actually accepted for.
+  Fixed in #10 by @slsgzs-cloud; the regression tests hold both halves, since an interface
+  that lies quietly does not throw and nothing else would have noticed it happening again.
+  Closes #9.
 - Profiling a database table no longer writes the connection password to disk. With no `-o`,
   the whole source became the file name, so `postgresql://reader:s3cret@warehouse/analytics`
   wrote `postgresql:/reader:s3cret@warehouse/analytics#customers.profile.json` -- creating

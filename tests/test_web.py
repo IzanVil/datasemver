@@ -1,4 +1,6 @@
+import gzip
 import io
+import tracemalloc
 
 import pytest
 
@@ -40,6 +42,18 @@ def datasets_dir(tmp_path, old_csv, new_csv, monkeypatch):
     return directory
 
 
+@pytest.fixture
+def tight(tmp_path, monkeypatch):
+    """A dashboard whose limit is small enough to cross inside a test."""
+    settings = Settings(
+        datasets_dir=tmp_path / "datasets",
+        max_upload_bytes=256 * 1024,
+        frontend_dir=tmp_path / "frontend",
+    )
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
+    return settings
+
+
 def upload(client, old_path, new_path, **data):
     with old_path.open("rb") as old, new_path.open("rb") as new:
         return client.post(
@@ -71,9 +85,9 @@ def test_meta_offers_only_what_an_upload_is_accepted_for(client):
     offered = client.get("/api/meta").json()["supported_extensions"]
 
     assert set(offered) <= main.UPLOAD_EXTENSIONS
-    assert [extension for extension in offered if extension.endswith(".gz")] == []
     assert PROFILE_SUFFIX not in offered
     assert ".csv" in offered
+    assert ".csv.gz" in offered
 
 
 def test_diff_uploads_returns_the_report(client, old_csv, new_csv):
@@ -121,15 +135,71 @@ def test_diff_rejects_unsupported_extension(client, old_csv, tmp_path):
     assert "unsupported extension" in response.json()["detail"]
 
 
-def test_uploads_stay_on_compound_suffix_dispatch_for_profiles_only(tmp_path, old_csv, client):
-    """The upload endpoint keeps `Path.suffix` to prevent upload-size bypasses for `.gz` files."""
-    gzip_upload = tmp_path / "old.csv.gz"
-    gzip_upload.write_bytes(old_csv.read_bytes())
+def test_a_compressed_dataset_is_compared_like_any_other(tmp_path, old_csv, new_csv, client):
+    """What this test used to assert, and why it no longer does.
 
-    response = upload(client, gzip_upload, old_csv)
+    #7 taught the library to read `.csv.gz`, and the dashboard went on refusing them: the
+    upload limit counted the bytes that arrived, which for a compressed file says nothing
+    about what reading it costs, so dispatch was pinned to `Path.suffix` and every compressed
+    name arrived as `.gz` and bounced. The guard on the decompressed size (#8) is what that
+    was waiting for, so the refusal is gone and the reason it existed stays here.
+    """
+    compressed = tmp_path / "old.csv.gz"
+    with gzip.open(compressed, "wb") as stream:
+        stream.write(old_csv.read_bytes())
+
+    response = upload(client, compressed, new_csv, current_version="1.4.2")
+    uncompressed = upload(client, old_csv, new_csv, current_version="1.4.2")
+
+    assert response.status_code == 200
+    assert response.json()["bump"] == uncompressed.json()["bump"] == "major"
+
+
+def test_a_compressed_upload_is_measured_on_what_it_becomes(tmp_path, old_csv, client, tight):
+    """A file inside every stated limit, refused for the size it turns into."""
+    bomb = tmp_path / "old.csv.gz"
+    with gzip.open(bomb, "wb") as stream:
+        stream.write(b"id,value\n" + b"1,aaaaaaaaaa\n" * 200_000)
+
+    response = upload(client, bomb, old_csv)
+
+    assert bomb.stat().st_size < tight.max_upload_bytes
+    assert response.status_code == 413
+    assert "once decompressed" in response.json()["detail"]
+
+
+def test_refusing_an_expansion_costs_a_chunk_rather_than_the_expansion(
+    tmp_path, old_csv, client, tight
+):
+    """The refusal has to be cheaper than the attack, or it is the attack.
+
+    Roughly 70 MB of dataframe behind 70 kB of upload. Decompressing it to find out how big
+    it is would be doing exactly what the limit exists to prevent, so the reader stops one
+    chunk past the limit and the peak stays near that chunk instead of near the file.
+    """
+    bomb = tmp_path / "old.csv.gz"
+    with gzip.open(bomb, "wb") as stream:
+        stream.write(b"id,value\n")
+        for _ in range(64):
+            stream.write(b"1,aaaaaaaa\n" * 100_000)
+
+    tracemalloc.start()
+    response = upload(client, bomb, old_csv)
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    assert response.status_code == 413
+    assert peak < 16 * 1024 * 1024
+
+
+def test_a_broken_gzip_is_refused_before_anything_parses_it(tmp_path, old_csv, client):
+    broken = tmp_path / "old.csv.gz"
+    broken.write_bytes(b"not gzip at all")
+
+    response = upload(client, broken, old_csv)
 
     assert response.status_code == 400
-    assert "unsupported extension" in response.json()["detail"]
+    assert "could not be decompressed" in response.json()["detail"]
 
 
 def test_the_refusal_cannot_name_the_extension_it_is_refusing(tmp_path, old_csv, client):
@@ -140,14 +210,14 @@ def test_the_refusal_cannot_name_the_extension_it_is_refusing(tmp_path, old_csv,
     against the part after `expected one of` on purpose: `detail` quotes the filename too,
     so looking for `.csv.gz` in the whole string passes for the wrong reason.
     """
-    gzip_upload = tmp_path / "old.csv.gz"
-    gzip_upload.write_bytes(old_csv.read_bytes())
+    refused = tmp_path / "old.csv.bz2"
+    refused.write_bytes(old_csv.read_bytes())
 
-    response = upload(client, gzip_upload, old_csv)
+    response = upload(client, refused, old_csv)
     offered = response.json()["detail"].split("expected one of ", 1)[1]
 
     assert response.status_code == 400
-    assert ".csv.gz" not in offered
+    assert ".bz2" not in offered
 
 
 def test_diff_rejects_an_invalid_version(client, old_csv, new_csv):

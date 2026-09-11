@@ -38,6 +38,19 @@ This project follows [Semantic Versioning](https://semver.org).
   in under MIT's own permission to sublicense.
 
 ### Minor
+- The dashboard reads compressed datasets, and the upload limit now counts the size that
+  decides what reading one costs. It counted the bytes that arrived, which for a `.csv.gz` is
+  the wrong number by three orders of magnitude: measured through the endpoint, a 0.25 MB
+  upload -- one percent of the 25 MB limit -- became 86 MB of dataframe and took peak memory
+  from 138 MB to 656 MB, and that was ordinary repetitive data at 344:1 rather than anything
+  crafted. Gzip reaches about 1030:1 when someone is trying. So a compressed upload is now
+  decompressed under the rule the size check already followed -- read one chunk past the limit
+  and no further -- and refused with `413` naming what it holds once decompressed. The refusal
+  costs one chunk of memory rather than the expansion, which is the property that makes it a
+  guard rather than a slower way of running the attack, and a test asserts it as a memory peak
+  rather than trusting the reading. With the expansion bounded, `.csv.gz` and `.tsv.gz` are
+  back among the formats the dashboard accepts, so the one surface that could not read a
+  format the rest of the tool supports can read it again. Closes #8.
 - Feather. `.feather` and `.arrow` -- the two names the Arrow IPC file format is written under
   -- are read, which closes the last common columnar format this could not open. It needs no
   new dependency: `pyarrow` has been a hard requirement since the beginning, and it is what
@@ -66,11 +79,11 @@ This project follows [Semantic Versioning](https://semver.org).
   of extensions the library reads, and the frontend builds the file picker's `accept` list and
   the hint below it from exactly that -- so the picker invited a `.csv.gz` and the server
   turned it away, with a message that enumerated `.csv.gz` among the extensions it said it
-  wanted. Compressed sources stay out of the upload path until the decompressed size is
-  guarded (#8), and what `/api/meta` reports is now what an upload is actually accepted for.
-  Fixed in #10 by @slsgzs-cloud; the regression tests hold both halves, since an interface
-  that lies quietly does not throw and nothing else would have noticed it happening again.
-  Closes #9.
+  wanted. What `/api/meta` reports is now what an upload is actually accepted for, held by a
+  test as a subset rather than as a list, so the two cannot drift apart again in the silence
+  they drifted apart in the first time -- an interface lying quietly does not throw. Fixed in
+  #10 by @slsgzs-cloud. The two sets happen to be equal again now that the guard below let the
+  compressed formats back in, and the test holds either way. Closes #9.
 - Profiling a database table no longer writes the connection password to disk. With no `-o`,
   the whole source became the file name, so `postgresql://reader:s3cret@warehouse/analytics`
   wrote `postgresql:/reader:s3cret@warehouse/analytics#customers.profile.json` -- creating

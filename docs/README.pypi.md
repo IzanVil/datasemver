@@ -101,16 +101,18 @@ are reported as unclassified and never inflate it.
 
 ## Formats
 
-Detected by extension: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`, `.parquet`, `.pq`.
+Detected by extension: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`, `.parquet`, `.pq`,
+`.feather`, `.arrow`, `.xlsx` and `.xlsm`.
 
 The delimiter of a `.csv` is detected from its first lines — comma, semicolon, tab and pipe
 are recognised, and a character that only appears inside quoted values does not win — while
 `.tsv` always uses the tab. Set `DATASEMVER_CSV_DELIMITER` to skip detection and force one
 character, the tab written as `\t`.
 
-Nested JSON objects and Parquet structs are flattened with a `.`, so
+Nested JSON objects and the structs of the Arrow-backed formats are flattened with a `.`, so
 `{"user": {"name": "..."}}` is profiled as `user.name`. Types are inferred for the text
-formats; Parquet carries its own schema and is trusted as it stands.
+formats; Parquet and Feather carry their own schema and are trusted as they stand. A workbook
+names its sheet after `#`, as `quarterly.xlsx#Q3`.
 
 ## Databases
 

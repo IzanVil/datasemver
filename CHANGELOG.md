@@ -8,6 +8,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-09-11
+
 ### Patch
 - A column of arrays is profiled instead of crashing the command. A JSON list field, or a
   Parquet or Feather `LIST` column, arrived as a value `hash` refuses, and every statistic a
@@ -18,11 +20,26 @@ This project follows [Semantic Versioning](https://semver.org).
   text of its values: `["a", "b"]` and `["c"]` are two distinct values, the column reads as a
   string, and the cardinality and the balance a comparison is about to compare are there.
   Refusing the dataset was the other option, and a column of tags is not a broken dataset.
-- The readmes say what the standalone executable does not carry. They listed the database
-  support it has and the dashboard it does not, which left the impression that everything else
-  was in: workbooks are not, and neither are the `duckdb` engines, since the release workflow
-  builds from `.[sql]`. The message the binary prints for them names a `pip install`, which is
-  advice for a Python installation and not for the file the reader is holding.
+- The standalone executable carries the same extras wherever it is built, and it now carries
+  `excel` as well as `sql`. The build froze whatever happened to be installed beside it, so the
+  release binary had database support and the one a contributor built on their own machine
+  could have had more -- two different files, both called `datasemver`, both claiming the same
+  version. `scripts/build_executables.py` declares the list, refuses to build without it, and
+  passes everything outside it to PyInstaller as `--exclude-module`, so a machine with `duckdb`
+  installed still produces the published binary. The workflow reads that list from the script
+  rather than repeating it. Workbooks went in because someone holding one file cannot add an
+  extra afterwards and `openpyxl` is small; the `duckdb` engines stayed out because they cost
+  22 MB of the download -- 110 MB against 132 -- for answers the default engine already gives.
+- The build checks the binary it produced. A build that succeeds and a binary that works are
+  different things, and the gap between them is where a missing extra hides until someone
+  downloads it: the script now runs the file over one dataset of every format it claims to
+  read, confirms the bundled rules are in there, and confirms that an excluded engine is
+  refused rather than crashing.
+- The message for a missing extra says something a reader can act on. Inside the executable
+  there is no environment to install into, so `pip install "datasemver[duckdb]"` was advice
+  for a machine the reader may not have; the binary now says the feature is not part of it and
+  that it needs a Python installation, and says the rest only where it applies. Both readmes
+  say which extras the binary carries and which it does not.
 
 ## [0.8.1] - 2026-09-11
 

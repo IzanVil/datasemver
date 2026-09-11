@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from datasemver.utils.extras import install_hint as _install_hint
+
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
 
@@ -29,7 +31,10 @@ SQL_SCHEMES = (
     "mariadb",
 )
 
-INSTALL_HINT = 'reading a database needs the sql extra: pip install "datasemver[sql]"'
+
+def install_hint() -> str:
+    """Read at call time: the advice differs inside the standalone executable."""
+    return _install_hint("sql", "reading a database")
 
 
 class SqlSourceError(ValueError):
@@ -114,17 +119,17 @@ def _engine(url: str, source: str) -> Any:
         from sqlalchemy import create_engine
         from sqlalchemy.exc import ArgumentError, NoSuchModuleError
     except ImportError as error:  # pragma: no cover - exercised by the extra being absent
-        raise _dataset_read_error(INSTALL_HINT) from error
+        raise _dataset_read_error(install_hint()) from error
 
     try:
         return create_engine(_normalised(url))
     except NoSuchModuleError as error:
         raise _dataset_read_error(
-            f"no driver for '{redacted(source)}': {error}. {INSTALL_HINT}"
+            f"no driver for '{redacted(source)}': {error}. {install_hint()}"
         ) from error
     except ModuleNotFoundError as error:
         raise _dataset_read_error(
-            f"the driver for '{redacted(source)}' is not installed: {error}. {INSTALL_HINT}"
+            f"the driver for '{redacted(source)}' is not installed: {error}. {install_hint()}"
         ) from error
     except (ArgumentError, ValueError) as error:
         # A port that is not a number arrives as a bare ValueError from int(), which would

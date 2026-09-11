@@ -36,6 +36,22 @@ PLATFORMS = {"linux": "Linux", "macos": "Darwin", "windows": "Windows"}
 # bundle, so laying them out under the same relative path is all that is needed.
 DATA_FILES = ("rules/*.yaml",)
 
+# The extras the binary carries, and the import that proves each one is there. Declared here
+# rather than left to whatever the build machine happens to have installed: PyInstaller
+# freezes the environment it runs in, so without this the same script produces a different
+# binary on two machines, both called `datasemver`, and only one of them reads a workbook.
+#
+# Someone running the binary cannot add an extra later -- there is no environment to add it
+# to -- so what goes in is what they will ever have. `sql` and `excel` are in because they
+# are small and there is no other way to get them.
+BUNDLED_EXTRAS = {"sql": ("sqlalchemy",), "excel": ("openpyxl",)}
+
+# Kept out, and kept out by name so that a machine with them installed still produces the
+# published binary rather than a larger private one. `duckdb` costs 22 MB of the download --
+# 110 MB against 132 -- for an engine that returns the answers the default one already
+# returns, only cheaper; and the dashboard is a server rather than a command.
+EXCLUDED_MODULES = ("duckdb", "fastapi", "uvicorn", "starlette", "pytest")
+
 EXECUTABLE_MODE = 0o755
 
 
@@ -47,9 +63,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         require_pyinstaller()
+        require_extras()
         target = resolve_platform(args.platform)
         binary = build(target, args.output_dir, clean=args.clean)
         print(f"\nbuilt {binary} ({binary.stat().st_size / 1_000_000:.0f} MB)")
+        verify(binary)
         if args.archive:
             print(f"packaged {package(binary, target, args.output_dir)}")
     except BuildError as error:
@@ -94,6 +112,112 @@ def require_pyinstaller() -> None:
             'pyinstaller is not installed: pip install "pyinstaller>=6.0", '
             'or install the build extra with pip install -e ".[exe]"'
         )
+
+
+def require_extras() -> None:
+    """Refuse to build without the extras the binary is supposed to carry.
+
+    Missing, they do not fail the build -- they fail a reader months later, holding a file
+    that answers "reading a workbook is not part of the standalone executable" when it was
+    supposed to be.
+    """
+    missing = sorted(
+        extra
+        for extra, imports in BUNDLED_EXTRAS.items()
+        if not all(_importable(module) for module in imports)
+    )
+    if missing:
+        wanted = ",".join(sorted(BUNDLED_EXTRAS))
+        raise BuildError(
+            f"the binary is declared to carry {wanted}, and {', '.join(missing)} "
+            f"{'is' if len(missing) == 1 else 'are'} not installed here. "
+            f'Install them first: pip install ".[{wanted},exe]"'
+        )
+
+
+def verify(binary: Path) -> None:
+    """Run the binary that was just built, over one file of every kind it claims to read.
+
+    A build that succeeds and a binary that works are different things, and the gap between
+    them is where a missing extra or an unbundled data file hides. Everything here is written
+    to a temporary directory and read straight back.
+    """
+    import tempfile
+
+    print("verifying the binary")
+    with tempfile.TemporaryDirectory() as directory:
+        fixtures = _write_fixtures(Path(directory))
+        checks: list[tuple[str, list[str]]] = [
+            ("--help", ["--help"]),
+            ("bundled rules", ["rules"]),
+            ("csv", ["diff", fixtures["old.csv"], fixtures["new.csv"], "--json"]),
+            ("parquet", ["diff", fixtures["old.parquet"], fixtures["new.parquet"], "--json"]),
+            ("sqlite", ["diff", fixtures["sqlite_old"], fixtures["sqlite_new"], "--json"]),
+            ("workbook", ["diff", fixtures["xlsx_q1"], fixtures["xlsx_q2"], "--json"]),
+        ]
+        for label, arguments in checks:
+            result = subprocess.run(
+                [str(binary), *arguments], capture_output=True, text=True, check=False
+            )
+            if result.returncode != 0:
+                raise BuildError(
+                    f"the binary cannot do {label}: exited {result.returncode}\n"
+                    f"{result.stdout[-400:]}{result.stderr[-400:]}"
+                )
+            print(f"  {label} ok")
+
+        # The engines that were deliberately left out have to refuse rather than crash, and
+        # say where the reader can get them.
+        refused = subprocess.run(
+            [str(binary), "diff", fixtures["old.csv"], fixtures["new.csv"], "--engine", "duckdb"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if refused.returncode == 0 or "standalone executable" not in (
+            refused.stdout + refused.stderr
+        ):
+            raise BuildError(
+                "the binary was expected to refuse --engine duckdb and explain why; "
+                f"it exited {refused.returncode}"
+            )
+        print("  duckdb refused with the frozen message, as declared")
+
+
+def _write_fixtures(directory: Path) -> dict[str, str]:
+    """One small dataset per format the binary is checked against."""
+    import sqlite3
+
+    import pandas as pd
+
+    old = pd.DataFrame({"id": [1, 2, 3], "city": ["a", "b", "c"], "n": [1.0, 2.0, 3.0]})
+    new = pd.DataFrame(
+        {"id": [1, 2, 3, 4], "city": ["a", "b", "c", "d"], "n": [1.0, 2.0, 3.0, 9.0]}
+    )
+
+    paths = {}
+    for label, frame in (("old", old), ("new", new)):
+        csv = directory / f"{label}.csv"
+        parquet = directory / f"{label}.parquet"
+        frame.to_csv(csv, index=False)
+        frame.to_parquet(parquet, index=False)
+        paths[f"{label}.csv"] = str(csv)
+        paths[f"{label}.parquet"] = str(parquet)
+
+    database = directory / "check.db"
+    with sqlite3.connect(database) as connection:
+        old.to_sql("v1", connection, index=False)
+        new.to_sql("v2", connection, index=False)
+    paths["sqlite_old"] = f"sqlite:///{database}#v1"
+    paths["sqlite_new"] = f"sqlite:///{database}#v2"
+
+    workbook = directory / "check.xlsx"
+    with pd.ExcelWriter(workbook) as writer:
+        old.to_excel(writer, sheet_name="Q1", index=False)
+        new.to_excel(writer, sheet_name="Q2", index=False)
+    paths["xlsx_q1"] = f"{workbook}#Q1"
+    paths["xlsx_q2"] = f"{workbook}#Q2"
+    return paths
 
 
 def _importable(name: str) -> bool:
@@ -155,6 +279,10 @@ def build(target: str, output_dir: Path, clean: bool = True) -> Path:
     ]
     if clean:
         command.append("--clean")
+    # Excluded by name, so that a machine which happens to have them installed still builds
+    # the binary that ships rather than a larger private one.
+    for module in EXCLUDED_MODULES:
+        command += ["--exclude-module", module]
     for source, destination in data_files():
         command += ["--add-data", f"{source}{os.pathsep}{destination}"]
     command.append(str(entry))

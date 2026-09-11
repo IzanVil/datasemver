@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 from datasemver.core.models import ColumnStats, DatasetSchema
 from datasemver.formats.utils import MAX_CATEGORY_UNIQUENESS, MAX_TRACKED_CATEGORIES
+from datasemver.utils.extras import install_hint as _install_hint
 from datasemver.utils.statistics import OTHER_CATEGORY, QUANTILE_LEVELS
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -47,7 +48,11 @@ DUCKDB_EXTENSIONS = {".parquet", ".pq", ".csv", ".csv.gz", ".tsv", ".tsv.gz"}
 
 MEMORY_LIMIT_ENV_VAR = "DATASEMVER_DUCKDB_MEMORY_LIMIT"
 
-INSTALL_HINT = 'the duckdb engine needs the duckdb extra: pip install "datasemver[duckdb]"'
+
+def install_hint() -> str:
+    """Read at call time: the advice differs inside the standalone executable."""
+    return _install_hint("duckdb", "the duckdb engine")
+
 
 # DuckDB reports a physical type; these are the labels the rest of the library compares on,
 # and they match what `canonical_dtype` produces for the same data read into pandas.
@@ -123,7 +128,7 @@ def _connect() -> duckdb.DuckDBPyConnection:
     try:
         import duckdb
     except ImportError as error:
-        raise DuckDBError(INSTALL_HINT) from error
+        raise DuckDBError(install_hint()) from error
 
     connection = duckdb.connect()
     # DuckDB draws a progress bar on a long query, which is a fine thing for a shell and a

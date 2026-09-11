@@ -174,10 +174,10 @@ def test_square_brackets_in_an_error_reach_the_terminal(old_csv, new_csv, monkey
     any bracket in any message was being eaten the same way.
     """
     import datasemver.cli.main as main
-    from datasemver.formats.sql import INSTALL_HINT
+    from datasemver.formats.sql import install_hint
 
     def refuse(*args, **kwargs):
-        raise ValueError(INSTALL_HINT)
+        raise ValueError(install_hint())
 
     monkeypatch.setattr(main, "analyze", refuse)
 

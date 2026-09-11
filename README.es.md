@@ -152,12 +152,18 @@ xattr -d com.apple.quarantine ./datasemver
 O ábrelo una vez desde el Finder con clic derecho → Abrir, que ofrece un botón que el aviso
 normal no da.
 
-El ejecutable ronda los 100 MB, en su mayoría pyarrow, pandas y numpy, que son bibliotecas
-grandes y son lo que permite leer Parquet. Incluye soporte de bases de datos, así que las
-fuentes `sqlite://`, `postgresql://` y `mysql://` funcionan sin instalar nada más. Lo que no
-lleva es el resto de los extras: los libros de Excel y los motores `duckdb` no están dentro, y
-el [panel web](#panel-web) tampoco — todo eso necesita una instalación de Python, y el mensaje
-que imprime el binario para ellos menciona un `pip install` que solo aplica allí. En
+El ejecutable ronda los 110 MB, en su mayoría pyarrow, pandas y numpy, que son bibliotecas
+grandes y son lo que permite leer Parquet. Lleva dentro los extras `sql` y `excel`, así que las
+fuentes `sqlite://`, `postgresql://` y `mysql://` y los libros `.xlsx` funcionan sin instalar
+nada más: quien tiene un único fichero no puede añadir un extra después, y por eso esos dos van
+incluidos.
+
+Los motores `duckdb` no: cuestan 22 MB de descarga para dar respuestas que el motor por defecto
+ya da. El [panel web](#panel-web) tampoco, porque es un servidor y no un comando. Si los pides,
+el binario lo dice y te remite a una instalación de Python, en lugar de nombrar un
+`pip install` que no aplica al fichero que tienes. Esa lista vive en
+`scripts/build_executables.py` y todo lo que queda fuera se excluye por nombre, así que el
+binario es el mismo se compile donde se compile. En
 Linux requiere glibc 2.28 o posterior — es el suelo que fijan las propias ruedas de pyarrow,
 así que cubre RHEL 8, Debian 10 y Ubuntu 18.10 en adelante.
 
@@ -742,7 +748,7 @@ datasets:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0          # la versión base de cada dataset vive en el historial
-      - uses: IzanVil/datasemver@v0.8.1
+      - uses: IzanVil/datasemver@v0.8.2
         with:
           fail-on: major          # opcional: rechaza el merge ante un cambio que rompe
 ```
@@ -846,7 +852,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: IzanVil/datasemver@v0.8.1
+      - uses: IzanVil/datasemver@v0.8.2
         with:
           rules: .datasemver/rules.yaml
           fail-on: major

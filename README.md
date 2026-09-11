@@ -327,13 +327,13 @@ datasemver diff old.parquet new.parquet --schema-only
 ```
 
 Formats are detected by extension: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`, `.parquet`,
-`.pq`, `.xlsx` and `.xlsm`. The delimiter of a `.csv` is detected from its first lines — comma, semicolon,
+`.pq`, `.feather`, `.arrow`, `.xlsx` and `.xlsm`. The delimiter of a `.csv` is detected from its first lines — comma, semicolon,
 tab and pipe are recognised, and a character that only appears inside quoted values does
 not win — while `.tsv` always uses the tab. Set `DATASEMVER_CSV_DELIMITER` to skip the
 detection and force a single character, the tab included and written as `\t`; it overrides
 the tab of a `.tsv` as well, and an empty value means unset. Nested JSON objects and
-Parquet structs are flattened with a `.` separator, so `{"user": {"name": "..."}}` is
-profiled as the column `user.name`. The command exits with `2` on a missing file, an
+the structs of the Arrow-backed formats are flattened with a `.` separator, so
+`{"user": {"name": "..."}}` is profiled as the column `user.name`. The command exits with `2` on a missing file, an
 unsupported extension, an unreadable dataset or an invalid rules file.
 
 Three exit codes, so a pipeline can tell them apart: `0` ran and had nothing to refuse, `1`

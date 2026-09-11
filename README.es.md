@@ -331,13 +331,13 @@ datasemver diff old.parquet new.parquet --schema-only
 ```
 
 Los formatos se detectan por extensión: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`,
-`.parquet`, `.pq`, `.xlsx` y `.xlsm`. El delimitador de un `.csv` se detecta a partir de sus primeras líneas
+`.parquet`, `.pq`, `.feather`, `.arrow`, `.xlsx` y `.xlsm`. El delimitador de un `.csv` se detecta a partir de sus primeras líneas
 —se reconocen coma, punto y coma, tabulador y barra vertical, y un carácter que solo
 aparece dentro de valores entrecomillados no gana—, mientras que `.tsv` siempre usa el
 tabulador. Define `DATASEMVER_CSV_DELIMITER` para saltarte la detección y forzar un único
 carácter, incluido el tabulador, escrito como `\t`; también tiene prioridad sobre el
 tabulador de un `.tsv`, y un valor vacío equivale a no definirlo. Los objetos JSON anidados
-y los structs de Parquet se aplanan con un separador `.`, de modo que
+y los structs de los formatos Arrow se aplanan con un separador `.`, de modo que
 `{"user": {"name": "..."}}` se perfila como la columna `user.name`. El comando sale con `2`
 si falta el fichero, la extensión no está soportada, el dataset no se puede leer o el
 fichero de reglas es inválido.

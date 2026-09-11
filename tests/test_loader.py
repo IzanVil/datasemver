@@ -11,6 +11,7 @@ from datasemver.formats.loader import (
     csv_delimiter,
     dataset_suffix,
     detect_delimiter,
+    load_feather,
     load_frame,
     load_parquet,
     load_schema,
@@ -154,6 +155,94 @@ def test_pq_extension_is_recognised(tmp_path, old_parquet):
     path.write_bytes(old_parquet.read_bytes())
 
     assert len(load_frame(path)) == 8
+
+
+def test_feather_is_loaded_through_the_shared_entry_point(old_csv, tmp_path):
+    path = tmp_path / "customers.feather"
+    load_frame(old_csv).to_feather(path)
+
+    frame = load_frame(path)
+
+    assert list(frame.columns) == [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "age",
+        "score",
+        "legacy_code",
+    ]
+    assert len(frame) == 8
+
+
+def test_arrow_extension_is_recognised(old_csv, tmp_path):
+    """The same bytes under the name Arrow's own tooling writes them with."""
+    path = tmp_path / "customers.arrow"
+    load_frame(old_csv).to_feather(path)
+
+    assert len(load_frame(path)) == 8
+
+
+def test_feather_schema_is_authoritative(tmp_path):
+    """Arrow states the type, so inferring it again would lose the leading zero."""
+    path = tmp_path / "codes.feather"
+    pd.DataFrame({"zip_code": pd.Series(["08001", "28004"], dtype="string")}).to_feather(path)
+
+    frame = load_frame(path)
+
+    assert canonical_dtype(frame["zip_code"]) == "string"
+    assert frame["zip_code"].tolist() == ["08001", "28004"]
+
+
+def test_feather_and_the_csv_of_the_same_data_compare_as_unchanged(old_csv, tmp_path):
+    """Changing the container is not changing the dataset, and a bump would say it was."""
+    path = tmp_path / "old.feather"
+    load_frame(old_csv).to_feather(path)
+
+    diff = diff_schemas(load_schema(old_csv), load_schema(path))
+
+    assert diff.changes == []
+
+
+def test_feather_struct_columns_are_flattened(tmp_path):
+    path = tmp_path / "nested.feather"
+    pd.DataFrame(
+        {
+            "id": [1, 2],
+            "user": [{"name": "ana", "city": "Madrid"}, {"name": "bruno", "city": "Sevilla"}],
+        }
+    ).to_feather(path)
+
+    loaded = load_frame(path)
+
+    assert sorted(loaded.columns) == ["id", "user.city", "user.name"]
+    assert loaded["user.name"].tolist() == ["ana", "bruno"]
+
+
+def test_corrupt_feather_file(tmp_path):
+    path = tmp_path / "broken.feather"
+    path.write_bytes(b"this is not a feather file")
+
+    with pytest.raises(DatasetReadError):
+        load_frame(path)
+
+
+def test_missing_feather_file(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_feather(tmp_path / "absent.feather")
+
+
+def test_feather_without_pyarrow_explains_itself(tmp_path, monkeypatch):
+    path = tmp_path / "data.feather"
+    pd.DataFrame({"id": [1]}).to_feather(path)
+
+    def raise_import_error(*args, **kwargs):
+        raise ImportError("no pyarrow")
+
+    monkeypatch.setattr(pd, "read_feather", raise_import_error)
+
+    with pytest.raises(DatasetReadError, match="pyarrow"):
+        load_feather(path)
 
 
 def test_corrupt_parquet_file(tmp_path):

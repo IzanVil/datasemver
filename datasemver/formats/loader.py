@@ -6,6 +6,7 @@ import gzip
 import json
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pandas as pd
@@ -27,7 +28,12 @@ ESCAPED_DELIMITERS = {"\\t": "\t"}
 SNIFF_LINES = 20
 JSON_EXTENSIONS = {".json", ".jsonl", ".ndjson"}
 PARQUET_EXTENSIONS = {".parquet", ".pq"}
-SUPPORTED_EXTENSIONS = CSV_EXTENSIONS | JSON_EXTENSIONS | PARQUET_EXTENSIONS | EXCEL_EXTENSIONS
+# Feather is the Arrow IPC file format, and both spellings are in use: pandas writes
+# `.feather`, Arrow's own tooling tends to write `.arrow` for the same bytes.
+FEATHER_EXTENSIONS = {".feather", ".arrow"}
+SUPPORTED_EXTENSIONS = (
+    CSV_EXTENSIONS | JSON_EXTENSIONS | PARQUET_EXTENSIONS | FEATHER_EXTENSIONS | EXCEL_EXTENSIONS
+)
 NESTED_SEPARATOR = "."
 
 # What a table or sheet name may keep when it becomes a file name: letters, digits,
@@ -78,6 +84,9 @@ def load_frame(path: str | Path) -> pd.DataFrame:
     if suffix in PARQUET_EXTENSIONS:
         return load_parquet(path)
 
+    if suffix in FEATHER_EXTENSIONS:
+        return load_feather(path)
+
     if suffix in CSV_EXTENSIONS:
         frame = _read_csv(path)
     elif suffix in JSON_EXTENSIONS:
@@ -95,15 +104,31 @@ def load_parquet(path: str | Path) -> pd.DataFrame:
     Unlike the text formats, Parquet carries its own types, so no inference is applied:
     a column stored as a string stays a string even when every value looks numeric.
     """
-    path = _existing_path(path)
+    return _read_arrow(_existing_path(path), pd.read_parquet, "Parquet")
+
+
+def load_feather(path: str | Path) -> pd.DataFrame:
+    """Read a Feather file into a flat dataframe, trusting its declared schema.
+
+    Trusted for the same reason as Parquet, and it is literally the same reason: both are
+    Arrow, so the file states the type of every column. Inferring here would be second-
+    guessing a schema that was written down, where the CSV path infers because there is
+    none to read -- a column of postcodes stays strings instead of becoming integers with
+    the leading zero gone.
+    """
+    return _read_arrow(_existing_path(path), pd.read_feather, "Feather")
+
+
+def _read_arrow(path: Path, read: Callable[[Path], pd.DataFrame], label: str) -> pd.DataFrame:
+    """Read one of the Arrow-backed formats, failing the same way for both."""
     try:
-        frame = pd.read_parquet(path)
+        frame = read(path)
     except ImportError as error:
         raise DatasetReadError(
-            "reading Parquet files requires the 'pyarrow' package: pip install pyarrow"
+            f"reading {label} files requires the 'pyarrow' package: pip install pyarrow"
         ) from error
     except Exception as error:
-        raise DatasetReadError(f"could not read Parquet file {path}: {error}") from error
+        raise DatasetReadError(f"could not read {label} file {path}: {error}") from error
     return _flatten_structs(frame)
 
 

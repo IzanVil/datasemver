@@ -48,12 +48,22 @@ class ProfileError(ValueError):
     """Raised when a file cannot be read as a profile."""
 
 
+# What wrote a profile that does not say. Every profile written before the field existed came
+# from the dataframe path, so reading one as `pandas` is a fact rather than an assumption.
+DEFAULT_ENGINE = "pandas"
+
+
 class Profile(BaseModel):
     """A stored dataset profile, with what is needed to read it back safely."""
 
     profile_version: int = PROFILE_VERSION
     created_with: str = Field(default_factory=_library_version)
     created_at: date = Field(default_factory=date.today)
+    # Which engine computed it, recorded for the reason the version is: a profile outlives the
+    # dataset it describes, and "what was this computed with" is the question someone reading
+    # it months later has. The engines agree today; a profile that says which one it was is
+    # what makes that checkable rather than assumed.
+    engine: str = DEFAULT_ENGINE
     dataset: DatasetSchema
 
 
@@ -62,12 +72,12 @@ def is_profile(source: str | Path) -> bool:
     return str(source).lower().endswith(PROFILE_SUFFIX)
 
 
-def write_profile(schema: DatasetSchema, path: str | Path) -> Path:
+def write_profile(schema: DatasetSchema, path: str | Path, engine: str | None = None) -> Path:
     """Write a profile, creating the directory it goes in."""
     destination = Path(path)
     if destination.parent != Path():
         destination.parent.mkdir(parents=True, exist_ok=True)
-    profile = Profile(dataset=schema)
+    profile = Profile(dataset=schema, engine=engine or DEFAULT_ENGINE)
     destination.write_text(
         json.dumps(profile.model_dump(mode="json"), indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",

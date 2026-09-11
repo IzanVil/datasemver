@@ -38,6 +38,29 @@ This project follows [Semantic Versioning](https://semver.org).
   in under MIT's own permission to sublicense.
 
 ### Minor
+- A dataset can be profiled without being loaded. Every statistic a profile holds is an
+  aggregate, and an aggregate does not need the dataset in memory -- only the thing computing
+  it does -- so `--engine duckdb` computes them over the file through DuckDB instead of over a
+  dataframe, behind the new `duckdb` extra. On 16M rows and seven columns that is 21.4 s and
+  3190 MB down to 16.1 s and 1736 MB for a Parquet file, and 49.9 s and 3311 MB down to 20.9 s
+  and 2856 MB for the 1.21 GB CSV of the same data. The numbers it returns are the numbers the
+  dataframe path returns, down to float rounding: the same types, null ratios, cardinalities,
+  categories and quantile grids, asserted column by column against each other in the suite.
+  `--engine duckdb-sketch` goes further, at 3.1 s and 1246 MB, by taking the quantile grid from
+  a t-digest rather than computing it -- everything else stays exact, because a sketched
+  cardinality answers 616 for 500 distinct values and would report a change nobody made, while
+  a sketched grid is out by 0.23% of a column's range at worst and its two ends are not
+  estimated at all. On the measured pair it moved one KS statistic from 0.118 to 0.119 and
+  changed nothing else: same changes, same severities, same bump.
+
+  Neither is chosen for anyone. A run that switched engine because a file looked large would
+  answer a question nobody asked, so `--engine` and `DATASEMVER_ENGINE` are the only ways in,
+  and what these engines cannot read -- a nested column, a workbook, a database table, `--key`,
+  which needs the rows they exist not to load -- is refused by name rather than quietly handed
+  back to the other path. `DATASEMVER_DUCKDB_MEMORY_LIMIT` caps what DuckDB may hold, and what
+  does not fit spills to disk. A stored profile now records which engine wrote it, the way it
+  already records which version did; a profile that says nothing came from the dataframe path,
+  which is what every profile written until now did.
 - The dashboard reads compressed datasets, and the upload limit now counts the size that
   decides what reading one costs. It counted the bytes that arrived, which for a `.csv.gz` is
   the wrong number by three orders of magnitude: measured through the endpoint, a 0.25 MB

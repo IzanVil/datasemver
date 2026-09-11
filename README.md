@@ -44,6 +44,7 @@ and it needs no schema registry, no database and no service running.
 - [Demo](#demo)
 - [Semantic versioning for data](#semantic-versioning-for-data)
 - [Command reference](#command-reference)
+- [Engines](#engines)
 - [Workbooks](#workbooks)
 - [Databases](#databases)
 - [DVC](#dvc)
@@ -96,6 +97,7 @@ pip install -e ".[dev]"
 | `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Reading a [database table](#databases) |
 | `exe` | `pyinstaller` | Building a [standalone executable](#without-python) |
 | `excel` | `openpyxl` | Reading `.xlsx` and `.xlsm` workbooks |
+| `duckdb` | `duckdb` | Profiling a dataset [without loading it](#engines) |
 | `web` | `fastapi`, `uvicorn`, `python-multipart` | The [web dashboard](#web-dashboard) |
 
 ```bash
@@ -308,6 +310,7 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
 | `--key COLUMN` | `-k` | Column identifying a row; repeat for a composite key |
 | `--schema-only` | | Profile Parquet from its footer instead of its rows |
+| `--engine NAME` | | `pandas`, `duckdb` or `duckdb-sketch`; see [engines](#engines) |
 | `--version` | | Print the installed version and exit |
 
 Examples:
@@ -323,6 +326,7 @@ datasemver diff old.csv new.csv --fail-on major   # exit 1 on a breaking change
 datasemver profile customers_v3.parquet           # writes customers_v3.profile.json
 datasemver diff customers_v3.profile.json customers_v4.parquet
 datasemver diff old.csv new.csv --key id          # which rows changed, not just the shape
+datasemver diff old.csv new.csv --engine duckdb   # profile without loading either file
 datasemver diff old.parquet new.parquet --schema-only
 ```
 
@@ -469,6 +473,49 @@ report.
 The full catalogue of rules, metrics and thresholds is in [docs/rules.md](https://github.com/IzanVil/datasemver/blob/main/docs/rules.md).
 Two ready-made profiles ship in [`examples/`](https://github.com/IzanVil/datasemver/tree/main/examples): `strict_rules.yaml` and
 `lenient_rules.yaml`.
+
+## Engines
+
+Profiling reads every row and keeps a summary. Which is to say every statistic in a profile is
+an aggregate, and an aggregate does not need the dataset in memory — only the thing computing
+it does. Loading a CSV into a dataframe costs roughly ten times the file on disk, and that
+multiple, not the tool, is what decides which datasets can be versioned on a given machine.
+
+```bash
+pip install "datasemver[duckdb]"
+datasemver diff snapshots/2026-08.csv snapshots/2026-09.csv --engine duckdb
+```
+
+Measured on 16 million rows, seven columns, peak RSS of the whole process:
+
+| Engine | Parquet, 380 MB | CSV, 1.21 GB | Numbers |
+| --- | --- | --- | --- |
+| `pandas` _(default)_ | 21.4 s · 3190 MB | 49.9 s · 3311 MB | the reference |
+| `duckdb` | 16.1 s · 1736 MB | 20.9 s · 2856 MB | identical, to float rounding |
+| `duckdb-sketch` | 3.1 s · 1246 MB | 7.9 s · 1952 MB | quantile grid estimated |
+
+`duckdb` answers exactly what the default answers: the same types, null ratios, cardinalities,
+categories and quantile grids, down to the last float. It is a question about what a run costs
+and never about what a bump means.
+
+`duckdb-sketch` takes the quantile grid from a t-digest instead of computing it. Everything
+else stays exact — cardinality especially, since a sketch of that answers 616 for 500 distinct
+values and the tool would report a change nobody made. The grid itself is out by at most 0.23%
+of a column's range on those 16M rows, and the two ends are not estimated at all, because `min`
+and `max` are exact aggregates already being computed and a sketch is at its worst exactly
+there. On the pair above, the sketch moved one KS statistic from 0.118 to 0.119 and changed
+nothing else: same changes, same severities, same bump.
+
+Neither engine is chosen for you. A run that switched engine because a file looked large would
+answer a question nobody asked, and these two read less than the library does — `.csv`,
+`.csv.gz`, `.tsv`, `.tsv.gz`, `.parquet` and `.pq`, with a nested column or a workbook or a
+database table refused by name rather than quietly handed back. `--key` is refused too: matching
+rows needs the rows, which is the one thing these engines never load.
+
+`DATASEMVER_ENGINE` sets the default for a shell or a CI job, and `--engine` overrides it. Every
+caller that profiles through the library obeys it, the DVC integration included; the dashboard
+does not, because it reads uploads capped at 25 MB. `DATASEMVER_DUCKDB_MEMORY_LIMIT` caps what
+DuckDB may hold — `1GB`, `500MB` — and what does not fit spills to disk instead of failing.
 
 ## Workbooks
 

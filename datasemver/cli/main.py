@@ -17,7 +17,12 @@ from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.changelog import render_entry, severity_label, write_changelog
 from datasemver.core.models import AnalysisReport, ColumnStatus, Severity
 from datasemver.core.profile import ProfileError, write_profile
-from datasemver.formats.loader import default_profile_path, load_schema
+from datasemver.formats.loader import (
+    Engine,
+    default_profile_path,
+    load_schema,
+    resolve_engine,
+)
 from datasemver.integrations import dvc as dvc_integration
 from datasemver.rules.engine import EVALUATION_ORDER, RuleError, load_rules
 from datasemver.utils.version import InvalidVersionError
@@ -51,6 +56,11 @@ _PROFILE_OUTPUT_HELP = "Where to write it; defaults to <name>.profile.json besid
 _KEY_HELP = (
     "Column identifying a row, repeated for a composite key. Reports rows added, "
     "removed and changed, which no comparison of profiles can see."
+)
+_ENGINE_HELP = (
+    "How to profile: 'pandas' loads the dataset; 'duckdb' aggregates over it instead, for "
+    "about half the memory and the same numbers; 'duckdb-sketch' estimates the quantile grid "
+    "for a third of that again. Also set by DATASEMVER_ENGINE."
 )
 _SCHEMA_ONLY_HELP = (
     "Profile Parquet from its footer instead of its rows: fast, but no distribution "
@@ -125,9 +135,14 @@ def diff(
     ] = None,
     schema_only: Annotated[bool, typer.Option("--schema-only", help=_SCHEMA_ONLY_HELP)] = False,
     key: Annotated[list[str] | None, typer.Option("--key", "-k", help=_KEY_HELP)] = None,
+    engine: Annotated[Engine | None, typer.Option("--engine", help=_ENGINE_HELP)] = None,
 ) -> None:
     """Compare two dataset versions and suggest a semantic version bump."""
     try:
+        # Resolved here rather than left to the library, so that what is reported below is the
+        # engine that ran and not the flag that was typed: `DATASEMVER_ENGINE` chooses one just
+        # as much as `--engine` does.
+        chosen = resolve_engine(engine.value if engine else None)
         report = analyze(
             old,
             new,
@@ -135,6 +150,7 @@ def diff(
             current_version=current_version,
             schema_only=schema_only,
             key=list(key) if key else None,
+            engine=chosen.value,
         )
     except (FileNotFoundError, ValueError, RuleError, InvalidVersionError) as error:
         error_console.print(f"[bold red]error:[/] {escape(str(error))}")
@@ -146,7 +162,7 @@ def diff(
     if as_json:
         console.print_json(json.dumps(report.model_dump(mode="json")))
     else:
-        _render_report(report, output)
+        _render_report(report, output, chosen)
 
     _apply_gate(report.bump, fail_on)
 
@@ -166,16 +182,23 @@ def _apply_gate(bump: Severity | None, fail_on: Severity | None) -> None:
     raise typer.Exit(code=GATE_EXIT_CODE)
 
 
-def _render_report(report: AnalysisReport, output: Path | None) -> None:
+def _render_report(
+    report: AnalysisReport, output: Path | None, engine: Engine = Engine.PANDAS
+) -> None:
     bump = severity_label(report.bump)
     style = SEVERITY_COLORS.get(report.bump, "bold blue") if report.bump else "bold blue"
 
+    # Named only when it is not the default: provenance for `duckdb`, which agrees to the last
+    # float, and a caveat for the sketch, whose grid is what a distribution shift was measured
+    # from. The same reason a stored profile records which engine wrote it.
+    sketched = " (quantiles estimated)" if engine is Engine.DUCKDB_SKETCH else ""
+    used = f"\n\nengine: {engine.value}{sketched}" if engine.is_duckdb else ""
     console.print(
         Panel(
             f"[{style}]Suggested bump: {bump}[/]\n"
             f"{report.current_version} -> {report.next_version}\n\n"
             f"old: {report.old_source} ({report.diff.old.row_count} rows)\n"
-            f"new: {report.new_source} ({report.diff.new.row_count} rows)",
+            f"new: {report.new_source} ({report.diff.new.row_count} rows){used}",
             title="DataSemver",
             expand=False,
         )
@@ -370,6 +393,7 @@ def profile(
         Path | None,
         typer.Option("--output", "-o", help=_PROFILE_OUTPUT_HELP),
     ] = None,
+    engine: Annotated[Engine | None, typer.Option("--engine", help=_ENGINE_HELP)] = None,
 ) -> None:
     """Write a dataset's profile to a file that can be compared against later.
 
@@ -378,16 +402,21 @@ def profile(
     version: `datasemver diff customers.profile.json customers_v4.parquet`.
     """
     try:
-        schema = load_schema(source)
+        chosen = resolve_engine(engine.value if engine else None)
+        schema = load_schema(source, engine=chosen.value)
     except (FileNotFoundError, ValueError, ProfileError) as error:
         error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
 
-    destination = write_profile(schema, output or default_profile_path(source))
+    # The engine that ran is what the profile records, whether it was named on the command
+    # line or in the environment. A profile saying it came from somewhere it did not is worse
+    # than one saying nothing, because the next reader has no reason to doubt it.
+    destination = write_profile(schema, output or default_profile_path(source), engine=chosen.value)
     size = destination.stat().st_size
+    used = f", {chosen.value}" if chosen.is_duckdb else ""
     console.print(
         f"[bold green]profile written[/] {destination} "
-        f"[dim]({len(schema.columns)} columns, {schema.row_count} rows, {size} bytes)[/]"
+        f"[dim]({len(schema.columns)} columns, {schema.row_count} rows, {size} bytes{used})[/]"
     )
 
 

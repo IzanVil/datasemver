@@ -8,7 +8,13 @@ from pathlib import Path
 from datasemver.core.differ import DiffConfig, diff_schemas
 from datasemver.core.models import AnalysisReport, Change, DatasetSchema
 from datasemver.core.rows import compare_rows
-from datasemver.formats.loader import describe_source, load_frame, load_schema, schema_from_frame
+from datasemver.formats.loader import (
+    describe_source,
+    load_frame,
+    load_schema,
+    resolve_engine,
+    schema_from_frame,
+)
 from datasemver.rules.engine import RuleSet, highest_severity, load_rules
 from datasemver.utils.version import bump_version
 
@@ -23,6 +29,7 @@ def analyze(
     diff_config: DiffConfig | None = None,
     schema_only: bool = False,
     key: list[str] | None = None,
+    engine: str | None = None,
 ) -> AnalysisReport:
     """Compare two dataset files and return the suggested version bump.
 
@@ -30,8 +37,17 @@ def analyze(
     seek rather than a decode. It answers the schema-level questions only: with no data read
     there is no distribution to compare, so a shift in one is not reported as absent, it is
     simply not looked for.
+
+    `engine` chooses how the profiles are computed. The default loads each dataset into a
+    dataframe; `duckdb` aggregates over the files instead, which is what lets a dataset larger
+    than memory be compared at all.
     """
     if key:
+        if resolve_engine(engine).is_duckdb:
+            raise ValueError(
+                "a key compares rows, which needs both datasets in memory, and the duckdb "
+                "engine never loads them; drop --key or use the default engine"
+            )
         # Both frames are needed at once to match rows, so they are loaded once and the
         # profiles taken from them rather than read a second time.
         old_frame, new_frame = load_frame(old_path), load_frame(new_path)
@@ -39,8 +55,8 @@ def analyze(
         new_schema = schema_from_frame(new_frame, source=describe_source(new_path))
         extra = compare_rows(old_frame, new_frame, key, old_schema.source, new_schema.source)
     else:
-        old_schema = load_schema(old_path, schema_only=schema_only)
-        new_schema = load_schema(new_path, schema_only=schema_only)
+        old_schema = load_schema(old_path, schema_only=schema_only, engine=engine)
+        new_schema = load_schema(new_path, schema_only=schema_only, engine=engine)
         extra = []
 
     return analyze_schemas(

@@ -8,6 +8,22 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Patch
+- A column of arrays is profiled instead of crashing the command. A JSON list field, or a
+  Parquet or Feather `LIST` column, arrived as a value `hash` refuses, and every statistic a
+  profile holds needs a hashable one -- so `nunique` raised `TypeError: unhashable type: 'list'`
+  and the traceback reached the terminal, on a file nobody would call malformed. It exited `1`
+  as it did so, which is the code a refused bump uses, so a pipeline running with `--fail-on`
+  could not tell an unreadable dataset from a rejected one. Such a column is now profiled on the
+  text of its values: `["a", "b"]` and `["c"]` are two distinct values, the column reads as a
+  string, and the cardinality and the balance a comparison is about to compare are there.
+  Refusing the dataset was the other option, and a column of tags is not a broken dataset.
+- The readmes say what the standalone executable does not carry. They listed the database
+  support it has and the dashboard it does not, which left the impression that everything else
+  was in: workbooks are not, and neither are the `duckdb` engines, since the release workflow
+  builds from `.[sql]`. The message the binary prints for them names a `pip install`, which is
+  advice for a Python installation and not for the file the reader is holding.
+
 ## [0.8.1] - 2026-09-11
 
 ### Patch

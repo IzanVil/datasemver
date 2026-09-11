@@ -154,8 +154,10 @@ normal no da.
 
 El ejecutable ronda los 100 MB, en su mayoría pyarrow, pandas y numpy, que son bibliotecas
 grandes y son lo que permite leer Parquet. Incluye soporte de bases de datos, así que las
-fuentes `sqlite://`, `postgresql://` y `mysql://` funcionan sin instalar nada más; el
-[panel web](#panel-web) no forma parte de él y sigue necesitando una instalación de Python. En
+fuentes `sqlite://`, `postgresql://` y `mysql://` funcionan sin instalar nada más. Lo que no
+lleva es el resto de los extras: los libros de Excel y los motores `duckdb` no están dentro, y
+el [panel web](#panel-web) tampoco — todo eso necesita una instalación de Python, y el mensaje
+que imprime el binario para ellos menciona un `pip install` que solo aplica allí. En
 Linux requiere glibc 2.28 o posterior — es el suelo que fijan las propias ruedas de pyarrow,
 así que cubre RHEL 8, Debian 10 y Ubuntu 18.10 en adelante.
 

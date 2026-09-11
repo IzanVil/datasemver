@@ -38,6 +38,21 @@ This project follows [Semantic Versioning](https://semver.org).
   in under MIT's own permission to sublicense.
 
 ### Minor
+- The pull request analysis is an action, so adopting it is five lines of YAML rather than
+  two files to copy and keep up to date. `uses: IzanVil/datasemver@v0.8.0` sets up Python,
+  installs the library, resolves the base ref, analyses the datasets the branch changed,
+  posts the report as a comment and rewrites that comment on every push -- the same sequence
+  the workflow here has been running, now behind `action.yml` with inputs for the rules file,
+  the threshold, the engine, the paths and the token. It installs the library from its own
+  checkout rather than from the index, so the tag picks the pair that was tested together
+  rather than a script and a library that happen to be nearby.
+  `fail-on` still refuses after the report is posted and never before it, which is the
+  ordering the gate has always had and is now a test rather than a comment: a refusal that
+  suppressed its own explanation blocks a merge without saying which dataset or why. This
+  repository's own workflow runs it from the working tree, so every pull request here is a
+  rehearsal of what it does in someone else's repository, and the parts no YAML parser checks
+  -- the script path, the pinned action SHAs, the step order, the inputs the workflow passes
+  -- are asserted in the suite.
 - A dataset can be profiled without being loaded. Every statistic a profile holds is an
   aggregate, and an aggregate does not need the dataset in memory -- only the thing computing
   it does -- so `--engine duckdb` computes them over the file through DuckDB instead of over a

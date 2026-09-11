@@ -733,10 +733,23 @@ entre versiones, así que importa desde el paquete y no desde dentro de él.
 
 ## GitHub Action
 
-[`.github/workflows/datasemver.yml`](https://github.com/IzanVil/datasemver/blob/main/.github/workflows/datasemver.yml) ejecuta DataSemver
-en cada pull request y publica el resultado como comentario. Compara cada dataset que toca
-la rama contra su versión en la rama base, y reescribe el mismo comentario en cada push en
-lugar de ir apilando comentarios nuevos.
+Cinco líneas en un workflow, y cada pull request recibe el salto de versión que merecen sus
+datasets:
+
+```yaml
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0          # la versión base de cada dataset vive en el historial
+      - uses: IzanVil/datasemver@v0.8.0
+        with:
+          fail-on: major          # opcional: rechaza el merge ante un cambio que rompe
+```
+
+Compara cada dataset que toca la rama contra su versión en la rama base, publica el resultado
+como comentario y reescribe el mismo comentario en cada push en lugar de ir apilando
+comentarios nuevos. La action lleva consigo la librería que ejecuta, así que el tag elige las
+dos: va incluida desde la 0.8.0, y el workflow de este repositorio la ejecuta desde el árbol de
+trabajo, lo que convierte cada pull request de aquí en un ensayo de lo que hace fuera.
 
 ```
 ## DataSemver report
@@ -813,9 +826,6 @@ que nunca se escribió es lo que la herramienta sí puede hacer.
 
 ### Usarlo en otro repositorio
 
-Copia ambos ficheros en el repositorio destino e instala DataSemver desde PyPI en lugar de
-usar la copia local:
-
 ```yaml
 name: DataSemver
 
@@ -831,45 +841,47 @@ jobs:
   analyse:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: IzanVil/datasemver@v0.8.0
         with:
-          python-version: "3.11"
-      - run: pip install datasemver
-      - id: datasemver
-        run: |
-          python scripts/run_datasemver_on_pr.py \
-            --base-ref "origin/${{ github.base_ref }}" \
-            --rules .datasemver/rules.yaml \
-            --output "${{ runner.temp }}/report.md"
-      - if: steps.datasemver.outputs.has_report == 'true'
-        uses: actions/github-script@v7
-        env:
-          REPORT_PATH: ${{ runner.temp }}/report.md
-        with:
-          script: |
-            const fs = require('fs');
-            const body = fs.readFileSync(process.env.REPORT_PATH, 'utf8');
-            const { owner, repo } = context.repo;
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: context.issue.number,
-              body,
-            });
+          rules: .datasemver/rules.yaml
+          fail-on: major
 ```
 
+| Entrada | Por defecto | Descripción |
+| --- | --- | --- |
+| `base-ref` | la base del pull request | Ref con la versión anterior de cada dataset |
+| `paths` | los datasets que cambiaron | Analiza estos en su lugar, separados por espacios |
+| `rules` | las reglas incluidas | Fichero de reglas que sustituye a las de serie |
+| `fail-on` | _(sin definir)_ | Falla el job cuando el peor salto llega a `patch`, `minor` o `major` |
+| `engine` | `pandas` | `duckdb` o `duckdb-sketch` perfilan sin cargar; el extra se instala solo |
+| `default-version` | `0.0.0` | Versión que se asume si el dataset no tiene sidecar `.version` |
+| `comment` | `true` | Publica el informe como comentario del pull request |
+| `python-version` | `3.11` | Python con el que corre el análisis |
+| `token` | `github.token` | Token con el que se publica el comentario |
+
+| Salida | Descripción |
+| --- | --- |
+| `bump` | El peor salto de todos los datasets analizados, o `none` |
+| `dataset-count` | Cuántos datasets se analizaron |
+| `has-report` | Si se analizó algo |
+| `report` | Ruta del informe en Markdown, escrito se publique o no |
+
 `fetch-depth: 0` es obligatorio: sin el historial completo, la versión base del dataset no
-está en el clon. El `GITHUB_TOKEN` por defecto basta siempre que el job declare
-`pull-requests: write`.
+está en el clon, y la action lo dice en lugar de dejar que lo explique `git`. El
+`GITHUB_TOKEN` por defecto basta siempre que el job declare `pull-requests: write`.
 
 Dos límites que conviene conocer. Los pull requests abiertos desde un fork reciben un token
-de solo lectura, así que para ellos se omite el paso del comentario; el informe sigue
-estando en el resumen del job. Y un dataset lo bastante grande como para estar guardado en
-Git LFS necesita `lfs: true` en el paso de checkout, o si no la versión base será un
-fichero puntero en lugar de datos.
+de solo lectura, así que para ellos se omite el comentario; el informe sigue estando en el
+resumen del job. Y un dataset lo bastante grande como para estar guardado en Git LFS necesita
+`lfs: true` en el paso de checkout, o si no la versión base será un fichero puntero en lugar
+de datos.
+
+Cuando `fail-on` está definido y se alcanza, el informe se publica **antes** de que falle el
+job. Un rechazo que se tragara su propia explicación bloquearía un merge sin decir qué dataset
+ni por qué.
 
 ## Panel web
 

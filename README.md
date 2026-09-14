@@ -305,7 +305,7 @@ What DataSemver looks at:
 datasemver diff OLD NEW [OPTIONS]
 datasemver profile SOURCE [OPTIONS]
 datasemver dvc [DATASETS...] [OPTIONS]
-datasemver rules [RULES_FILE]
+datasemver rules [RULES_FILE] [OPTIONS]
 python -m datasemver diff OLD NEW     # equivalent, no installation needed
 ```
 
@@ -314,7 +314,7 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--rules PATH` | `-r` | Rules file replacing the bundled defaults |
 | `--current-version TEXT` | `-c` | Version the new dataset is bumped from (default `0.0.0`) |
 | `--output PATH` | `-o` | Write the changelog entry to a file, prepending it if it already exists |
-| `--json` | | Print the full report as JSON instead of the tables |
+| `--json` | | Print machine-readable output: the comparison report instead of the tables (`diff`), the rule set instead of the groups (`rules`) |
 | `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
 | `--key COLUMN` | `-k` | Column identifying a row; repeat for a composite key |
 | `--schema-only` | | Profile Parquet from its footer instead of its rows |
@@ -330,6 +330,7 @@ datasemver diff old.csv new.csv --rules examples/strict_rules.yaml
 datasemver diff old.csv new.csv --output CHANGELOG.md
 datasemver diff old.csv new.csv --json | jq '.classified[] | {severity, rule: .rule}'
 datasemver rules examples/lenient_rules.yaml
+datasemver rules --json | jq '.ignore'   # what the rules file detects but does not count
 datasemver diff old.csv new.csv --fail-on major   # exit 1 on a breaking change
 datasemver profile customers_v3.parquet           # writes customers_v3.profile.json
 datasemver diff customers_v3.profile.json customers_v4.parquet

@@ -72,6 +72,7 @@ prepended to the file you name.
 datasemver diff old.csv new.csv --output CHANGELOG.md
 datasemver diff old.csv new.csv --json | jq -r '.bump'
 datasemver rules examples/lenient_rules.yaml
+datasemver rules --json | jq '.ignore'
 ```
 
 | Option | Short | Description |
@@ -79,7 +80,7 @@ datasemver rules examples/lenient_rules.yaml
 | `--rules PATH` | `-r` | Rule file replacing the bundled defaults |
 | `--current-version TEXT` | `-c` | Version the new dataset is bumped from (default `0.0.0`) |
 | `--output PATH` | `-o` | Write the changelog entry, prepending it if the file exists |
-| `--json` | | Print the full report as JSON instead of the tables |
+| `--json` | | Print output as JSON instead of the tables (`diff`) or the groups (`rules`) |
 
 ## What it looks at
 

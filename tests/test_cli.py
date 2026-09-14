@@ -137,6 +137,27 @@ def test_rules_command_with_a_missing_file_exits_with_two(tmp_path):
     assert run("rules", str(tmp_path / "absent.yaml")).exit_code == 2
 
 
+def test_rules_json_reports_severities_thresholds_and_ignore(tmp_path):
+    rules = tmp_path / "custom.yaml"
+    rules.write_text(
+        "major:\n"
+        "  - row_count_decrease_greater_than: 20\n"
+        "ignore:\n"
+        "  - column_added:\n"
+        "      columns: [zeta, alpha]\n"
+    )
+
+    payload = json.loads(run("rules", str(rules), "--json").stdout)
+
+    assert set(payload) == {"major", "minor", "patch", "ignore"}
+    assert payload["minor"] == []
+    assert payload["patch"] == []
+    assert payload["major"] == [
+        {"name": "row_count_decrease_greater_than", "metric": "decrease_pct", "threshold": 20}
+    ]
+    assert payload["ignore"] == [{"name": "column_added", "columns": ["alpha", "zeta"]}]
+
+
 def test_json_and_output_can_be_combined(old_csv, new_csv, tmp_path):
     output = tmp_path / "CHANGELOG.md"
 

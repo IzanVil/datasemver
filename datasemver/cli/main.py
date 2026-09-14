@@ -24,7 +24,14 @@ from datasemver.formats.loader import (
     resolve_engine,
 )
 from datasemver.integrations import dvc as dvc_integration
-from datasemver.rules.engine import EVALUATION_ORDER, RuleError, load_rules
+from datasemver.rules.engine import (
+    EVALUATION_ORDER,
+    IGNORE_KEY,
+    Rule,
+    RuleError,
+    RuleSet,
+    load_rules,
+)
 from datasemver.utils.version import InvalidVersionError
 
 app = typer.Typer(
@@ -420,11 +427,37 @@ def profile(
     )
 
 
+def _rule_payload(rule: Rule) -> dict[str, object]:
+    """One rule as JSON, optional fields present only when they carry meaning."""
+    payload: dict[str, object] = {"name": rule.name}
+    if rule.threshold is not None:
+        payload["metric"] = rule.metric
+        payload["threshold"] = rule.threshold
+    if rule.columns is not None:
+        # sorted, not list(): set order differs between runs, and JSON output
+        # that changes between runs is a flaky test on the second CI run.
+        payload["columns"] = sorted(rule.columns)
+    return payload
+
+
+def _rules_payload(rule_set: RuleSet) -> dict[str, list[dict[str, object]]]:
+    """The rule set as JSON, every severity key present even when empty."""
+    payload = {
+        severity.value: [_rule_payload(rule) for rule in rule_set.rules.get(severity, [])]
+        for severity in EVALUATION_ORDER
+    }
+    payload[IGNORE_KEY] = [_rule_payload(rule) for rule in rule_set.ignored]
+    return payload
+
+
 @app.command("rules")
 def show_rules(
     path: Annotated[
         Path | None, typer.Argument(help="Rules file to inspect; defaults to the bundled rules.")
     ] = None,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the rule set as JSON instead of the groups.")
+    ] = False,
 ) -> None:
     """Print the rules that will be applied, grouped by severity."""
     try:
@@ -433,14 +466,17 @@ def show_rules(
         error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
 
-    for severity in EVALUATION_ORDER:
-        entries = rule_set.rules.get(severity, [])
-        console.print(f"[{SEVERITY_COLORS[severity]}]{severity.value}[/]")
-        for rule in entries or []:
-            suffix = f" > {rule.threshold:g}" if rule.threshold is not None else ""
-            console.print(f"  - {rule.name}{suffix}")
-        if not entries:
-            console.print("  [dim]- none[/]")
+    if as_json:
+        console.print_json(json.dumps(_rules_payload(rule_set)))
+    else:
+        for severity in EVALUATION_ORDER:
+            entries = rule_set.rules.get(severity, [])
+            console.print(f"[{SEVERITY_COLORS[severity]}]{severity.value}[/]")
+            for rule in entries or []:
+                suffix = f" > {rule.threshold:g}" if rule.threshold is not None else ""
+                console.print(f"  - {rule.name}{suffix}")
+            if not entries:
+                console.print("  [dim]- none[/]")
 
 
 if __name__ == "__main__":

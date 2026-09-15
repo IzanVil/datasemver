@@ -309,7 +309,7 @@ Lo que DataSemver mira:
 datasemver diff OLD NEW [OPTIONS]
 datasemver profile FUENTE [OPTIONS]
 datasemver dvc [DATASETS...] [OPTIONS]
-datasemver rules [RULES_FILE]
+datasemver rules [RULES_FILE] [OPTIONS]
 python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 ```
 
@@ -318,7 +318,7 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--rules PATH` | `-r` | Fichero de reglas que sustituye a las incluidas por defecto |
 | `--current-version TEXT` | `-c` | Versión desde la que se salta el dataset nuevo (por defecto `0.0.0`) |
 | `--output PATH` | `-o` | Escribe la entrada de changelog en un fichero, anteponiéndola si ya existe |
-| `--json` | | Imprime el informe completo como JSON en lugar de las tablas |
+| `--json` | | Imprime la salida en formato legible por máquina: el informe de comparación en lugar de las tablas (`diff`), el conjunto de reglas en lugar de los grupos (`rules`) |
 | `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
 | `--key COLUMNA` | `-k` | Columna que identifica una fila; repítela para una clave compuesta |
 | `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas |
@@ -334,6 +334,7 @@ datasemver diff old.csv new.csv --rules examples/strict_rules.yaml
 datasemver diff old.csv new.csv --output CHANGELOG.md
 datasemver diff old.csv new.csv --json | jq '.classified[] | {severity, rule: .rule}'
 datasemver rules examples/lenient_rules.yaml
+datasemver rules --json | jq '.ignore'   # lo que el fichero de reglas detecta pero no cuenta
 datasemver diff old.csv new.csv --fail-on major   # sale con 1 si el cambio rompe
 datasemver profile customers_v3.parquet           # escribe customers_v3.profile.json
 datasemver diff customers_v3.profile.json customers_v4.parquet

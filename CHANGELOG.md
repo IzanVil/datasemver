@@ -9,6 +9,18 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- `datasemver rules --json` prints the rule set as JSON. The command answered only in coloured
+  console output, so auditing a rules file -- the input half of every comparison -- meant
+  reading the terminal by eye, and the three severity groups were gone the moment the pipe
+  closed. `diff --json` already did this for the other half, and this goes through the same
+  console and the same `print_json`, so `datasemver rules --json | jq` works the way
+  `diff --json | jq` does. All three severity keys are present even when the file leaves a
+  group empty, because `RuleSet.from_mapping` initialises them before reading a line, so a
+  consumer can write `payload["patch"]` without guarding for a missing key. `metric` and
+  `threshold` appear together or not at all -- a rule like `column_removed` has a name and
+  nothing to measure, and it is the pair that says what a 0.25 is measuring -- and `columns`
+  leaves as a sorted list, because set order varies with the hash seed and an unsorted one
+  would go flaky on the second CI run. Contributed in #14 by @hawkxdev. Closes #4.
 - `datasemver diff --write-version` records the suggested version beside the new dataset,
   in `<name>.version`, creating the file when there is none. The sidecar was read in two
   places and written in none: `datasemver dvc` reads it to know what to bump from, and the

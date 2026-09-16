@@ -18,12 +18,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, overload
 
+from datasemver.core.profile import PROFILE_SUFFIX
 from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
+from datasemver.utils.version import VERSION_SUFFIX
 
 MARKER = "<!-- datasemver-report -->"
 DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS
-VERSION_SUFFIX = ".version"
-PROFILE_SUFFIX = ".profile.json"
 DEFAULT_VERSION = "0.0.0"
 TOP_CHANGES = 5
 MAX_COMMENT_CHARS = 60000

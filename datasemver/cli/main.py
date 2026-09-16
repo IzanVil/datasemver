@@ -20,6 +20,7 @@ from datasemver.core.profile import ProfileError, write_profile
 from datasemver.formats.loader import (
     Engine,
     default_profile_path,
+    default_version_path,
     load_schema,
     resolve_engine,
 )
@@ -32,7 +33,7 @@ from datasemver.rules.engine import (
     RuleSet,
     load_rules,
 )
-from datasemver.utils.version import InvalidVersionError
+from datasemver.utils.version import InvalidVersionError, write_version
 
 app = typer.Typer(
     name="datasemver",
@@ -68,6 +69,10 @@ _ENGINE_HELP = (
     "How to profile: 'pandas' loads the dataset; 'duckdb' aggregates over it instead, for "
     "about half the memory and the same numbers; 'duckdb-sketch' estimates the quantile grid "
     "for a third of that again. Also set by DATASEMVER_ENGINE."
+)
+_WRITE_VERSION_HELP = (
+    "Record the suggested version beside the new dataset, in <name>.version, creating the "
+    "file when there is none. Not written when --fail-on refuses the bump."
 )
 _SCHEMA_ONLY_HELP = (
     "Profile Parquet from its footer instead of its rows: fast, but no distribution "
@@ -143,6 +148,9 @@ def diff(
     schema_only: Annotated[bool, typer.Option("--schema-only", help=_SCHEMA_ONLY_HELP)] = False,
     key: Annotated[list[str] | None, typer.Option("--key", "-k", help=_KEY_HELP)] = None,
     engine: Annotated[Engine | None, typer.Option("--engine", help=_ENGINE_HELP)] = None,
+    write_version_sidecar: Annotated[
+        bool, typer.Option("--write-version", help=_WRITE_VERSION_HELP)
+    ] = False,
 ) -> None:
     """Compare two dataset versions and suggest a semantic version bump."""
     try:
@@ -166,12 +174,27 @@ def diff(
     if output is not None:
         write_changelog(report, output)
 
+    # Asked before anything is written, because the sidecar is the one output a refused run
+    # must not leave behind: it is what the next comparison bumps from, so recording a number
+    # the gate just rejected makes the next run continue from a version nobody accepted. The
+    # changelog above is a note for a human to read, and is written either way.
+    refused = _gate_refuses(report.bump, fail_on)
+    sidecar = None
+    if write_version_sidecar and not refused:
+        sidecar = default_version_path(new)
+        write_version(sidecar, report.next_version)
+
     if as_json:
         console.print_json(json.dumps(report.model_dump(mode="json")))
     else:
-        _render_report(report, output, chosen)
+        _render_report(report, output, chosen, sidecar)
 
     _apply_gate(report.bump, fail_on)
+
+
+def _gate_refuses(bump: Severity | None, fail_on: Severity | None) -> bool:
+    """Whether the gate below will close, asked before the run has written anything."""
+    return fail_on is not None and bump is not None and bump >= fail_on
 
 
 def _apply_gate(bump: Severity | None, fail_on: Severity | None) -> None:
@@ -180,8 +203,9 @@ def _apply_gate(bump: Severity | None, fail_on: Severity | None) -> None:
     Without this the command is advisory whatever it finds: it prints a breaking change and
     exits 0, and the only way to act on it is to parse the JSON.
     """
-    if fail_on is None or bump is None or bump < fail_on:
+    if not _gate_refuses(bump, fail_on):
         return
+    assert bump is not None and fail_on is not None
     error_console.print(
         f"[bold red]refused:[/] suggested bump is {bump.value}, "
         f"which reaches the --fail-on threshold of {fail_on.value}"
@@ -190,7 +214,10 @@ def _apply_gate(bump: Severity | None, fail_on: Severity | None) -> None:
 
 
 def _render_report(
-    report: AnalysisReport, output: Path | None, engine: Engine = Engine.PANDAS
+    report: AnalysisReport,
+    output: Path | None,
+    engine: Engine = Engine.PANDAS,
+    sidecar: Path | None = None,
 ) -> None:
     bump = severity_label(report.bump)
     style = SEVERITY_COLORS.get(report.bump, "bold blue") if report.bump else "bold blue"
@@ -213,6 +240,9 @@ def _render_report(
 
     console.print(_columns_table(report))
     console.print(_changes_table(report))
+
+    if sidecar is not None:
+        console.print(f"[dim]{report.next_version} written to {sidecar}[/]")
 
     if output is not None:
         console.print(f"[dim]changelog written to {output}[/]")

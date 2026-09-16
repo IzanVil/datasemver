@@ -21,6 +21,7 @@ from datasemver.formats.metadata import schema_from_metadata
 from datasemver.formats.sql import SqlSourceError, is_sql_source, load_sql, redacted
 from datasemver.formats.sql import split_source as split_table
 from datasemver.formats.utils import infer_types, profile_frame
+from datasemver.utils.version import VERSION_SUFFIX
 
 CSV_EXTENSIONS = {".csv", ".tsv", ".csv.gz", ".tsv.gz"}
 DELIMITER_CANDIDATES = (",", ";", "\t", "|")
@@ -275,6 +276,32 @@ def default_profile_path(source: str | Path) -> Path:
 
     path = Path(str(source))
     return path.with_name(f"{_dataset_stem(path)}{PROFILE_SUFFIX}")
+
+
+def default_version_path(source: str | Path) -> Path:
+    """Where the version sidecar goes when the caller does not say.
+
+    Beside the dataset, under its whole name with `.version` appended -- not with the format
+    suffix replaced, the way `default_profile_path` names a profile. The two differ on
+    purpose: a profile is one description of a dataset that several formats of it share, and
+    a version belongs to the file it was computed for.
+
+    A source that is not a file has nothing to sit beside, so a table and a sheet are named
+    after what they hold, in the working directory, exactly as their profiles are. A
+    connection URL never reaches the name; it carries a password.
+    """
+    if isinstance(source, str) and is_sql_source(source):
+        return Path(f"{_as_file_name(_table_of(source))}{VERSION_SUFFIX}")
+
+    if is_excel_source(source):
+        workbook, sheet = split_sheet(str(source))
+        path = Path(workbook)
+        if sheet is not None:
+            return path.with_name(f"{path.name}-{_as_file_name(str(sheet))}{VERSION_SUFFIX}")
+        return path.with_name(f"{path.name}{VERSION_SUFFIX}")
+
+    path = Path(str(source))
+    return path.with_name(f"{path.name}{VERSION_SUFFIX}")
 
 
 def _dataset_stem(path: Path) -> str:

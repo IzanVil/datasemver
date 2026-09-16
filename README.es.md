@@ -51,6 +51,7 @@ datos, ni ningún servicio corriendo.
 - [DVC](#dvc)
 - [Filas, no solo forma](#filas-no-solo-forma)
 - [Perfiles guardados](#perfiles-guardados)
+- [Registrar la versión](#registrar-la-versión)
 - [Configuración: reglas en YAML](#configuración-reglas-en-yaml)
 - [API de Python](#api-de-python)
 - [GitHub Action](#github-action)
@@ -320,6 +321,7 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--output PATH` | `-o` | Escribe la entrada de changelog en un fichero, anteponiéndola si ya existe |
 | `--json` | | Imprime la salida en formato legible por máquina: el informe de comparación en lugar de las tablas (`diff`), el conjunto de reglas en lugar de los grupos (`rules`) |
 | `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
+| `--write-version` | | Registra la versión sugerida en `<nombre>.version` junto al dataset nuevo |
 | `--key COLUMNA` | `-k` | Columna que identifica una fila; repítela para una clave compuesta |
 | `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas |
 | `--engine NOMBRE` | | `pandas`, `duckdb` o `duckdb-sketch`; ver [motores](#motores) |
@@ -427,6 +429,39 @@ comparación, así que esto funciona también desde la API de Python y desde el 
 `.profile.json` es la extensión que lo marca, distinta de `.json` a propósito, porque esa es
 un formato que DataSemver lee como datos. Un perfil escrito por una versión más nueva de
 DataSemver se rechaza en lugar de interpretarse a medias.
+
+## Registrar la versión
+
+El salto es un número que ha calculado la ejecución. `--write-version` lo escribe junto al
+dataset nuevo, en lugar de dejar que alguien lo lea en la terminal y lo vuelva a teclear:
+
+```bash
+datasemver diff customers_v3.csv customers_v4.csv -c 1.4.2 --write-version
+# 2.0.0 written to customers_v4.csv.version
+```
+
+El sidecar son unos pocos bytes de texto, así que pertenece a git aunque el dataset viva en
+DVC o en un almacén de objetos. `datasemver dvc` lo lee para saber desde dónde continúa un
+salto, y la [GitHub Action](#github-action) lo compara con lo que sugiere la ejecución, de
+modo que una versión que nunca se registró lo dice en la pull request en vez de desviarse en
+silencio.
+
+Que el número se registre sigue siendo decisión del autor —para eso el sidecar no pertenece a
+la herramienta—, y por eso la opción hay que pedirla. Lo que quita es el tecleo, porque cada
+versión copiada a mano es una ocasión de escribir `1.5.0` donde la ejecución dijo `2.0.0`.
+
+Dos detalles que conviene conocer:
+
+- **Una ejecución rechazada no escribe nada.** Con `--fail-on`, un salto que cierra la puerta
+  deja el sidecar tal y como estaba. Es el punto de partida de la comparación siguiente, así
+  que un número rechazado y escrito es un número rechazado desde el que continúa la próxima
+  ejecución. `--output` se comporta al revés a propósito: una entrada de changelog es una nota
+  para que la lea una persona.
+- **Se conserva el nombre entero del fichero**, a diferencia del de un perfil. `sales.csv`
+  obtiene `sales.csv.version`, porque dos formatos de un mismo dataset no tienen por qué estar
+  en la misma versión. Un origen que no es un fichero se nombra por la tabla o la hoja, en el
+  directorio de trabajo, y nunca por una URL de conexión que llevaría su contraseña al nombre
+  de un fichero.
 
 ## Configuración: reglas en YAML
 

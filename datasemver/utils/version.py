@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from datasemver.core.models import Severity
 
@@ -31,3 +32,22 @@ def bump_version(current: str, severity: Severity | None) -> str:
     if severity is Severity.PATCH:
         return f"{major}.{minor}.{patch + 1}"
     return f"{major}.{minor}.{patch}"
+
+
+# The sidecar is the number itself and nothing else, so its name is the whole of its format.
+# Appended to the dataset's full name rather than replacing the format suffix the way a
+# profile is: `sales.csv.version` says which file it belongs to, where `sales.version` beside
+# a `sales.csv` and a `sales.parquet` would not.
+VERSION_SUFFIX = ".version"
+
+
+def write_version(path: Path, version: str) -> None:
+    """Record a version beside its dataset, creating the sidecar when there is none.
+
+    Validated before it is written: the sidecar is read back as the starting point of the
+    next comparison, so a file holding something that is not a version turns into an error
+    one run later, in a place that does not explain it.
+    """
+    parse_version(version)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"{version}\n", encoding="utf-8")

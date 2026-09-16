@@ -22,9 +22,9 @@ from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.profile import PROFILE_SUFFIX
 from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
 from datasemver.rules.engine import RuleError
+from datasemver.utils.version import VERSION_SUFFIX
 
 INSTALL_HINT = "install it with: pip install dvc"
-VERSION_SUFFIX = ".version"
 SEVERITY_RANK = {"patch": 0, "minor": 1, "major": 2}
 
 # The four keys `dvc diff --json` returns. Only two of them name a dataset that exists on

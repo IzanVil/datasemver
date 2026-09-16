@@ -264,6 +264,114 @@ def test_an_unknown_severity_is_rejected_by_the_parser(old_csv, new_csv):
     assert run("diff", str(old_csv), str(new_csv), "--fail-on", "enormous").exit_code == 2
 
 
+# --- the version sidecar --------------------------------------------------------------------
+
+
+def test_writing_the_version_records_the_number_the_run_computed(tmp_path, old_csv, new_csv):
+    """The point of the flag: the number written down is not one a human retyped."""
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = run("diff", str(old_csv), str(dataset), "-c", "1.4.2", "--write-version")
+
+    assert result.exit_code == 0
+    assert (tmp_path / "new.csv.version").read_text(encoding="utf-8").strip() == "2.0.0"
+
+
+def test_the_sidecar_keeps_the_whole_dataset_name(tmp_path, old_csv, new_csv):
+    """`sales.csv.version`, not `sales.version`, which a `sales.parquet` would share."""
+    dataset = tmp_path / "sales.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+
+    run("diff", str(old_csv), str(dataset), "--write-version")
+
+    assert (tmp_path / "sales.csv.version").is_file()
+    assert not (tmp_path / "sales.version").exists()
+
+
+def test_the_version_is_written_where_none_existed(tmp_path, old_csv, new_csv):
+    """Creating it is the useful half: the first run is where the number is most missing."""
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+    assert not (tmp_path / "new.csv.version").exists()
+
+    run("diff", str(old_csv), str(dataset), "--write-version")
+
+    assert (tmp_path / "new.csv.version").is_file()
+
+
+def test_writing_the_version_replaces_what_was_there(tmp_path, old_csv, new_csv):
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+    sidecar = tmp_path / "new.csv.version"
+    sidecar.write_text("1.4.2\n", encoding="utf-8")
+
+    run("diff", str(old_csv), str(dataset), "-c", "1.4.2", "--write-version")
+
+    assert sidecar.read_text(encoding="utf-8").strip() == "2.0.0"
+
+
+def test_a_refused_bump_leaves_no_version_behind(tmp_path, old_csv, new_csv):
+    """The sidecar is what the next run bumps from, so a rejected number must not land in it.
+
+    Without this the gate refuses the release and still writes down the version it refused,
+    and the next comparison continues from a number nobody accepted -- which is the drift the
+    sidecar exists to stop.
+    """
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = run(
+        "diff", str(old_csv), str(dataset), "-c", "1.4.2", "--write-version", "--fail-on", "major"
+    )
+
+    assert result.exit_code == 1
+    assert not (tmp_path / "new.csv.version").exists()
+
+
+def test_a_refused_bump_does_not_touch_the_version_already_recorded(tmp_path, old_csv, new_csv):
+    """Not merely 'writes no new file': the number that was there has to survive."""
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+    sidecar = tmp_path / "new.csv.version"
+    sidecar.write_text("1.4.2\n", encoding="utf-8")
+
+    run("diff", str(old_csv), str(dataset), "-c", "1.4.2", "--write-version", "--fail-on", "major")
+
+    assert sidecar.read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_a_bump_below_the_threshold_still_writes(tmp_path, old_csv):
+    """The gate has to refuse the run, not merely be present on the command line."""
+    dataset = tmp_path / "same.csv"
+    dataset.write_text(old_csv.read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = run(
+        "diff", str(old_csv), str(dataset), "-c", "1.4.2", "--write-version", "--fail-on", "major"
+    )
+
+    assert result.exit_code == 0
+    assert (tmp_path / "same.csv.version").read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_the_version_is_not_written_unless_it_is_asked_for(tmp_path, old_csv, new_csv):
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+
+    run("diff", str(old_csv), str(dataset))
+
+    assert not (tmp_path / "new.csv.version").exists()
+
+
+def test_writing_the_version_reports_where_it_went(tmp_path, old_csv, new_csv):
+    dataset = tmp_path / "new.csv"
+    dataset.write_text(new_csv.read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = run("diff", str(old_csv), str(dataset), "-c", "1.4.2", "--write-version")
+
+    assert "2.0.0 written to" in flat(result)
+
+
 # --- the profile command --------------------------------------------------------------------
 
 

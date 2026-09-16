@@ -50,6 +50,7 @@ and it needs no schema registry, no database and no service running.
 - [DVC](#dvc)
 - [Rows, not just shape](#rows-not-just-shape)
 - [Stored profiles](#stored-profiles)
+- [Recording the version](#recording-the-version)
 - [Configuration: rules in YAML](#configuration-rules-in-yaml)
 - [Python API](#python-api)
 - [GitHub Action](#github-action)
@@ -316,6 +317,7 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--output PATH` | `-o` | Write the changelog entry to a file, prepending it if it already exists |
 | `--json` | | Print machine-readable output: the comparison report instead of the tables (`diff`), the rule set instead of the groups (`rules`) |
 | `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
+| `--write-version` | | Record the suggested version in `<name>.version` beside the new dataset |
 | `--key COLUMN` | `-k` | Column identifying a row; repeat for a composite key |
 | `--schema-only` | | Profile Parquet from its footer instead of its rows |
 | `--engine NAME` | | `pandas`, `duckdb` or `duckdb-sketch`; see [engines](#engines) |
@@ -417,6 +419,36 @@ A profile is read wherever a dataset is, on either side of a comparison, so this
 the Python API and the dashboard too. `.profile.json` is the extension that marks one, kept
 distinct from `.json` because that is a format DataSemver reads as data. A profile written by
 a newer version of DataSemver is refused rather than half-understood.
+
+## Recording the version
+
+The bump is a number the run computed. `--write-version` writes it down beside the new
+dataset, instead of leaving someone to read it off the terminal and retype it:
+
+```bash
+datasemver diff customers_v3.csv customers_v4.csv -c 1.4.2 --write-version
+# 2.0.0 written to customers_v4.csv.version
+```
+
+The sidecar is a few bytes of text, so it belongs in git even when the dataset itself is in
+DVC or an object store. `datasemver dvc` reads it to know what a bump continues from, and the
+[GitHub Action](#github-action) compares it against what the run suggests, so a version that
+was never recorded says so in the pull request instead of drifting quietly.
+
+Whether the number gets recorded is still the author's call — that is the point of a sidecar
+the tool does not own — which is why the flag is opt-in. What it removes is the retyping,
+because every hand-copied version is a chance to write `1.5.0` where the run said `2.0.0`.
+
+Two details worth knowing:
+
+- **A refused run writes nothing.** With `--fail-on`, a bump that closes the gate leaves the
+  sidecar exactly as it was. It is what the next comparison starts from, so a rejected number
+  written down is a rejected number the next run continues from. `--output` behaves the other
+  way on purpose: a changelog entry is a note for a human to read.
+- **The whole file name is kept**, unlike a profile's. `sales.csv` gets `sales.csv.version`,
+  because two formats of one dataset are not obliged to be at the same version. A source that
+  is not a file is named after the table or the sheet, in the working directory, and never
+  after a connection URL that would carry its password into a file name.
 
 ## Configuration: rules in YAML
 

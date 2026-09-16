@@ -8,6 +8,29 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Minor
+- `datasemver diff --write-version` records the suggested version beside the new dataset,
+  in `<name>.version`, creating the file when there is none. The sidecar was read in two
+  places and written in none: `datasemver dvc` reads it to know what to bump from, and the
+  pull request script compares it against what the run suggests and leaves a note saying it
+  is stale -- after which the author opened the file and typed the number in by hand. Whether
+  the version is recorded still belongs to the author, which is why the flag is opt-in and
+  off by default; what it removes is the retyping, because every hand-copied version is a
+  chance to write `1.5.0` where the run said `2.0.0`, which is the drift the sidecar exists
+  to catch. A source that is not a file is named the way its profile is -- after the table or
+  the sheet, in the working directory, and never after a connection URL, which carries a
+  password.
+- A run that `--fail-on` refuses writes no version. The sidecar is the starting point of the
+  next comparison, so recording a number the gate just rejected would have the next run
+  continue from a version nobody accepted. This is deliberately not how `--output` behaves:
+  the changelog entry is a note for a human to read and is written either way, where the
+  sidecar is state the tool reads back.
+- `VERSION_SUFFIX` is defined by the library rather than by each of its readers. It was
+  written out in `datasemver/integrations/dvc.py` and again in `scripts/run_datasemver_on_pr.py`,
+  which was tolerable while nothing wrote the file; now that the library writes it, the library
+  says what it is called. The script imports `PROFILE_SUFFIX` from the library for the same
+  reason instead of repeating it.
+
 ## [0.8.2] - 2026-09-11
 
 ### Patch

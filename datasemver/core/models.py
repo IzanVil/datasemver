@@ -139,6 +139,15 @@ class DatasetSchema(BaseModel):
     source: str
     row_count: int
     columns: dict[str, ColumnStats] = Field(default_factory=dict)
+    # Whether this was read from a Parquet footer rather than from rows, which decides what a
+    # comparison against it is entitled to claim: the footer carries no quantile grid and no
+    # category counts, so a distribution that moved is not something anyone looked for. It
+    # lives here, on what the comparison reads, rather than beside `engine` on the stored
+    # profile -- `read_profile` hands back this object and drops the wrapper, and a caveat
+    # nobody can see at the point of comparison is not a caveat. Set by the footer reader
+    # rather than by the flag, because `--schema-only` is ignored for every format that has
+    # no footer to read and a profile claiming otherwise would be wrong about itself.
+    schema_only: bool = False
 
     @property
     def column_names(self) -> list[str]:

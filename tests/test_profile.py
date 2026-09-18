@@ -245,3 +245,38 @@ def test_a_profile_from_a_later_version_is_refused_rather_than_guessed_at(tmp_pa
 
     with pytest.raises(ProfileError, match="Upgrade to read it"):
         read_profile(written)
+
+
+# --- the footer caveat, stored ---------------------------------------------------------------
+
+
+def test_the_footer_caveat_survives_the_round_trip(tmp_path, old_parquet):
+    """Written down and read back: the point of the field is that it outlives the command."""
+    schema = load_schema(old_parquet, schema_only=True)
+    destination = write_profile(schema, tmp_path / f"footer{PROFILE_SUFFIX}")
+
+    assert read_profile(destination).schema_only is True
+
+
+def test_an_ordinary_profile_round_trips_as_one(tmp_path, old_csv):
+    assert (
+        read_profile(
+            write_profile(load_schema(old_csv), tmp_path / f"rows{PROFILE_SUFFIX}")
+        ).schema_only
+        is False
+    )
+
+
+def test_a_profile_written_before_the_field_existed_is_still_readable(tmp_path, old_csv):
+    """Adding an optional field does not bump `PROFILE_VERSION`, so this has to hold.
+
+    A reader that ignored the new field still reads the file correctly, which is the rule
+    stated where the constant is defined -- and the same precedent `engine` set.
+    """
+    destination = write_profile(load_schema(old_csv), tmp_path / f"old{PROFILE_SUFFIX}")
+    payload = json.loads(destination.read_text(encoding="utf-8"))
+    del payload["dataset"]["schema_only"]
+    assert payload["profile_version"] == PROFILE_VERSION
+    destination.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert read_profile(destination).schema_only is False

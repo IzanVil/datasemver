@@ -74,6 +74,9 @@ _WRITE_VERSION_HELP = (
     "Record the suggested version beside the new dataset, in <name>.version, creating the "
     "file when there is none. Not written when --fail-on refuses the bump."
 )
+_FOOTER_CAVEAT = (
+    "read from the Parquet footer: no distribution comparison, because no data was read"
+)
 _SCHEMA_ONLY_HELP = (
     "Profile Parquet from its footer instead of its rows: fast, but no distribution "
     "comparison, because no data is read."
@@ -227,12 +230,17 @@ def _render_report(
     # from. The same reason a stored profile records which engine wrote it.
     sketched = " (quantiles estimated)" if engine is Engine.DUCKDB_SKETCH else ""
     used = f"\n\nengine: {engine.value}{sketched}" if engine.is_duckdb else ""
+    # A footer profile carries no quantile grid and no category counts, so nothing above
+    # looked for a distribution shift. Without saying it, the report reads exactly like one
+    # where nothing moved, and the two are not the same answer.
+    from_footer = report.diff.old.schema_only or report.diff.new.schema_only
+    footer = f"\n\n{_FOOTER_CAVEAT}" if from_footer else ""
     console.print(
         Panel(
             f"[{style}]Suggested bump: {bump}[/]\n"
             f"{report.current_version} -> {report.next_version}\n\n"
             f"old: {report.old_source} ({report.diff.old.row_count} rows)\n"
-            f"new: {report.new_source} ({report.diff.new.row_count} rows){used}",
+            f"new: {report.new_source} ({report.diff.new.row_count} rows){used}{footer}",
             title="DataSemver",
             expand=False,
         )
@@ -431,6 +439,7 @@ def profile(
         typer.Option("--output", "-o", help=_PROFILE_OUTPUT_HELP),
     ] = None,
     engine: Annotated[Engine | None, typer.Option("--engine", help=_ENGINE_HELP)] = None,
+    schema_only: Annotated[bool, typer.Option("--schema-only", help=_SCHEMA_ONLY_HELP)] = False,
 ) -> None:
     """Write a dataset's profile to a file that can be compared against later.
 
@@ -440,7 +449,7 @@ def profile(
     """
     try:
         chosen = resolve_engine(engine.value if engine else None)
-        schema = load_schema(source, engine=chosen.value)
+        schema = load_schema(source, schema_only=schema_only, engine=chosen.value)
     except (FileNotFoundError, ValueError, ProfileError) as error:
         error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
@@ -455,6 +464,17 @@ def profile(
         f"[bold green]profile written[/] {destination} "
         f"[dim]({len(schema.columns)} columns, {schema.row_count} rows, {size} bytes{used})[/]"
     )
+    # Said at the point it is written, not only recorded inside the file. The profile is what
+    # gets committed and compared against months later, and `--schema-only` on a format with no
+    # footer is silently an ordinary read -- so someone who asked for one and got the other
+    # finds out now rather than from a comparison that never mentions distributions.
+    if schema.schema_only:
+        console.print(f"[dim]{_FOOTER_CAVEAT}[/]")
+    elif schema_only:
+        console.print(
+            "[dim]--schema-only applies to Parquet, which is the only format with a footer "
+            "to read; this profile was computed from the data[/]"
+        )
 
 
 def _rule_payload(rule: Rule) -> dict[str, object]:

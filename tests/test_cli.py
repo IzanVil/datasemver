@@ -264,6 +264,88 @@ def test_an_unknown_severity_is_rejected_by_the_parser(old_csv, new_csv):
     assert run("diff", str(old_csv), str(new_csv), "--fail-on", "enormous").exit_code == 2
 
 
+# --- profiling from the footer ---------------------------------------------------------------
+
+
+def test_a_profile_can_be_written_from_the_footer(tmp_path, old_parquet):
+    """The command's own case: storing a profile is what you do when the dataset is large."""
+    destination = tmp_path / "footer.profile.json"
+
+    result = run("profile", str(old_parquet), "-o", str(destination), "--schema-only")
+
+    assert result.exit_code == 0
+    assert json.loads(destination.read_text(encoding="utf-8"))["dataset"]["schema_only"] is True
+
+
+def test_a_footer_profile_says_so_when_it_is_written(tmp_path, old_parquet):
+    result = run(
+        "profile", str(old_parquet), "-o", str(tmp_path / "f.profile.json"), "--schema-only"
+    )
+
+    assert "no distribution comparison" in flat(result)
+
+
+def test_profiling_without_the_flag_reads_the_data(tmp_path, old_parquet):
+    destination = tmp_path / "rows.profile.json"
+
+    run("profile", str(old_parquet), "-o", str(destination))
+
+    assert json.loads(destination.read_text(encoding="utf-8"))["dataset"]["schema_only"] is False
+
+
+def test_asking_for_a_footer_a_format_does_not_have_says_what_happened(tmp_path, old_csv):
+    """`--schema-only` is ignored for anything but Parquet, and silence there is a trap.
+
+    Someone asks for a seek, gets a full read, and stores a profile that carries the grid --
+    which is the harmless direction. Saying nothing is what makes the flag look like it worked
+    on a format where it never can.
+    """
+    destination = tmp_path / "csv.profile.json"
+
+    result = run("profile", str(old_csv), "-o", str(destination), "--schema-only")
+
+    assert result.exit_code == 0
+    assert "applies to Parquet" in flat(result)
+    assert json.loads(destination.read_text(encoding="utf-8"))["dataset"]["schema_only"] is False
+
+
+def test_a_comparison_from_the_footer_says_no_distribution_was_checked(old_parquet, new_parquet):
+    """Without this the report reads exactly like one where nothing moved."""
+    result = run("diff", str(old_parquet), str(new_parquet), "--schema-only")
+
+    assert "no distribution comparison" in flat(result)
+
+
+def test_an_ordinary_comparison_carries_no_such_caveat(old_csv, new_csv):
+    assert "no distribution comparison" not in flat(run("diff", str(old_csv), str(new_csv)))
+
+
+def test_the_caveat_follows_a_stored_footer_profile_into_a_later_comparison(
+    tmp_path, old_parquet, new_parquet
+):
+    """The whole point of storing the field: the run that reads it back never saw the footer.
+
+    This is the case the issue was about. The profile is committed, the dataset it describes
+    may be gone, and the comparison months later has nothing else to learn the caveat from.
+    """
+    stored = tmp_path / "footer.profile.json"
+    run("profile", str(old_parquet), "-o", str(stored), "--schema-only")
+
+    result = run("diff", str(stored), str(new_parquet))
+
+    assert result.exit_code == 0
+    assert "no distribution comparison" in flat(result)
+
+
+def test_the_caveat_reaches_json_output_too(old_parquet, new_parquet):
+    """A caveat only a human can see is no use to the pipeline reading the report."""
+    result = run("diff", str(old_parquet), str(new_parquet), "--schema-only", "--json")
+    payload = json.loads(result.stdout)
+
+    assert payload["diff"]["old"]["schema_only"] is True
+    assert payload["diff"]["new"]["schema_only"] is True
+
+
 # --- the version sidecar --------------------------------------------------------------------
 
 

@@ -68,7 +68,7 @@ def schema_from_metadata(path: str | Path, source: str) -> DatasetSchema:
             maximum=maximum,
         )
 
-    return DatasetSchema(source=source, row_count=rows, columns=columns)
+    return DatasetSchema(source=source, row_count=rows, columns=columns, schema_only=True)
 
 
 def _read_metadata(path: str | Path) -> Any:

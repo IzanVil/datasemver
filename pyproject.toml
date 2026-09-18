@@ -132,6 +132,7 @@ addopts = [
 markers = [
     "web: tests that exercise the dashboard backend and need the web extra",
     "duckdb: tests that exercise the DuckDB engine and need the duckdb extra",
+    "perf: slow tests that generate large files to guard the measured invariants",
 ]
 
 [tool.ruff]

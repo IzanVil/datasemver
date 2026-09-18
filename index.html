@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DataSemver, semantic versioning for datasets</title>
-<meta name="description" content="Compare two versions of a CSV, JSON or Parquet dataset and get the semantic version bump they deserve, with the changelog entry that explains it.">
+<meta name="description" content="Compare two versions of a CSV, JSON, Parquet, Feather, Excel or SQL dataset and get the semantic version bump they deserve, with the changelog entry that explains it.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="canonical" href="https://izanvil.github.io/datasemver/">
 <link rel="alternate" hreflang="en" href="https://izanvil.github.io/datasemver/">
@@ -12,7 +12,15 @@
 <meta property="og:title" content="DataSemver, semantic versioning for datasets">
 <meta property="og:description" content="Your data changed. DataSemver tells you whether that is a patch, a minor or a breaking release.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://izanvil.github.io/datasemver/">
+<meta property="og:site_name" content="DataSemver">
 <meta property="og:image" content="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-diff.png">
+<meta property="og:image:width" content="1287">
+<meta property="og:image:height" content="1222">
+<meta property="og:image:alt" content="Terminal reporting a MAJOR bump from 0.0.0 to 1.0.0, with a table of every column that changed.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#fbfbfc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0e14" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -33,6 +41,7 @@
     <ul>
       <li><a href="#decide" class="hide-sm">How it decides</a></li>
       <li><a href="#measures" class="hide-sm">What it measures</a></li>
+      <li><a href="#engines" class="hide-sm">Engines</a></li>
       <li><a href="#surfaces" class="hide-sm">Ways in</a></li>
       <li><a href="https://github.com/IzanVil/datasemver">GitHub</a></li>
       <li><a href="https://pypi.org/project/datasemver/">PyPI</a></li>
@@ -49,7 +58,7 @@
       <div class="start">
         <div class="snippet">
           <span><i>$</i> pip install datasemver</span>
-          <button type="button" data-copy="pip install datasemver">Copy</button>
+          <button type="button" data-copy="pip install datasemver" aria-live="polite">Copy</button>
         </div>
         <a class="link-out" href="https://github.com/IzanVil/datasemver#quick-start">Quick start</a>
       </div>
@@ -63,10 +72,10 @@
 
 <div class="page">
   <dl class="facts">
-    <div><dt>Reads</dt><dd>CSV, JSON, Parquet, SQL</dd></div>
+    <div><dt>Reads</dt><dd>CSV, JSON, Parquet, Feather, Excel, SQL</dd></div>
     <div><dt>Python</dt><dd>3.10 to 3.14</dd></div>
     <div><dt>Default rules</dt><dd>20</dd></div>
-    <div><dt>Tests</dt><dd>534 at 99%</dd></div>
+    <div><dt>Tests</dt><dd>699 at 99%</dd></div>
     <div><dt>Licence</dt><dd>Apache 2.0</dd></div>
   </dl>
 </div>
@@ -160,6 +169,38 @@
     </div>
   </section>
 
+  <section id="reads">
+    <h2>What it reads</h2>
+    <p class="say">
+      One command whatever the dataset arrived as, because the format is rarely the thing
+      being compared. A stored profile counts as a dataset on either side, so a comparison can
+      run with the previous version long gone.
+    </p>
+
+    <div class="surfaces">
+      <div>
+        <h3>Text</h3>
+        <p>CSV and TSV, gzipped or not, with the delimiter detected. JSON as an array of objects, and JSON Lines.</p>
+        <code>.csv .tsv .csv.gz .tsv.gz .json .jsonl .ndjson</code>
+      </div>
+      <div>
+        <h3>Arrow on disk</h3>
+        <p>Parquet and Feather state the type of every column, so nothing is inferred: a postcode stays a string instead of becoming an integer with the leading zero gone.</p>
+        <code>.parquet .pq .feather .arrow</code>
+      </div>
+      <div>
+        <h3>Workbooks</h3>
+        <p>A sheet after <code>#</code>, or the first one when none is named. Needs the <code>excel</code> extra.</p>
+        <code>quarterly.xlsx#Q3</code>
+      </div>
+      <div>
+        <h3>Database tables</h3>
+        <p>A connection URL with the table after <code>#</code>. The password never reaches the report, the logs or a file name.</p>
+        <code>sqlite:///snapshots.db#customers</code>
+      </div>
+    </div>
+  </section>
+
   <section>
     <h2>The same analysis in a browser</h2>
     <p class="say">
@@ -210,6 +251,64 @@
     </p>
   </section>
 
+  <section id="engines">
+    <h2>Profile a file larger than memory</h2>
+    <p class="say">
+      The default engine loads the dataset into a dataframe, which is the fastest thing to do
+      until the dataset stops fitting. <code>--engine duckdb</code> aggregates over the file
+      instead, and <code>duckdb-sketch</code> estimates the quantile grid rather than computing
+      it &mdash; the one number that costs a full pass.
+    </p>
+
+    <div class="scroll-x" tabindex="0" role="region" aria-label="Engine benchmarks">
+      <table class="bench">
+        <thead>
+          <tr>
+            <th scope="col">Engine</th>
+            <th scope="col">Parquet, 380 MB</th>
+            <th scope="col">CSV, 1.21 GB</th>
+            <th scope="col">Answers</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">pandas</th>
+            <td>21.4 s &middot; 3190 MB</td>
+            <td>49.9 s &middot; 3311 MB</td>
+            <td class="note">the reference</td>
+          </tr>
+          <tr>
+            <th scope="row">duckdb</th>
+            <td>16.1 s &middot; 1736 MB</td>
+            <td>20.9 s &middot; 2856 MB</td>
+            <td class="note">identical, to float rounding</td>
+          </tr>
+          <tr>
+            <th scope="row">duckdb-sketch</th>
+            <td>3.1 s &middot; 1246 MB</td>
+            <td>7.9 s &middot; 1952 MB</td>
+            <td class="note">quantile grid estimated</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="after-ladder">
+      Measured on 16 million rows and seven columns, at peak resident memory of the process.
+      The sketch is a named engine rather than an automatic shortcut, because it stops
+      interpolating between values on small inputs: on eight rows it answers 1 where the other
+      path answers 1.35, so it diverges most exactly where the result is easiest to check by
+      hand. Set <code>DATASEMVER_DUCKDB_MEMORY_LIMIT</code> and the ceiling is yours; what does
+      not fit spills to disk instead of failing.
+    </p>
+
+<pre><b># half the memory, same answers</b>
+datasemver diff old.parquet new.parquet <i>--engine</i> duckdb
+
+<b># a third again, with the quantile grid estimated</b>
+datasemver profile huge.csv <i>--engine</i> duckdb-sketch</pre>
+  </section>
+
   <section id="profiles">
     <h2>The profile outlives the data</h2>
     <p class="say">
@@ -228,11 +327,22 @@
 datasemver profile customers_v3.parquet
 
 <b># compare against it later, with the file long gone</b>
-datasemver diff customers_v3.profile.json customers_v4.parquet</pre>
+datasemver diff customers_v3.profile.json customers_v4.parquet
+
+<b># from the Parquet footer: a seek instead of a scan</b>
+datasemver profile customers_v3.parquet <i>--schema-only</i></pre>
+
+    <p class="after-ladder">
+      A Parquet footer already holds the schema and, per column, the nulls and the smallest and
+      largest value &mdash; every input a schema-level comparison reads. What it cannot give is
+      the quantile grid and the category counts, so a profile written from it records that it
+      came from there, and any comparison against it says no distribution was checked. Without
+      that, the report would read exactly like one where nothing moved.
+    </p>
   </section>
 
   <section id="surfaces">
-    <h2>Five ways in, one report</h2>
+    <h2>Seven ways in, one report</h2>
     <div class="surfaces">
       <div>
         <h3>Command line</h3>
@@ -257,7 +367,17 @@ datasemver diff customers_v3.profile.json customers_v4.parquet</pre>
       <div>
         <h3>GitHub Action</h3>
         <p>Analyses the datasets a pull request touches and posts the suggested bump, rewriting the same comment on each push. Set a threshold and it refuses the merge &mdash; after commenting, so the refusal arrives with its reason.</p>
-        <code>scripts/run_datasemver_on_pr.py</code>
+        <code>uses: IzanVil/datasemver@v0.8.2</code>
+      </div>
+      <div>
+        <h3>DVC</h3>
+        <p>Compares the datasets DVC reports as changed between two revisions, continuing each from the version recorded beside it rather than restarting at zero.</p>
+        <code>datasemver dvc --rev HEAD~1</code>
+      </div>
+      <div>
+        <h3>Standalone binary</h3>
+        <p>One executable per platform that brings its own Python, for machines where installing one is not an option. Database and workbook support are built in.</p>
+        <code>linux &middot; windows &middot; macos arm64 &amp; x86_64</code>
       </div>
     </div>
 
@@ -271,19 +391,29 @@ datasemver diff old.csv new.csv <i>--current-version</i> "$(cat VERSION)" <i>--o
 datasemver diff old.csv new.csv <i>--fail-on</i> major
 
 <b># which rows changed, not only whether the shape did</b>
-datasemver diff old.csv new.csv <i>--key</i> id</pre>
+datasemver diff old.csv new.csv <i>--key</i> id
+
+<b># record the version it computed, instead of retyping it</b>
+datasemver diff old.csv new.csv <i>--current-version</i> 1.4.2 <i>--write-version</i></pre>
   </section>
 
   <section>
     <h2>Install it</h2>
     <p class="say">
       Python 3.10 or newer, typed, no runtime network access. Releases are published from CI
-      through Trusted Publishing with signed provenance, so no long-lived token exists.
+      through Trusted Publishing with signed provenance, so no long-lived token exists. Extras
+      are opt-in: <code>sql</code> for databases, <code>excel</code> for workbooks,
+      <code>duckdb</code> for the engines, <code>web</code> for the dashboard.
+    </p>
+    <p class="say">
+      No Python on the machine? Every release also carries a single executable per platform
+      that brings its own, with database and workbook support built in &mdash;
+      <a href="https://github.com/IzanVil/datasemver/releases/latest">on the latest release</a>.
     </p>
     <div class="closer">
       <div class="snippet">
         <span><i>$</i> pip install datasemver</span>
-        <button type="button" data-copy="pip install datasemver">Copy</button>
+        <button type="button" data-copy="pip install datasemver" aria-live="polite">Copy</button>
       </div>
       <a class="go" href="https://pypi.org/project/datasemver/">View on PyPI</a>
     </div>

@@ -225,6 +225,24 @@ h2 {
 .surfaces p { margin: 0 0 0.55rem; font-size: 0.9rem; color: var(--ink-soft); }
 .surfaces code { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
 
+/* measured numbers: ruled like everything else, never carded, and tabular so the
+   columns line up under each other the way they do in the terminal. */
+.bench { width: 100%; margin-top: 2rem; border-collapse: collapse; font-size: 0.88rem; }
+.bench th, .bench td { padding: 0.7rem 0.9rem 0.7rem 0; text-align: left; border-bottom: 1px solid var(--line); }
+.bench thead th {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 400;
+  border-bottom: 1px solid var(--line-firm);
+}
+.bench tbody th { font-family: var(--mono); font-weight: 500; font-size: 0.85rem; }
+.bench td { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.bench .note { color: var(--muted); font-size: 0.82rem; }
+.bench tbody tr:last-child th, .bench tbody tr:last-child td { border-bottom: 0; }
+/* On a phone the four columns cannot hold their width; the table scrolls rather than
+   wrapping numbers onto two lines, where they stop being comparable at a glance. */
+.scroll-x { overflow-x: auto; }
+@media (max-width: 620px) { .bench { min-width: 34rem; } }
+
 pre {
   margin: 2rem 0 0; background: var(--sunk); border: 1px solid var(--line);
   border-radius: var(--r); padding: 1rem 1.15rem; overflow-x: auto;

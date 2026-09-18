@@ -9,6 +9,28 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- `datasemver profile --schema-only` writes a profile read from the Parquet footer instead of
+  from the rows. `diff` has taken the flag since the footer reader existed; the one command
+  whose whole purpose is "do this once so you never read the file again" was the one that
+  could not avoid reading it, on the datasets that are the reason to store a profile at all.
+  The plumbing was already there -- `load_schema(schema_only=True)` dispatches Parquet to the
+  footer -- so what this adds is the flag, and the part that was missing underneath it.
+- A profile records whether it was read from a footer, and a comparison against one says so.
+  The footer carries no quantile grid and no category counts, so a distribution that moved is
+  not something anybody looked for; stored without that caveat the file was an ordinary
+  profile, and a comparison against it months later read exactly like one where nothing had
+  moved. `DatasetSchema.schema_only` now travels with what a comparison actually reads --
+  rather than beside `engine` on the stored wrapper, which `read_profile` drops -- and the
+  report says "no distribution comparison, because no data was read" on either side. It
+  reaches `--json` as well, since a caveat only a human can see is no use to the pipeline
+  reading the report. Adding an optional field does not bump `PROFILE_VERSION`, for the reason
+  given where that constant is defined, and a profile written before it existed still reads.
+  Closes #11.
+- The flag is set by the reader that read the footer, not by the flag that asked for it.
+  `--schema-only` is ignored for every format that has no footer, so a profile marked from
+  what was requested would have been wrong about itself on a CSV. Asking for one anyway now
+  says the flag applies to Parquet and that the profile was computed from the data, rather
+  than leaving someone to assume a seek happened where a full read did.
 - `datasemver rules --json` prints the rule set as JSON. The command answered only in coloured
   console output, so auditing a rules file -- the input half of every comparison -- meant
   reading the terminal by eye, and the three severity groups were gone the moment the pipe

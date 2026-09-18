@@ -319,7 +319,7 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
 | `--write-version` | | Record the suggested version in `<name>.version` beside the new dataset |
 | `--key COLUMN` | `-k` | Column identifying a row; repeat for a composite key |
-| `--schema-only` | | Profile Parquet from its footer instead of its rows |
+| `--schema-only` | | Profile Parquet from its footer instead of its rows (`diff`, `profile`) |
 | `--engine NAME` | | `pandas`, `duckdb` or `duckdb-sketch`; see [engines](#engines) |
 | `--version` | | Print the installed version and exit |
 
@@ -339,6 +339,7 @@ datasemver diff customers_v3.profile.json customers_v4.parquet
 datasemver diff old.csv new.csv --key id          # which rows changed, not just the shape
 datasemver diff old.csv new.csv --engine duckdb   # profile without loading either file
 datasemver diff old.parquet new.parquet --schema-only
+datasemver profile big.parquet --schema-only   # a seek, not a scan
 ```
 
 Formats are detected by extension: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`, `.parquet`,
@@ -414,6 +415,14 @@ the data — next to the DVC pointer, in the same pull request — and the next 
 only the new version, instead of fetching a previous one that may be large, remote or gone.
 It also makes a suggestion auditable months later: the profile still says exactly what the
 bump was computed from.
+
+`--schema-only` stores a profile read from the Parquet footer: a seek to the end of the file
+rather than a decode of it, which is the command's own case — the reason to store a profile is
+that the dataset is large. What the footer cannot give is the quantile grid and the category
+counts, so the profile records that it came from there, and any comparison against it says
+that no distribution was checked. Without that, the report would read exactly like one where
+nothing moved, and those are different answers. The flag applies to Parquet, the only format
+with a footer to read; asked for anything else, the command says so and profiles the data.
 
 A profile is read wherever a dataset is, on either side of a comparison, so this works from
 the Python API and the dashboard too. `.profile.json` is the extension that marks one, kept

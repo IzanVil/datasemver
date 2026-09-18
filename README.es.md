@@ -323,7 +323,7 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
 | `--write-version` | | Registra la versión sugerida en `<nombre>.version` junto al dataset nuevo |
 | `--key COLUMNA` | `-k` | Columna que identifica una fila; repítela para una clave compuesta |
-| `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas |
+| `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas (`diff`, `profile`) |
 | `--engine NOMBRE` | | `pandas`, `duckdb` o `duckdb-sketch`; ver [motores](#motores) |
 | `--version` | | Imprime la versión instalada y termina |
 
@@ -343,6 +343,7 @@ datasemver diff customers_v3.profile.json customers_v4.parquet
 datasemver diff old.csv new.csv --key id          # qué filas cambiaron, no solo la forma
 datasemver diff old.csv new.csv --engine duckdb   # perfila sin cargar ninguno de los dos
 datasemver diff old.parquet new.parquet --schema-only
+datasemver profile big.parquet --schema-only   # un seek, no un escaneo
 ```
 
 Los formatos se detectan por extensión: `.csv`, `.csv.gz`, `.tsv`, `.tsv.gz`, `.json`, `.jsonl`, `.ndjson`,
@@ -423,6 +424,15 @@ datos —al lado del puntero de DVC, en el mismo pull request— y la siguiente 
 necesita la versión nueva, en lugar de descargar una anterior que puede ser grande, remota o
 haber desaparecido. También hace auditable una sugerencia meses después: el perfil sigue
 diciendo exactamente con qué se calculó el salto.
+
+`--schema-only` guarda un perfil leído desde el footer de un Parquet: un seek al final del
+fichero en lugar de decodificarlo entero, que es el caso propio del comando — la razón para
+guardar un perfil es que el dataset sea grande. Lo que el footer no puede dar es la rejilla de
+cuantiles ni los conteos por categoría, así que el perfil registra que salió de ahí, y
+cualquier comparación contra él dice que no se ha comprobado ninguna distribución. Sin eso, el
+informe se leería igual que uno donde nada se movió, y no son la misma respuesta. La opción
+solo aplica a Parquet, el único formato con un footer que leer; pedida para otro, el comando
+lo dice y perfila los datos.
 
 Un perfil se lee allí donde se lee un dataset, en cualquiera de los dos lados de una
 comparación, así que esto funciona también desde la API de Python y desde el panel.

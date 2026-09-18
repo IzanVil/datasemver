@@ -149,3 +149,22 @@ def test_a_database_url_is_never_mistaken_for_a_parquet_file():
 
     assert not _is_parquet_file("sqlite:///data.parquet#customers")
     assert _is_parquet_file("snapshots/data.parquet")
+
+
+def test_a_footer_profile_records_that_it_came_from_the_footer(old_parquet):
+    """The caveat has to travel with the profile, because the profile outlives the run.
+
+    What the footer cannot give is the quantile grid and the category counts. Stored without
+    saying so, the file is an ordinary profile, and a comparison against it months later reads
+    exactly like one where no distribution moved -- which is a different answer from one where
+    nobody looked.
+    """
+    schema = schema_from_metadata(old_parquet, source=str(old_parquet))
+
+    assert schema.schema_only is True
+
+
+def test_a_profile_read_from_rows_does_not_claim_the_footer(old_parquet):
+    from datasemver.formats.loader import load_schema
+
+    assert load_schema(old_parquet).schema_only is False

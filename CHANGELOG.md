@@ -65,6 +65,39 @@ This project follows [Semantic Versioning](https://semver.org).
   says what it is called. The script imports `PROFILE_SUFFIX` from the library for the same
   reason instead of repeating it.
 
+### Patch
+- The measured numbers are held by tests, so they cannot go stale in silence. The changelog
+  states measurements -- `--schema-only` turning 5.4s and 641 MB into 1s and 137 MB, the
+  chunked read taking a pair of 60 MB files from 18.1s to 8.5s -- and nothing in CI held any
+  of them: a change that reintroduced a full read on the footer path, or that materialised a
+  stream the bounded readers consume a chunk at a time, passed every functional test while the
+  published numbers quietly stopped being true. Each invariant is now pinned as the kind of
+  assertion it actually satisfies. The footer one is exact, because it is binary: a spy stands
+  on every entry point that decodes rows and fails at the moment one is touched, on all three
+  routes that reach the footer -- `load_schema`, which the dashboard, the DVC run and the pull
+  request script all go through, and `--schema-only` on both `diff` and `profile`. Walking the
+  footer's own row-group statistics stays allowed, because that is metadata rather than rows.
+  The chunked one is a proportion, because its failure is one: a `tracemalloc` peak with the
+  ceiling stated as a multiple of the file's size on disk rather than an absolute number of
+  megabytes, so a runner with different constant overhead stays green while a whole-body read
+  still turns red. Not wall-clock time anywhere: a threshold loose enough to be green on a
+  noisy runner is loose enough to miss a threefold regression. The tests carry a `perf` marker
+  beside `web` and `duckdb` so a contributor can skip them locally, and they record what the
+  numbers were measured on -- file shape, commands, and a dated run -- so re-measuring later is
+  rerunning something rather than reconstructing what was run. Contributed in #20 by
+  @hawkxdev. Closes #13.
+- The project site says what the tool does now. Two of the five numbers in its fact strip were
+  wrong -- it claimed 534 tests where there are 699, and four formats where there are six --
+  and the GitHub Action card showed `scripts/run_datasemver_on_pr.py`, which is the script the
+  action replaced, rather than the line someone writes in a workflow. Nothing about the engines
+  had reached the page at all, although they are the one claim on it that is measured rather
+  than argued; they now have a section with the table of what was measured, at the sizes it was
+  measured on, and the sketch's divergence stated rather than buried. Added along with them:
+  what it reads, so Feather, workbooks and the compressed text formats are named; DVC and the
+  standalone binary among the ways in; `--schema-only` and `--write-version` in the examples
+  they belong to; and the extras named where someone is deciding what to install. English and
+  Spanish in step, as they have to be.
+
 ## [0.8.2] - 2026-09-11
 
 ### Patch

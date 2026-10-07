@@ -309,3 +309,25 @@ def test_a_boolean_is_not_a_threshold(tmp_path):
     """YAML reads `true` as a boolean, and a boolean is an integer in Python."""
     with pytest.raises(RuleError, match="must be numeric"):
         rules_from("major:\n  - row_count_decrease_greater_than: true\n", tmp_path)
+
+
+def test_yaml_aliases_are_refused(tmp_path):
+    """A rules file may not use aliases: expanding them is the billion-laughs amplification,
+    where a few hundred bytes of nested anchors become gigabytes before a rule is read."""
+    bomb = "a: &a [x, x, x, x, x, x, x, x, x]\n"
+    for level in range(1, 8):
+        bomb += f"b{level}: &b{level} [" + ", ".join(["*a"] * 9) + "]\n"
+    bomb += "major:\n  - [*b7]\n"
+    with pytest.raises(RuleError, match="may not use YAML aliases"):
+        rules_from(bomb, tmp_path)
+
+
+def test_a_plain_anchor_without_an_alias_is_still_refused(tmp_path):
+    """The refusal is on the alias that expands, which is the only half that amplifies."""
+    with pytest.raises(RuleError, match="may not use YAML aliases"):
+        rules_from("x: &anchor [column_removed]\nmajor: *anchor\n", tmp_path)
+
+
+def test_malformed_yaml_is_a_rule_error_not_a_raw_yaml_error(tmp_path):
+    with pytest.raises(RuleError, match="not valid YAML"):
+        rules_from("major: [unterminated\n", tmp_path)

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
+
+if TYPE_CHECKING:  # pragma: no cover
+    from yaml.nodes import Node
 
 from datasemver.core.models import Change, ChangeType, ClassifiedChange, DiffResult, Severity
 
@@ -33,6 +36,35 @@ IGNORE_KEY = "ignore"
 
 class RuleError(ValueError):
     """Raised when a rules file cannot be understood."""
+
+
+class _NoAliasLoader(yaml.SafeLoader):
+    """`safe_load` that additionally refuses YAML aliases.
+
+    `safe_load` already blocks constructing arbitrary Python objects, but it still expands
+    aliases, which is the "billion laughs" amplification: a few hundred bytes of nested
+    anchors expand to gigabytes before a single rule is read. A rules file has no legitimate
+    use for an alias, so the safe answer is to forbid them at parse time rather than to cap
+    the blow-up after it has happened.
+    """
+
+    def compose_node(self, parent: Node | None, index: int) -> Any:
+        if self.check_event(yaml.events.AliasEvent):
+            self.get_event()
+            raise RuleError("a rules file may not use YAML aliases")
+        return super().compose_node(parent, index)
+
+
+def _load_yaml(text: str) -> Any:
+    """Parse a rules document, refusing the constructs a rules file never needs.
+
+    The alias refusal raised inside the loader is a `RuleError`, not a `YAMLError`, so it
+    travels straight to the caller; only a genuine syntax error is wrapped here.
+    """
+    try:
+        return yaml.load(text, _NoAliasLoader)
+    except yaml.YAMLError as error:
+        raise RuleError(f"rules file is not valid YAML: {error}") from error
 
 
 @dataclass(frozen=True)
@@ -78,7 +110,7 @@ class RuleSet:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"rules file not found: {path}")
-        return cls.from_mapping(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+        return cls.from_mapping(_load_yaml(path.read_text(encoding="utf-8")) or {})
 
     @classmethod
     def from_mapping(cls, mapping: dict[str, Any]) -> RuleSet:

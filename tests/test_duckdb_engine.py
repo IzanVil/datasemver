@@ -16,6 +16,7 @@ from __future__ import annotations
 import gzip
 import json
 import sys
+from pathlib import Path
 
 import numpy
 import pandas as pd
@@ -322,6 +323,84 @@ def test_a_memory_limit_duckdb_cannot_parse_is_reported_as_such(monkeypatch, old
 
     with pytest.raises(DuckDBError, match=MEMORY_LIMIT_ENV_VAR):
         duck(old_parquet)
+
+
+def test_the_connection_is_given_somewhere_to_spill():
+    """The ceiling is only safe because what does not fit goes to disk, not unanswered.
+
+    An in-memory database with `temp_directory` unset has nowhere to put what exceeds the
+    ceiling and fails precisely on the datasets this engine exists for -- the failure that
+    actually happened while it was being written. The guard is that `_connect` always points
+    it at a real directory, so this pins the setting rather than the spill it enables.
+    """
+    connection = _connect()
+    try:
+        configured = connection.execute("SELECT current_setting('temp_directory')").fetchone()[0]
+    finally:
+        connection.close()
+
+    assert configured
+    assert Path(configured).is_dir()
+
+
+@pytest.fixture(scope="module")
+def spillable(tmp_path_factory):
+    """A file whose parallel working set is larger than the tight ceiling the test sets.
+
+    Big enough that aggregating it under the ceiling must spill, small enough that building
+    it and reading it stay within a CI run. Spilling is a parallel-aggregation phenomenon --
+    a single thread streams the same query within bounds -- so the contrast below holds on
+    the multi-core runners every job here uses and would vanish pinned to one thread.
+    """
+    rng = numpy.random.default_rng(7)
+    path = tmp_path_factory.mktemp("spill") / "amounts.parquet"
+    pd.DataFrame(
+        {
+            "id": numpy.arange(2_000_000),
+            "amount": rng.lognormal(3.0, 1.1, 2_000_000),
+            "tag": rng.integers(0, 2_000_000, 2_000_000),
+        }
+    ).to_parquet(path)
+    return path
+
+
+SPILL_CEILING = "50MB"
+
+
+def test_a_dataset_past_the_ceiling_spills_instead_of_failing(monkeypatch, spillable):
+    """Under a ceiling its working set exceeds, the engine still answers -- by going to disk.
+
+    The exact invariant beneath the memory figures the readme states: a dataset that does not
+    fit under `DATASEMVER_DUCKDB_MEMORY_LIMIT` is spilled rather than refused, and the answer
+    is the dataframe path's answer regardless. Held to a small file and a low ceiling, which
+    is the half of the measurement that fits in a runner.
+    """
+    monkeypatch.setenv(MEMORY_LIMIT_ENV_VAR, SPILL_CEILING)
+    reference = load_schema(spillable)
+
+    measured = duck(spillable)
+
+    assert measured.row_count == reference.row_count
+    assert measured.columns["tag"].cardinality == reference.columns["tag"].cardinality
+    assert measured.columns["amount"].quantiles == pytest.approx(
+        reference.columns["amount"].quantiles, rel=FLOAT_TOLERANCE
+    )
+
+
+def test_without_a_place_to_spill_the_same_run_hits_the_ceiling(monkeypatch, spillable):
+    """The control that makes the test above a spill test rather than a headroom one.
+
+    Take away the directory `_connect` points at -- an empty `temp_directory` disables
+    spilling -- and the identical run under the identical ceiling fails. So the success above
+    is the spill working, not the ceiling being generous.
+    """
+    import datasemver.formats.duck as duck_module
+
+    monkeypatch.setenv(MEMORY_LIMIT_ENV_VAR, SPILL_CEILING)
+    monkeypatch.setattr(duck_module.tempfile, "gettempdir", lambda: "")
+
+    with pytest.raises(DuckDBError, match="ran out of memory"):
+        duck(spillable)
 
 
 def test_running_out_of_memory_says_which_ceiling_was_hit(monkeypatch, old_parquet):

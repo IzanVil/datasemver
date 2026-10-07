@@ -45,6 +45,11 @@ app = FastAPI(
 ANALYSIS_ERRORS = (ValueError, RuleError, InvalidVersionError)
 CHUNK_BYTES = 1024 * 1024
 MAX_NAME_CHARS = 120
+# A rules file is YAML the server parses, not a dataset, and a few kilobytes is already a
+# large rule set. Held far below the dataset limit so a rules upload is never a way to spend
+# the whole of it on parsing -- the alias expansion a loader refuses is only one way a small
+# document asks for a lot of work, and the bytes are the part the cap can see.
+MAX_RULES_BYTES = 256 * 1024
 
 # A stored profile is accepted wherever a dataset is. It is a few hundred bytes where the
 # dataset is megabytes, which is what lets a comparison here reach a version far past the
@@ -108,7 +113,11 @@ async def diff_uploads(
         rules_path = None
         if rules is not None and rules.filename:
             rules_path = await store_upload(
-                rules, workdir / "rules", settings, allowed={".yaml", ".yml"}
+                rules,
+                workdir / "rules",
+                settings,
+                allowed={".yaml", ".yml"},
+                limit=MAX_RULES_BYTES,
             )
 
         return run_analysis(
@@ -178,9 +187,16 @@ async def store_upload(
     destination: Path,
     settings: Settings,
     allowed: set[str] | None = None,
+    limit: int | None = None,
 ) -> Path:
-    """Persist an upload to disk, enforcing its extension and the size limit."""
+    """Persist an upload to disk, enforcing its extension and the size limit.
+
+    `limit` lets a rules file be held to a much smaller ceiling than a dataset: it is YAML
+    the server parses rather than data it loads, and a few kilobytes is already a large rule
+    set, so there is no reason it should be able to spend the whole dataset budget.
+    """
     allowed = allowed or UPLOAD_EXTENSIONS
+    limit = settings.max_upload_bytes if limit is None else limit
     suffix = _suffix_of(upload.filename or "")
     if suffix not in allowed:
         raise HTTPException(
@@ -195,25 +211,28 @@ async def store_upload(
     # moved between the Python versions this supports.
     path = destination.with_name(destination.name + suffix)
     path.parent.mkdir(parents=True, exist_ok=True)
-    written = _copy_within_limit(upload, path, settings.max_upload_bytes)
+    written = _copy_within_limit(upload, path, limit)
 
-    if written > settings.max_upload_bytes:
+    if written > limit:
         raise HTTPException(
             status_code=413,
-            detail=f"'{upload.filename}' is larger than {settings.max_upload_mb} MB",
+            detail=f"'{upload.filename}' is larger than {_mb(limit)} MB",
         )
     if written == 0:
         raise HTTPException(status_code=400, detail=f"'{upload.filename}' is empty")
 
-    if _expands_past_limit(path, suffix, settings.max_upload_bytes, upload.filename or "file"):
+    if _expands_past_limit(path, suffix, limit, upload.filename or "file"):
         path.unlink(missing_ok=True)
         raise HTTPException(
             status_code=413,
-            detail=(
-                f"'{upload.filename}' holds more than {settings.max_upload_mb} MB once decompressed"
-            ),
+            detail=f"'{upload.filename}' holds more than {_mb(limit)} MB once decompressed",
         )
     return path
+
+
+def _mb(byte_count: int) -> float:
+    """Bytes as megabytes, rounded the way the settings report their own limit."""
+    return round(byte_count / (1024 * 1024), 2)
 
 
 def _suffix_of(filename: str) -> str:

@@ -125,6 +125,50 @@ def test_diff_uploads_with_custom_rules(client, old_csv, new_csv, tmp_path):
     assert response.json()["bump"] == "minor"
 
 
+def _diff_with_rules(client, old_csv, new_csv, rules_text):
+    rules = io.BytesIO(rules_text.encode("utf-8"))
+    with old_csv.open("rb") as old, new_csv.open("rb") as new:
+        return client.post(
+            "/api/diff",
+            files={
+                "old": (old_csv.name, old, "text/csv"),
+                "new": (new_csv.name, new, "text/csv"),
+                "rules": ("rules.yaml", rules, "application/yaml"),
+            },
+            data={"current_version": "1.0.0"},
+        )
+
+
+def test_a_rules_alias_bomb_is_refused_rather_than_expanded(client, old_csv, new_csv):
+    """A few hundred bytes of nested anchors must not be allowed to expand to gigabytes."""
+    bomb = "a: &a [x, x, x, x, x, x, x, x, x]\n"
+    for level in range(1, 8):
+        bomb += f"b{level}: &b{level} [" + ", ".join(["*a"] * 9) + "]\n"
+    bomb += "major:\n  - [*b7]\n"
+
+    tracemalloc.start()
+    try:
+        response = _diff_with_rules(client, old_csv, new_csv, bomb)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert response.status_code == 400
+    assert "alias" in response.json()["detail"].lower()
+    # The refusal is at parse time, so nothing is ever expanded: a handful of MB, not GB.
+    assert peak < 64 * 1024 * 1024
+
+
+def test_a_rules_file_is_held_to_a_tighter_limit_than_a_dataset(client, old_csv, new_csv):
+    """A rules upload past its own small cap is refused even when it fits the dataset limit."""
+    oversized = "minor:\n" + "  - column_removed\n" + "#" + "a" * (main.MAX_RULES_BYTES)
+
+    response = _diff_with_rules(client, old_csv, new_csv, oversized)
+
+    assert response.status_code == 413
+    assert len(oversized.encode()) < client.get("/api/meta").json()["max_upload_mb"] * 1024 * 1024
+
+
 def test_diff_rejects_unsupported_extension(client, old_csv, tmp_path):
     other = tmp_path / "notes.txt"
     other.write_text("nope", encoding="utf-8")

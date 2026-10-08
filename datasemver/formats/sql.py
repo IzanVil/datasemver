@@ -140,12 +140,14 @@ def _engine(url: str, source: str) -> Any:
 
 
 def _normalised(url: str) -> str:
-    """Rewrite the two spellings people use that SQLAlchemy does not accept.
+    """Point the bare schemes people write at the drivers the sql extra actually ships.
 
-    `postgres://` lost its alias in SQLAlchemy 2.0 and now fails with "Can't load plugin",
-    which says nothing about the scheme being the problem. A bare `mysql://` resolves to
-    MySQLdb rather than the PyMySQL the sql extra installs, and fails with "No module named
-    'MySQLdb'". Both are the URL every tutorial prints, so both are met where they are.
+    Each of these resolves, left alone, to a driver that is not installed. `postgres://` lost
+    its alias in SQLAlchemy 2.0; `postgresql://` once defaulted to psycopg2 but now defaults
+    to psycopg (v3); and a bare `mysql://` resolves to MySQLdb. The sql extra ships psycopg2
+    and PyMySQL, so each is pinned to the one that is there -- otherwise reading a table fails
+    with "No module named" for a driver the user never asked for. These are the URLs every
+    tutorial prints, so they are met where they are.
 
     A driver the caller spelled out is never rewritten.
     """
@@ -153,8 +155,8 @@ def _normalised(url: str) -> str:
     if not separator or "+" in scheme:
         return url
     lowered = scheme.lower()
-    if lowered == "postgres":
-        return f"postgresql://{rest}"
+    if lowered in {"postgres", "postgresql"}:
+        return f"postgresql+psycopg2://{rest}"
     if lowered in {"mysql", "mariadb"}:
         return f"{lowered}+pymysql://{rest}"
     return url

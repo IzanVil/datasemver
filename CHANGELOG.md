@@ -97,6 +97,29 @@ This project follows [Semantic Versioning](https://semver.org).
   standalone binary among the ways in; `--schema-only` and `--write-version` in the examples
   they belong to; and the extras named where someone is deciding what to install. English and
   Spanish in step, as they have to be.
+- A rules file can no longer be a denial-of-service amplifier. Rules are loaded with
+  `yaml.safe_load`, which blocks constructing arbitrary objects but still expands aliases, so
+  a few hundred bytes of nested anchors -- the "billion laughs" shape -- became gigabytes
+  before a single rule was read. It reached the library from the command line, but also over
+  the network: the dashboard's `/api/diff` takes a rules upload, so this was a way to exhaust
+  the process from outside it. Aliases are now refused at parse time, which a rules file never
+  needs, and the dashboard holds a rules upload to its own small ceiling rather than the
+  dataset limit, since it is YAML the server parses rather than data it loads.
+- Reading a PostgreSQL table works again on current SQLAlchemy. The sql extra ships
+  psycopg2-binary, and `postgres://` was rewritten to `postgresql://` without pinning a
+  driver -- which newer SQLAlchemy resolves to psycopg (v3), not the psycopg2 that is
+  installed, so a real connection failed with "No module named 'psycopg'". The scheme is now
+  pinned to `postgresql+psycopg2://`, the way a bare `mysql://` is already pinned to the
+  PyMySQL the extra ships, so each spelling reaches the driver that is actually there.
+- The DuckDB engine's spill to disk is held by a test. The memory figures the readme states
+  rest on the engine spilling what does not fit under `DATASEMVER_DUCKDB_MEMORY_LIMIT` rather
+  than failing, and what covered it pinned the out-of-memory message from a fake connection,
+  not the spill. The guard is now the invariant itself: `_connect` always points at a real
+  `temp_directory`, and with that taken away a dataset past a tight ceiling fails -- the
+  regression that an in-memory database with nowhere to spill actually hit. Whether a given
+  ceiling is crossed by spilling is left unmeasured on purpose: DuckDB's spill floor moves
+  with the platform, the core count and its version, so it is not a portable constant, which
+  is why the readme's figures are measured rather than tested. Closes #16.
 
 ## [0.8.2] - 2026-09-11
 

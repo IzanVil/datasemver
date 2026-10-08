@@ -233,12 +233,12 @@ def test_postgres_is_read_as_postgresql():
     Without the rewrite this fails with "Can't load plugin: sqlalchemy.dialects:postgres",
     which says nothing about the scheme being the thing to change.
 
-    Matched on `psycopg` rather than `psycopg2`: the shipped driver is psycopg2-binary, but
-    which one `postgresql://` reaches for by default is SQLAlchemy's decision, and newer
-    versions default to psycopg (v3). Either name is the driver being named, which is what
-    this asserts.
+    Matched on `psycopg2` specifically, not any psycopg: the sql extra ships psycopg2-binary,
+    and the rewrite pins `postgresql://` to it. A newer SQLAlchemy defaults the scheme to
+    psycopg (v3) instead, which is not installed, so an error naming psycopg rather than
+    psycopg2 is the pin having been lost -- which is what this guards against.
     """
-    with pytest.raises(DatasetReadError, match="psycopg"):
+    with pytest.raises(DatasetReadError, match="psycopg2"):
         load_sql("postgres://user:secret@host/db#customers")
 
 

@@ -120,6 +120,15 @@ This project follows [Semantic Versioning](https://semver.org).
   ceiling is crossed by spilling is left unmeasured on purpose: DuckDB's spill floor moves
   with the platform, the core count and its version, so it is not a portable constant, which
   is why the readme's figures are measured rather than tested. Closes #16.
+- The `requirements/` files are held in step with `pyproject.toml` by a test. They mirror the
+  package's dependencies by hand so `pip install -r` reaches the same set, and the runtime
+  mirror is where drift bites: the `pyarrow>=23.0.1` floor is a security floor, so a
+  `requirements/base.txt` that fell behind it would reopen CVE-2023-47248 for that install
+  path alone, silently. The test pins `base.txt` and the `sql`, `duckdb`, `excel` and `web`
+  extras to their pyproject sections, and pins that `dev` stays deliberately different -- it
+  carries packaging tools the extra omits, where the extra carries the engines CI needs -- so
+  a future tidy-up cannot quietly equate the two. It reads `pyproject.toml` with `tomllib` and
+  so skips on Python 3.10, which has no reader to fall back on; the five newer rows cover it.
 
 ## [0.8.2] - 2026-09-11
 

@@ -317,7 +317,7 @@ python -m datasemver diff OLD NEW     # equivalent, no installation needed
 | `--output PATH` | `-o` | Write the changelog entry to a file, prepending it if it already exists |
 | `--json` | | Print machine-readable output: the comparison report instead of the tables (`diff`), the rule set instead of the groups (`rules`) |
 | `--fail-on SEVERITY` | | Exit with `1` when the suggested bump reaches `patch`, `minor` or `major` |
-| `--write-version` | | Record the suggested version in `<name>.version` beside the new dataset |
+| `--write-version` | | Record the suggested version in `<name>.version` beside the new dataset (`diff`, `dvc`) |
 | `--key COLUMN` | `-k` | Column identifying a row; repeat for a composite key |
 | `--schema-only` | | Profile Parquet from its footer instead of its rows (`diff`, `profile`) |
 | `--engine NAME` | | `pandas`, `duckdb` or `duckdb-sketch`; see [engines](#engines) |
@@ -447,6 +447,10 @@ was never recorded says so in the pull request instead of drifting quietly.
 Whether the number gets recorded is still the author's call — that is the point of a sidecar
 the tool does not own — which is why the flag is opt-in. What it removes is the retyping,
 because every hand-copied version is a chance to write `1.5.0` where the run said `2.0.0`.
+
+The places that run in CI take it too: [`datasemver dvc --write-version`](#keeping-the-version-file-up-to-date)
+and the Action's [`write-version` input](#recording-the-version-from-a-workflow). Both write
+into the checkout and stop there; committing the result is the workflow's step.
 
 Two details worth knowing:
 
@@ -678,12 +682,22 @@ naming `dvc pull`.
 
 ### Keeping the version file up to date
 
-This is what `--json` is for. Every dataset carries the version it should move to:
+`--write-version` records each dataset's suggested version beside it, the way `diff` does:
 
 ```bash
-datasemver dvc --rev HEAD^ --json \
-  | jq -r '.datasets[] | [.next_version, .path] | @tsv' \
-  | while IFS=$'\t' read -r version path; do printf '%s\n' "$version" > "$path.version"; done
+datasemver dvc --rev HEAD^ --write-version
+# 2.0.0 written to data/customers.csv.version
+```
+
+The files are written into the working tree, named after the dataset's whole name, and
+`--json` lists them under `version_files` so a later step can stage exactly those. A run that
+`--fail-on` refuses writes none of them: the gate closes on the run, so a dataset that stayed
+under it is not recorded either. Nothing is staged or committed.
+
+When the numbers are wanted for something else, `--json` carries each dataset's version:
+
+```bash
+datasemver dvc --rev HEAD^ --json | jq -r '.datasets[] | [.next_version, .path] | @tsv'
 ```
 
 The sidecar is a few bytes of text, so git tracks it rather than DVC and DataSemver reads it
@@ -820,8 +834,10 @@ python scripts/run_datasemver_on_pr.py --base-ref origin/main --output report.md
 | `--default-version` | Version assumed when a dataset has no sidecar file |
 | `--top-changes` | Changes listed per dataset (default 5) |
 | `--output` | Write the Markdown report to this file |
+| `--fail-on` | Exit with `1` when the worst bump reaches `patch`, `minor` or `major` |
+| `--write-version` | Record each suggested version in `<dataset>.version` in the working tree |
 
-It exposes `has_report`, `max_bump` and `dataset_count` as step outputs, writes the report
+It exposes `has_report`, `max_bump`, `dataset_count` and `version_files` as step outputs, writes the report
 to the job summary, and always exits `0`: a branch with no dataset changes, a dataset added
 for the first time, an unreadable file or a missing base ref are reported rather than
 failing the job.
@@ -855,6 +871,54 @@ disagree:
 When the recorded version matches the suggestion the section is absent, so the report stays
 quiet in the case that needs nothing. Deciding the number is still yours; noticing that it
 was never written is what the tool can do about it.
+
+### Recording the version from a workflow
+
+With `write-version: true` the action does the retyping too: it writes each suggested version
+into the `.version` file in the checkout and names the files that changed in the
+`version-files` output, one per line. It does **not** commit them, and that is deliberate.
+A commit pushed with the job's own `GITHUB_TOKEN` starts no workflow, so the checks a
+protected branch requires would never run on it, and a pull request from a fork has a
+read-only token that cannot push at all. Which token, which branch and whether to commit at
+all are the workflow's to decide, so the action stops where it can be sure:
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}     # the branch itself, not the detached merge commit
+          # token: ${{ secrets.PUSH_TOKEN }}   # a PAT or App token, if the commit must start checks
+      - id: datasemver
+        uses: IzanVil/datasemver@v0.8.2
+        with:
+          write-version: "true"
+      - name: Commit the version files
+        if: >-
+          steps.datasemver.outputs.version-files != '' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          FILES: ${{ steps.datasemver.outputs.version-files }}
+        run: |
+          printf '%s\n' "$FILES" | xargs -d '\n' git add --
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "record dataset versions"
+          git push
+```
+
+The output lists only the files whose contents changed, so a branch that already records the
+suggested number leaves it empty and the commit step is skipped. That also makes the loop safe
+to close: a commit that does start another run finds nothing left to write. As with
+`--fail-on` on the command line, a refused run writes nothing, and the report says which
+version files were set so a reviewer is not surprised by the extra commit.
 
 ### Using it in another repository
 
@@ -890,6 +954,7 @@ jobs:
 | `fail-on` | _(unset)_ | Fail the job when the worst bump reaches `patch`, `minor` or `major` |
 | `engine` | `pandas` | `duckdb` or `duckdb-sketch` profile without loading; the extra is installed for you |
 | `default-version` | `0.0.0` | Version assumed for a dataset with no `.version` sidecar |
+| `write-version` | `false` | Write each suggested version to its `.version` file in the checkout; [committing it is yours](#recording-the-version-from-a-workflow) |
 | `comment` | `true` | Post the report as a pull request comment |
 | `python-version` | `3.11` | Python the analysis runs on |
 | `token` | `github.token` | Token the comment is posted with |
@@ -900,6 +965,7 @@ jobs:
 | `dataset-count` | How many datasets were analysed |
 | `has-report` | Whether anything was analysed |
 | `report` | Path to the Markdown report, written whether or not it was posted |
+| `version-files` | The `.version` files `write-version` changed, one per line; empty when none |
 
 `fetch-depth: 0` is required: without the full history the base version of the dataset is
 not in the clone, and the action says so rather than letting `git` explain it. The default

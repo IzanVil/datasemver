@@ -610,3 +610,168 @@ def test_a_run_below_the_gate_is_let_through(workspace, fake):
     result = runner.invoke(app, ["dvc", "--repo", str(workspace)])
 
     assert result.exit_code == 0
+
+
+# --- recording the version -----------------------------------------------------------------
+
+
+def sidecar_of(workspace, name="data/customers.csv"):
+    return workspace / f"{name}.version"
+
+
+def test_the_command_records_the_version_it_computed(workspace, fake):
+    """The point of the flag: the number a pipeline wrote down is not one a human retyped."""
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version"])
+
+    assert result.exit_code == 0
+    assert sidecar_of(workspace).read_text(encoding="utf-8").strip() == "2.0.0"
+
+
+def test_the_version_is_not_recorded_unless_it_is_asked_for(workspace, fake):
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2"])
+
+    assert not sidecar_of(workspace).exists()
+
+
+def test_recording_replaces_the_version_that_was_there(workspace, fake):
+    sidecar_of(workspace).write_text("1.4.2\n", encoding="utf-8")
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version"])
+
+    assert sidecar_of(workspace).read_text(encoding="utf-8").strip() == "2.0.0"
+
+
+def test_a_refused_run_records_nothing(workspace, fake):
+    """The sidecar is what the next run bumps from, so a rejected number must not land in it."""
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(
+        app,
+        ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version", "--fail-on", "major"],
+    )
+
+    assert result.exit_code == 1
+    assert not sidecar_of(workspace).exists()
+
+
+def test_a_refused_run_leaves_the_recorded_version_alone(workspace, fake):
+    sidecar_of(workspace).write_text("1.4.2\n", encoding="utf-8")
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    runner.invoke(
+        app,
+        ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version", "--fail-on", "major"],
+    )
+
+    assert sidecar_of(workspace).read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_a_run_below_the_gate_still_records(workspace, fake):
+    """The gate has to refuse the run, not merely be present on the command line."""
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): NEW_CSV})
+
+    result = runner.invoke(
+        app,
+        ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version", "--fail-on", "major"],
+    )
+
+    assert result.exit_code == 0
+    assert sidecar_of(workspace).read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_one_dataset_reaching_the_gate_keeps_every_dataset_from_recording(workspace, fake):
+    """The gate closes on the run, so the dataset that stayed under it is not recorded either."""
+    (workspace / "data" / "orders.csv").write_text(NEW_CSV, encoding="utf-8")
+    both = {
+        "modified": [{"path": "data/customers.csv"}, {"path": "data/orders.csv"}],
+    }
+    fake(both, {("HEAD^", "data/customers.csv"): OLD_CSV, ("HEAD^", "data/orders.csv"): NEW_CSV})
+
+    result = runner.invoke(
+        app, ["dvc", "--repo", str(workspace), "--write-version", "--fail-on", "major"]
+    )
+
+    assert result.exit_code == 1
+    assert not sidecar_of(workspace).exists()
+    assert not sidecar_of(workspace, "data/orders.csv").exists()
+
+
+def test_every_compared_dataset_gets_its_own_version_file(workspace, fake):
+    (workspace / "data" / "orders.csv").write_text(NEW_CSV, encoding="utf-8")
+    both = {
+        "modified": [{"path": "data/customers.csv"}, {"path": "data/orders.csv"}],
+    }
+    fake(both, {("HEAD^", "data/customers.csv"): OLD_CSV, ("HEAD^", "data/orders.csv"): NEW_CSV})
+
+    runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version"])
+
+    assert sidecar_of(workspace).read_text(encoding="utf-8").strip() == "2.0.0"
+    assert sidecar_of(workspace, "data/orders.csv").read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_a_skipped_dataset_gets_no_version_file(workspace, fake):
+    """There was no comparison, so there is no number to record."""
+    fake({"added": [{"path": "data/customers.csv"}]})
+
+    result = runner.invoke(app, ["dvc", "--repo", str(workspace), "--write-version"])
+
+    assert result.exit_code == 0
+    assert not sidecar_of(workspace).exists()
+
+
+def test_a_renamed_dataset_is_recorded_under_its_new_name(workspace, fake):
+    payload = {"renamed": [{"path": {"old": "data/old.csv", "new": "data/customers.csv"}}]}
+    fake(payload, {("HEAD^", "data/old.csv"): OLD_CSV})
+
+    runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version"])
+
+    assert sidecar_of(workspace).is_file()
+    assert not sidecar_of(workspace, "data/old.csv").exists()
+
+
+def test_the_recorded_version_is_where_the_next_run_starts(workspace, fake):
+    """The loop this closes: what one run writes is what the next reads out of git."""
+    subprocess.run(["git", "init", "-q", str(workspace)], check=True, capture_output=True)
+    for setting in (("user.email", "t@e.invalid"), ("user.name", "T")):
+        subprocess.run(["git", "-C", str(workspace), "config", *setting], check=True)
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version"])
+    subprocess.run(["git", "-C", str(workspace), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(workspace), "commit", "-qm", "record"], check=True, capture_output=True
+    )
+
+    assert dvc.recorded_version(workspace, "data/customers.csv", "HEAD") == "2.0.0"
+
+
+def test_the_command_says_where_the_version_went(workspace, fake):
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version"])
+
+    assert "2.0.0 written to data/customers.csv.version" in " ".join(result.stdout.split())
+
+
+def test_the_json_names_the_files_a_later_step_should_stage(workspace, fake):
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(
+        app, ["dvc", "--repo", str(workspace), "-c", "1.4.2", "--write-version", "--json"]
+    )
+
+    assert json.loads(result.stdout)["version_files"] == ["data/customers.csv.version"]
+
+
+def test_the_json_names_no_files_when_none_were_written(workspace, fake):
+    """Present and empty rather than absent, so a pipeline can read it without asking first."""
+    fake(MODIFIED, {("HEAD^", "data/customers.csv"): OLD_CSV})
+
+    result = runner.invoke(app, ["dvc", "--repo", str(workspace), "--json"])
+
+    assert json.loads(result.stdout)["version_files"] == []

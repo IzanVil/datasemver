@@ -9,6 +9,27 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- `datasemver dvc --write-version` records each dataset's suggested version in its `.version`
+  file, as `diff --write-version` already did. The two places that run in CI were the ones that
+  could not close the loop: a pipeline that had just computed the bump left it for a person to
+  read off a log and retype. The files are written into the working tree under the dataset's
+  whole name, a renamed dataset is recorded under its new one, a dataset that was skipped has no
+  number to record, and `--json` lists what was written under `version_files` so a later step
+  stages exactly those. A run that `--fail-on` refuses writes none of them -- the gate closes on
+  the run, not on any one dataset -- for the reason `diff` gives: the sidecar is what the next
+  comparison bumps from. Opt-in; a run that does not pass the flag behaves as before, apart from
+  the new key in the JSON.
+- The GitHub Action takes `write-version: true`, which writes each suggested version into the
+  checkout and names the files it changed in a new `version-files` output, one per line. It does
+  not commit them, and that is the decision this settles rather than an omission. A commit
+  pushed with the job's own token starts no workflow, so the checks a protected branch requires
+  would never run on it, and a fork's read-only token cannot push at all; which token and which
+  branch is the workflow's to choose, and the readme carries a commit step to start from. The
+  output lists only the files whose contents changed, so a branch that already records the
+  suggestion leaves it empty and the step that commits is skipped, which also keeps a re-run
+  from committing twice. The script behind the action takes `--write-version` too, and writes
+  multi-line step outputs in GitHub's delimiter form, since `key=value` ends at the first
+  newline. Closes #23.
 - `datasemver profile --schema-only` writes a profile read from the Parquet footer instead of
   from the rows. `diff` has taken the flag since the footer reader existed; the one command
   whose whole purpose is "do this once so you never read the file again" was the one that

@@ -69,6 +69,22 @@ def report_of(repo, tmp_path, *extra):
     return code, output.read_text(encoding="utf-8")
 
 
+def tolerant_rules(tmp_path):
+    """A rule set that calls everything in the fixture's change a patch."""
+    rules = tmp_path / "tolerant.yaml"
+    rules.write_text(
+        "patch:\n"
+        "  - column_removed\n"
+        "  - type_changed_incompatible\n"
+        "  - column_added\n"
+        "  - row_count_increased\n"
+        "  - nulls_fixed\n"
+        "  - minor_stat_change\n",
+        encoding="utf-8",
+    )
+    return rules
+
+
 # --- end to end ------------------------------------------------------------------------
 
 
@@ -477,17 +493,7 @@ def test_the_report_is_written_before_the_run_is_refused(repo, tmp_path):
 
 def test_a_bump_below_the_threshold_is_let_through(repo, tmp_path):
     """The same change, under a rule set that does not call any of it breaking."""
-    rules = tmp_path / "tolerant.yaml"
-    rules.write_text(
-        "patch:\n"
-        "  - column_removed\n"
-        "  - type_changed_incompatible\n"
-        "  - column_added\n"
-        "  - row_count_increased\n"
-        "  - nulls_fixed\n"
-        "  - minor_stat_change\n",
-        encoding="utf-8",
-    )
+    rules = tolerant_rules(tmp_path)
 
     code, _ = report_of(repo, tmp_path, "--fail-on", "major", "--rules", str(rules))
 
@@ -502,3 +508,161 @@ def test_a_run_with_nothing_to_compare_is_not_refused(repo, tmp_path):
     )
 
     assert code == 0
+
+
+# --- recording the version -------------------------------------------------------------------
+
+
+def sidecar(repo, name="customers.csv"):
+    return repo / "data" / f"{name}.version"
+
+
+def test_the_version_is_recorded_beside_the_dataset(repo, tmp_path):
+    """The branch left 1.4.2 where the run suggests 2.0.0, and this is what closes that gap."""
+    code, _ = report_of(repo, tmp_path, "--write-version")
+
+    assert code == 0
+    assert sidecar(repo).read_text(encoding="utf-8").strip() == "2.0.0"
+
+
+def test_the_version_is_not_recorded_unless_it_is_asked_for(repo, tmp_path):
+    report_of(repo, tmp_path)
+
+    assert sidecar(repo).read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_recording_stages_and_commits_nothing(repo, tmp_path):
+    """Where the file goes next, and with whose token, is the workflow's call."""
+    head = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout
+
+    report_of(repo, tmp_path, "--write-version")
+
+    status = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain"], capture_output=True, text=True
+    ).stdout
+    assert status.strip() == "M data/customers.csv.version", "modified, and not staged"
+    assert (
+        subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True
+        ).stdout
+        == head
+    )
+
+
+def test_a_dataset_that_never_had_a_version_file_is_given_one(repo, tmp_path):
+    run_git(repo, "checkout", "-q", "base")
+    (repo / "data" / "events.csv").write_text(OLD_CSV, encoding="utf-8")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", "events, no sidecar")
+    run_git(repo, "branch", "-f", "events-base")
+    (repo / "data" / "events.csv").write_text(NEW_CSV, encoding="utf-8")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", "events changed")
+
+    pr.main(
+        [
+            "--base-ref",
+            "events-base",
+            "--output",
+            str(tmp_path / "report.md"),
+            "--default-version",
+            "3.1.0",
+            "--write-version",
+        ]
+    )
+
+    assert sidecar(repo, "events.csv").read_text(encoding="utf-8").strip() == "4.0.0"
+
+
+def test_a_refused_run_records_nothing(repo, tmp_path):
+    """The sidecar is what the next run bumps from, so a rejected number must not land in it."""
+    code, _ = report_of(repo, tmp_path, "--write-version", "--fail-on", "major")
+
+    assert code == 1
+    assert sidecar(repo).read_text(encoding="utf-8").strip() == "1.4.2"
+
+
+def test_a_run_below_the_gate_still_records(repo, tmp_path):
+    """The gate has to refuse the run, not merely be present on the command line."""
+    rules = tolerant_rules(tmp_path)
+
+    code, _ = report_of(
+        repo, tmp_path, "--write-version", "--fail-on", "major", "--rules", str(rules)
+    )
+
+    assert code == 0
+    assert sidecar(repo).read_text(encoding="utf-8").strip() == "1.4.3"
+
+
+def test_a_dataset_that_was_skipped_gets_no_version_file(repo, tmp_path):
+    (repo / "data" / "events.csv").write_text(NEW_CSV, encoding="utf-8")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", "events is new")
+
+    report_of(repo, tmp_path, "--write-version")
+
+    assert not sidecar(repo, "events.csv").exists()
+
+
+def test_the_report_says_the_version_was_set_in_the_checkout(repo, tmp_path):
+    """Not "written": nothing is recorded in the branch until something commits it."""
+    _, body = report_of(repo, tmp_path, "--write-version")
+
+    assert "### Version files" in body
+    assert "`data/customers.csv.version` was set to 2.0.0" in body
+    assert "recorded once a step commits it" in body
+
+
+def test_a_version_file_already_in_step_is_left_alone_and_not_mentioned(repo, tmp_path):
+    write_sidecar(repo, "2.0.0\n")
+
+    _, body = report_of(repo, tmp_path, "--write-version")
+
+    assert "### Version files" not in body
+    assert sidecar(repo).read_text(encoding="utf-8").strip() == "2.0.0"
+
+
+def test_the_files_that_changed_are_an_output(repo, tmp_path, monkeypatch):
+    outputs = tmp_path / "gh-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(outputs))
+
+    report_of(repo, tmp_path, "--write-version")
+
+    assert "version_files=data/customers.csv.version\n" in outputs.read_text(encoding="utf-8")
+
+
+def test_the_output_is_empty_when_nothing_changed(repo, tmp_path, monkeypatch):
+    """Empty is the answer a step deciding whether to commit reads as 'nothing to commit'."""
+    write_sidecar(repo, "2.0.0\n")
+    outputs = tmp_path / "gh-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(outputs))
+
+    report_of(repo, tmp_path, "--write-version")
+
+    assert "version_files=\n" in outputs.read_text(encoding="utf-8")
+
+
+def test_the_output_is_empty_when_the_flag_is_off(repo, tmp_path, monkeypatch):
+    outputs = tmp_path / "gh-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(outputs))
+
+    report_of(repo, tmp_path)
+
+    assert "version_files=\n" in outputs.read_text(encoding="utf-8")
+
+
+def test_a_value_with_several_lines_uses_the_delimiter_form(tmp_path, monkeypatch):
+    """`key=a\\nb` would end at the newline and read `b` as a key of its own."""
+    outputs = tmp_path / "gh-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(outputs))
+
+    pr.write_github_output(version_files="a.csv.version\nb.csv.version", max_bump="minor")
+
+    first, *rest, last = outputs.read_text(encoding="utf-8").splitlines()
+    key, _, delimiter = first.partition("<<")
+    assert key == "version_files"
+    assert rest[:2] == ["a.csv.version", "b.csv.version"]
+    assert rest[2] == delimiter, "closed by the same delimiter that opened it"
+    assert last == "max_bump=minor"

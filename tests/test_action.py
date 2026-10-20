@@ -157,3 +157,38 @@ def test_the_checkout_before_it_carries_the_history_it_needs(workflow):
     checkout = workflow["jobs"]["analyse"]["steps"][0]
 
     assert checkout["with"]["fetch-depth"] == 0
+
+
+def test_the_version_is_written_only_when_asked_for(action):
+    """Opt in, off by default: every repository already running the action expects no writes."""
+    assert action["inputs"]["write-version"]["default"] == "false"
+
+
+def test_the_write_flag_reaches_the_script_through_the_environment(action):
+    analyse = named(action, "analyse")
+
+    assert analyse["env"]["WRITE_VERSION"] == "${{ inputs.write-version }}"
+    assert "--write-version" in analyse["run"]
+    assert "${{" not in analyse["run"]
+
+
+def test_the_files_that_changed_are_an_output(action):
+    """What a later step stages, so it commits those and not whatever else the job touched."""
+    output = action["outputs"]["version-files"]
+
+    assert output["value"] == "${{ steps.analyse.outputs.version_files }}"
+
+
+def test_the_action_never_commits_or_pushes(action):
+    """Writing back to a branch is the workflow's decision, and this is why it is not ours.
+
+    A commit pushed with the job's own token starts no workflow, so the checks a protected
+    branch requires would never run on it; a fork's token cannot push at all. Both are the
+    caller's to resolve, with the token and the branch they choose -- the action records the
+    number in the checkout and names the files, and stops there.
+    """
+    for step in steps(action):
+        script = step.get("run", "")
+        assert "git commit" not in script, step["name"]
+        assert "git push" not in script, step["name"]
+        assert "git add" not in script, step["name"]

@@ -22,7 +22,7 @@ from datasemver.core.analyzer import DEFAULT_VERSION, analyze
 from datasemver.core.profile import PROFILE_SUFFIX
 from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
 from datasemver.rules.engine import RuleError
-from datasemver.utils.version import VERSION_SUFFIX
+from datasemver.utils.version import VERSION_SUFFIX, write_version
 
 INSTALL_HINT = "install it with: pip install dvc"
 SEVERITY_RANK = {"patch": 0, "minor": 1, "major": 2}
@@ -280,6 +280,23 @@ def analyse(
     return reports, skipped
 
 
+def write_sidecars(repo: Path, reports: list[DatasetReport]) -> dict[str, str]:
+    """Record each dataset's suggested version beside it, and say what went where.
+
+    The files land in the working tree of `repo`, named the way `recorded_version` reads them
+    back: the dataset's whole name with the suffix appended. They are git's to track, not
+    DVC's -- a few bytes of text -- so committing them is the caller's next step, and this
+    function stops at the disk. The keys are paths relative to `repo`, which is the form
+    `git add` takes, and the values the version each one now holds.
+    """
+    written: dict[str, str] = {}
+    for report in ranked(reports):
+        name = f"{report.path}{VERSION_SUFFIX}"
+        write_version(repo / name, report.next_version)
+        written[name] = report.next_version
+    return written
+
+
 def analyse_change(
     repo: Path,
     change: Change,
@@ -348,13 +365,19 @@ def as_payload(
     skipped: list[tuple[str, str]],
     rev: str,
     to_rev: str | None,
+    written: list[str] | None = None,
 ) -> dict:
-    """The whole run as JSON, for a pipeline step that has to decide something with it."""
+    """The whole run as JSON, for a pipeline step that has to decide something with it.
+
+    `version_files` names the sidecars the run wrote, which is what a later step stages: it is
+    empty unless `--write-version` was given and the gate let the run through.
+    """
     overall = max(reports, key=lambda report: report.rank).bump if reports else None
     return {
         "rev": rev,
         "to_rev": to_rev or "workspace",
         "bump": overall,
+        "version_files": written or [],
         "datasets": [
             {
                 "path": report.path,

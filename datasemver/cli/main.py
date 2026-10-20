@@ -74,6 +74,11 @@ _WRITE_VERSION_HELP = (
     "Record the suggested version beside the new dataset, in <name>.version, creating the "
     "file when there is none. Not written when --fail-on refuses the bump."
 )
+_DVC_WRITE_VERSION_HELP = (
+    "Record each dataset's suggested version beside it, in <name>.version, creating the file "
+    "when there is none. Written into the working tree for git to track, and not written when "
+    "--fail-on refuses the run."
+)
 _FOOTER_CAVEAT = (
     "read from the Parquet footer: no distribution comparison, because no data was read"
 )
@@ -346,6 +351,9 @@ def dvc(
         Severity | None,
         typer.Option("--fail-on", help=_FAIL_ON_HELP),
     ] = None,
+    write_version_sidecar: Annotated[
+        bool, typer.Option("--write-version", help=_DVC_WRITE_VERSION_HELP)
+    ] = False,
 ) -> None:
     """Analyse the datasets DVC reports as changed between two revisions."""
     try:
@@ -361,20 +369,30 @@ def dvc(
         error_console.print(f"[bold red]error:[/] {escape(str(error))}")
         raise typer.Exit(code=2) from error
 
+    # The run's severity is its worst dataset: one breaking change in one dataset is a
+    # breaking change in the revision being proposed.
+    worst = max((report.bump for report in reports if report.bump), default=None, key=_rank)
+    bump = Severity(worst) if worst else None
+
+    # Decided before anything is written, for the reason given in `diff`: a refused run must
+    # leave no number behind for the next comparison to bump from. Here that is every
+    # dataset's, since the gate closes on the run and not on any one of them.
+    written: dict[str, str] = {}
+    if write_version_sidecar and not _gate_refuses(bump, fail_on):
+        written = dvc_integration.write_sidecars(repo, reports)
+
     if output is not None:
         output.write_text(
             dvc_integration.render_markdown(reports, skipped, rev, to_rev), encoding="utf-8"
         )
 
     if as_json:
-        console.print_json(json.dumps(dvc_integration.as_payload(reports, skipped, rev, to_rev)))
+        payload = dvc_integration.as_payload(reports, skipped, rev, to_rev, list(written))
+        console.print_json(json.dumps(payload))
     else:
-        _render_dvc_run(reports, skipped, rev, to_rev, output)
+        _render_dvc_run(reports, skipped, rev, to_rev, output, written)
 
-    # The run's severity is its worst dataset: one breaking change in one dataset is a
-    # breaking change in the revision being proposed.
-    worst = max((report.bump for report in reports if report.bump), default=None, key=_rank)
-    _apply_gate(Severity(worst) if worst else None, fail_on)
+    _apply_gate(bump, fail_on)
 
 
 def _rank(bump: str) -> int:
@@ -387,6 +405,7 @@ def _render_dvc_run(
     rev: str,
     to_rev: str | None,
     output: Path | None,
+    written: dict[str, str] | None = None,
 ) -> None:
     target = to_rev or "working tree"
     if not reports:
@@ -405,6 +424,9 @@ def _render_dvc_run(
 
     for path, reason in skipped:
         console.print(f"[dim]skipped {path}: {reason}[/]")
+
+    for sidecar, version in (written or {}).items():
+        console.print(f"[dim]{version} written to {sidecar}[/]")
 
     if output is not None:
         console.print(f"[dim]report written to {output}[/]")

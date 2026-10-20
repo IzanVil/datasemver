@@ -14,13 +14,14 @@ import os
 import subprocess
 import sys
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, overload
 
 from datasemver.core.profile import PROFILE_SUFFIX
 from datasemver.formats.loader import SUPPORTED_EXTENSIONS, dataset_suffix
-from datasemver.utils.version import VERSION_SUFFIX
+from datasemver.utils.version import VERSION_SUFFIX, write_version
 
 MARKER = "<!-- datasemver-report -->"
 DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS
@@ -75,7 +76,14 @@ def main(argv: list[str] | None = None) -> int:
             continue
         reports.append(report)
 
-    return finish(args, reports=reports, skipped=skipped)
+    # After the analysis and before the report, so that the report can say what was written;
+    # and only when the gate lets the run through, for the reason `datasemver diff` gives: a
+    # number the gate refused must not become the one the next comparison bumps from.
+    written: list[str] = []
+    if args.write_version and not _refuses(args.fail_on, worst_bump(reports)):
+        written = write_sidecars(repo_root, reports)
+
+    return finish(args, reports=reports, skipped=skipped, written=written)
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -114,6 +122,14 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         choices=sorted(SEVERITY_RANK, key=lambda name: SEVERITY_RANK[name]),
         default=None,
         help="Exit with 1 when the worst bump in the run reaches this severity or higher.",
+    )
+    parser.add_argument(
+        "--write-version",
+        action="store_true",
+        help=(
+            "Record each dataset's suggested version in <dataset>.version in the working "
+            "tree, for a later step to commit. Not written when --fail-on refuses the run."
+        ),
     )
     return parser.parse_args(argv)
 
@@ -255,6 +271,28 @@ def sidecar_note(
     return None
 
 
+def write_sidecars(repo_root: Path, reports: list[DatasetReport]) -> list[str]:
+    """Record each suggested version beside its dataset, and name the files that changed.
+
+    Only a file whose contents changed is returned, and only those get a note in the report:
+    a branch whose version file already holds the suggestion has nothing to commit, and a
+    later step deciding whether to commit reads an empty answer as exactly that. Nothing here
+    stages or commits; where the result goes, and with whose token, is the workflow's call.
+    """
+    changed: list[str] = []
+    for report in sorted(reports, key=lambda item: item.path):
+        if written_version(repo_root, report.path) == report.next_version:
+            continue
+        name = f"{report.path}{VERSION_SUFFIX}"
+        write_version(repo_root / name, report.next_version)
+        report.sidecar = (
+            f"`{name}` was set to {report.next_version} in this run's checkout, and is "
+            "recorded once a step commits it"
+        )
+        changed.append(name)
+    return changed
+
+
 def run_datasemver(old: Path, new: Path, current_version: str, rules: str | None) -> dict:
     """Run `datasemver diff --json` and return the parsed report."""
     command = [
@@ -387,6 +425,7 @@ def finish(
     reports: list[DatasetReport],
     skipped: list[tuple[str, str]] | None = None,
     note: str | None = None,
+    written: list[str] | None = None,
 ) -> int:
     """Write the report, expose the workflow outputs and return the exit code."""
     skipped = skipped or []
@@ -397,14 +436,27 @@ def finish(
         args.output.write_text(body, encoding="utf-8")
     print(body)
 
-    overall = max(reports, key=lambda report: report.rank).bump if reports else None
+    overall = worst_bump(reports)
     write_github_output(
         has_report="true" if reports else "false",
         max_bump=overall or "none",
         dataset_count=str(len(reports)),
+        version_files="\n".join(written or []),
     )
     append_step_summary(body)
     return _gate(args.fail_on, overall)
+
+
+def worst_bump(reports: list[DatasetReport]) -> str | None:
+    """The run's severity is its worst dataset's."""
+    return max(reports, key=lambda report: report.rank).bump if reports else None
+
+
+def _refuses(fail_on: str | None, overall: str | None) -> bool:
+    """Whether the gate closes on this run, asked before anything has been written."""
+    if fail_on is None or overall is None:
+        return False
+    return SEVERITY_RANK[overall] >= SEVERITY_RANK[fail_on]
 
 
 def _gate(fail_on: str | None, overall: str | None) -> int:
@@ -414,10 +466,9 @@ def _gate(fail_on: str | None, overall: str | None) -> int:
     point: a refusal that suppressed the explanation would say a change was rejected and
     never say which dataset or why.
     """
-    if fail_on is None or overall is None:
+    if not _refuses(fail_on, overall):
         return 0
-    if SEVERITY_RANK[overall] < SEVERITY_RANK[fail_on]:
-        return 0
+    assert fail_on is not None and overall is not None
     print(
         f"error: the worst suggested bump is {overall}, which reaches the --fail-on "
         f"threshold of {fail_on}",
@@ -440,7 +491,13 @@ def write_github_output(**values: str) -> None:
         return
     with Path(path).open("a", encoding="utf-8") as handle:
         for key, value in values.items():
-            handle.write(f"{key}={value}\n")
+            if "\n" not in value:
+                handle.write(f"{key}={value}\n")
+                continue
+            # `key=value` ends at the newline, so a value with one needs the delimiter form,
+            # and a delimiter nothing inside the value can spell.
+            delimiter = f"datasemver_{uuid.uuid4().hex}"
+            handle.write(f"{key}<<{delimiter}\n{value}\n{delimiter}\n")
 
 
 def append_step_summary(body: str) -> None:

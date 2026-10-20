@@ -321,7 +321,7 @@ python -m datasemver diff OLD NEW     # equivalente, sin necesidad de instalar
 | `--output PATH` | `-o` | Escribe la entrada de changelog en un fichero, anteponiéndola si ya existe |
 | `--json` | | Imprime la salida en formato legible por máquina: el informe de comparación en lugar de las tablas (`diff`), el conjunto de reglas en lugar de los grupos (`rules`) |
 | `--fail-on SEVERIDAD` | | Sale con `1` cuando el salto sugerido alcanza `patch`, `minor` o `major` |
-| `--write-version` | | Registra la versión sugerida en `<nombre>.version` junto al dataset nuevo |
+| `--write-version` | | Registra la versión sugerida en `<nombre>.version` junto al dataset nuevo (`diff`, `dvc`) |
 | `--key COLUMNA` | `-k` | Columna que identifica una fila; repítela para una clave compuesta |
 | `--schema-only` | | Perfila Parquet desde su footer en lugar de sus filas (`diff`, `profile`) |
 | `--engine NOMBRE` | | `pandas`, `duckdb` o `duckdb-sketch`; ver [motores](#motores) |
@@ -459,6 +459,11 @@ silencio.
 Que el número se registre sigue siendo decisión del autor —para eso el sidecar no pertenece a
 la herramienta—, y por eso la opción hay que pedirla. Lo que quita es el tecleo, porque cada
 versión copiada a mano es una ocasión de escribir `1.5.0` donde la ejecución dijo `2.0.0`.
+
+Los sitios que corren en CI también la aceptan:
+[`datasemver dvc --write-version`](#mantener-al-día-el-fichero-de-versión) y la entrada
+[`write-version`](#registrar-la-versión-desde-un-workflow) de la Action. Las dos escriben en el
+checkout y ahí se paran; hacer commit del resultado es un paso del workflow.
 
 Dos detalles que conviene conocer:
 
@@ -698,12 +703,22 @@ falta, así que ese caso se traduce a una frase que nombra `dvc pull`.
 
 ### Mantener al día el fichero de versión
 
-Para esto está `--json`. Cada dataset lleva la versión a la que debe pasar:
+`--write-version` registra la versión sugerida de cada dataset junto a él, como hace `diff`:
 
 ```bash
-datasemver dvc --rev HEAD^ --json \
-  | jq -r '.datasets[] | [.next_version, .path] | @tsv' \
-  | while IFS=$'\t' read -r version path; do printf '%s\n' "$version" > "$path.version"; done
+datasemver dvc --rev HEAD^ --write-version
+# 2.0.0 written to data/customers.csv.version
+```
+
+Los ficheros se escriben en el árbol de trabajo, con el nombre entero del dataset, y `--json`
+los lista en `version_files` para que un paso posterior añada justo esos. Una ejecución que
+`--fail-on` rechaza no escribe ninguno: la puerta se cierra sobre la ejecución, así que
+tampoco se registra el dataset que se quedó por debajo. No se hace `git add` ni commit de nada.
+
+Cuando los números hacen falta para otra cosa, `--json` lleva la versión de cada dataset:
+
+```bash
+datasemver dvc --rev HEAD^ --json | jq -r '.datasets[] | [.next_version, .path] | @tsv'
 ```
 
 El fichero lateral son unos pocos bytes de texto, así que lo versiona git y no DVC, y
@@ -842,8 +857,10 @@ python scripts/run_datasemver_on_pr.py --base-ref origin/main --output report.md
 | `--default-version` | Versión asumida cuando un dataset no tiene fichero adjunto de versión |
 | `--top-changes` | Cambios listados por dataset (por defecto 5) |
 | `--output` | Escribe el informe en Markdown en este fichero |
+| `--fail-on` | Sale con `1` cuando el peor salto alcanza `patch`, `minor` o `major` |
+| `--write-version` | Registra cada versión sugerida en `<dataset>.version` en el árbol de trabajo |
 
-Expone `has_report`, `max_bump` y `dataset_count` como salidas del step, escribe el informe
+Expone `has_report`, `max_bump`, `dataset_count` y `version_files` como salidas del step, escribe el informe
 en el resumen del job, y siempre sale con `0`: una rama sin cambios en datasets, un dataset
 añadido por primera vez, un fichero ilegible o un ref base que falta se reportan en lugar
 de hacer fallar el job.
@@ -877,6 +894,55 @@ su dataset no concuerdan:
 Cuando la versión apuntada coincide con la sugerida, la sección no aparece: el informe se
 calla en el caso que no necesita nada. Decidir el número sigue siendo tuyo; darse cuenta de
 que nunca se escribió es lo que la herramienta sí puede hacer.
+
+### Registrar la versión desde un workflow
+
+Con `write-version: true` la action también hace el tecleo: escribe cada versión sugerida en
+el fichero `.version` del checkout y nombra los ficheros que han cambiado en la salida
+`version-files`, uno por línea. **No** hace commit de ellos, y es deliberado. Un commit
+empujado con el `GITHUB_TOKEN` del propio job no arranca ningún workflow, así que los checks
+que exige una rama protegida nunca correrían sobre él, y un pull request desde un fork tiene un
+token de solo lectura que no puede empujar. Qué token, qué rama y si se hace commit o no lo
+decide el workflow, así que la action se queda donde puede estar segura:
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}     # la rama en sí, no el merge commit desacoplado
+          # token: ${{ secrets.PUSH_TOKEN }}   # un PAT o token de App, si el commit debe lanzar checks
+      - id: datasemver
+        uses: IzanVil/datasemver@v0.8.2
+        with:
+          write-version: "true"
+      - name: Commit de los ficheros de versión
+        if: >-
+          steps.datasemver.outputs.version-files != '' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          FILES: ${{ steps.datasemver.outputs.version-files }}
+        run: |
+          printf '%s\n' "$FILES" | xargs -d '\n' git add --
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "record dataset versions"
+          git push
+```
+
+La salida lista solo los ficheros cuyo contenido cambió, así que una rama que ya registra el
+número sugerido la deja vacía y el paso de commit se omite. Eso hace además que cerrar el
+bucle sea seguro: un commit que sí lance otra ejecución no encuentra nada que escribir. Igual
+que con `--fail-on` en la línea de comandos, una ejecución rechazada no escribe nada, y el
+informe dice qué ficheros de versión se han fijado para que el commit extra no sorprenda a quien
+revisa.
 
 ### Usarlo en otro repositorio
 
@@ -912,6 +978,7 @@ jobs:
 | `fail-on` | _(sin definir)_ | Falla el job cuando el peor salto llega a `patch`, `minor` o `major` |
 | `engine` | `pandas` | `duckdb` o `duckdb-sketch` perfilan sin cargar; el extra se instala solo |
 | `default-version` | `0.0.0` | Versión que se asume si el dataset no tiene sidecar `.version` |
+| `write-version` | `false` | Escribe cada versión sugerida en su `.version` del checkout; [el commit es cosa tuya](#registrar-la-versión-desde-un-workflow) |
 | `comment` | `true` | Publica el informe como comentario del pull request |
 | `python-version` | `3.11` | Python con el que corre el análisis |
 | `token` | `github.token` | Token con el que se publica el comentario |
@@ -922,6 +989,7 @@ jobs:
 | `dataset-count` | Cuántos datasets se analizaron |
 | `has-report` | Si se analizó algo |
 | `report` | Ruta del informe en Markdown, escrito se publique o no |
+| `version-files` | Los `.version` que `write-version` cambió, uno por línea; vacío si ninguno |
 
 `fetch-depth: 0` es obligatorio: sin el historial completo, la versión base del dataset no
 está en el clon, y la action lo dice en lugar de dejar que lo explique `git`. El

@@ -1,5 +1,5 @@
 -r base.txt
 
 sqlalchemy>=2.0
-psycopg2-binary>=2.9
+psycopg[binary]>=3.1
 pymysql>=1.1.1

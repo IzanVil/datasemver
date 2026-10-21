@@ -12,6 +12,7 @@ put the table: it cannot collide with anything the URL itself means.
 
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING, Any
 
 from datasemver.utils.extras import install_hint as _install_hint
@@ -30,6 +31,11 @@ SQL_SCHEMES = (
     "mysql",
     "mariadb",
 )
+
+# The PostgreSQL drivers SQLAlchemy can use, newest first. Each is both the module to import
+# and the name of the dialect that uses it: `postgresql+psycopg` is psycopg (v3) and
+# `postgresql+psycopg2` is the older one.
+POSTGRES_DRIVERS = ("psycopg", "psycopg2")
 
 
 def install_hint() -> str:
@@ -139,15 +145,43 @@ def _engine(url: str, source: str) -> Any:
         ) from error
 
 
-def _normalised(url: str) -> str:
-    """Point the bare schemes people write at the drivers the sql extra actually ships.
+def _importable(module: str) -> bool:
+    """Whether a driver can be imported, which is a stricter question than whether it is there.
 
-    Each of these resolves, left alone, to a driver that is not installed. `postgres://` lost
-    its alias in SQLAlchemy 2.0; `postgresql://` once defaulted to psycopg2 but now defaults
-    to psycopg (v3); and a bare `mysql://` resolves to MySQLdb. The sql extra ships psycopg2
-    and PyMySQL, so each is pinned to the one that is there -- otherwise reading a table fails
-    with "No module named" for a driver the user never asked for. These are the URLs every
-    tutorial prints, so they are met where they are.
+    psycopg (v3) installed without a binary build and without libpq is found on the path and
+    fails on import, and a driver that cannot be imported is no use to pick.
+    """
+    try:
+        importlib.import_module(module)
+    except ImportError:
+        return False
+    return True
+
+
+def _postgres_driver() -> str:
+    """The PostgreSQL driver to read with: the newest one that is installed.
+
+    psycopg (v3) is where SQLAlchemy and the ecosystem are heading, and what the sql extra
+    ships; psycopg2 is still found when it is all an environment has, so a setup that worked
+    before the extra changed keeps working without being reinstalled. With neither, the answer
+    is the one the extra would have installed, which is the driver the error should name.
+    """
+    for module in POSTGRES_DRIVERS:
+        if _importable(module):
+            return module
+    return POSTGRES_DRIVERS[0]
+
+
+def _normalised(url: str) -> str:
+    """Point the bare schemes people write at a driver that is actually installed.
+
+    Each of these resolves, left alone, to a driver that may not be. `postgres://` lost its
+    alias in SQLAlchemy 2.0; `postgresql://` once defaulted to psycopg2 but now defaults to
+    psycopg (v3), which an environment built around psycopg2 does not have; and a bare
+    `mysql://` resolves to MySQLdb. PostgreSQL is pointed at whichever psycopg is importable,
+    and MySQL at the PyMySQL the extra ships -- otherwise reading a table fails with "No
+    module named" for a driver the user never asked for. These are the URLs every tutorial
+    prints, so they are met where they are.
 
     A driver the caller spelled out is never rewritten.
     """
@@ -156,7 +190,7 @@ def _normalised(url: str) -> str:
         return url
     lowered = scheme.lower()
     if lowered in {"postgres", "postgresql"}:
-        return f"postgresql+psycopg2://{rest}"
+        return f"postgresql+{_postgres_driver()}://{rest}"
     if lowered in {"mysql", "mariadb"}:
         return f"{lowered}+pymysql://{rest}"
     return url

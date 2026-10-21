@@ -74,9 +74,11 @@ exe = [
 sql = [
     "sqlalchemy>=2.0",
     # Bare `postgresql://` and `mysql://` are the URLs people actually write, so the drivers
-    # those resolve to are the ones shipped: psycopg2 for the first, and PyMySQL for the
-    # second once `_normalised` points it there. Any other driver works when spelled out.
-    "psycopg2-binary>=2.9",
+    # those resolve to are the ones shipped: psycopg (v3) for the first, and PyMySQL for the
+    # second once `_normalised` points it there. An environment that has psycopg2 and not
+    # psycopg keeps working, because the first is picked from what is importable. Any other
+    # driver works when spelled out.
+    "psycopg[binary]>=3.1",
     "pymysql>=1.1.1",  # CVE-2024-36039, SQL injection through unescaped keys
 ]
 duckdb = [

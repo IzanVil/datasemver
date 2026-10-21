@@ -999,7 +999,7 @@ command. The history view scans `./datasets/` by default, grouping files named
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-report.png" width="880"
-       alt="The dashboard after comparing two versions of a customer dataset: a MAJOR badge beside 1.4.2 arrow 2.0.0, tiles reading 40 to 48 rows, 8 to 8 columns and 6 changes, and a table listing each change with its severity, rule and description.">
+       alt="The dashboard after comparing two versions of a customer dataset: a red MAJOR badge beside 1.4.2 arrow 2.0.0, a bar showing two major, two minor and three patch changes, tiles reading 8 to 10 rows, 7 to 7 columns and 7 changes, and a table listing each change with its severity, rule and description.">
 </p>
 
 <p align="center">

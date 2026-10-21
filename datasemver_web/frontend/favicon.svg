@@ -11,11 +11,11 @@
     browser chrome, and it is the same pair of palettes the dashboard itself uses.
   -->
   <style>
-    .block { fill: #14171c; opacity: 0.85; }
-    .seam  { fill: #2f6df6; }
+    .block { fill: #0f1719; opacity: 0.85; }
+    .seam  { fill: #0e7c5a; }
     @media (prefers-color-scheme: dark) {
-      .block { fill: #e6e9ee; }
-      .seam  { fill: #6c9bff; }
+      .block { fill: #e9eff2; }
+      .seam  { fill: #4ecda4; }
     }
   </style>
   <rect class="block" x="1.5" y="4.5" width="12" height="23" rx="2.6" />

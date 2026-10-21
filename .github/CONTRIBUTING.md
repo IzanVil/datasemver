@@ -97,11 +97,24 @@ link, using whichever of `firefox`, `chromium` or `rsvg-convert` is on PATH. Wit
 those the SVGs are still refreshed and the PNGs are left alone. The images are referenced by
 absolute URL and are deliberately kept out of the sdist.
 
-The two dashboard images (`dashboard-report.png`, `dashboard-columns.png`) are taken by hand
-in a browser, since a headless capture of a page that renders its report from a fetch is
-more machinery than it earns. Retake them from `~/…/clientes_v1.csv` against
-`clientes_v2.csv` at version `1.4.2`, which is the comparison the CLI capture already shows,
-so both interfaces in the README describe the same diff.
+The dashboard images (`dashboard-report.png`, `dashboard-columns.png`, and `dashboard-verdict.png`,
+the form and the verdict it gives, which is the one a site can spare the height for) are the real
+page as well, and are regenerated the same way:
+
+```bash
+python scripts/capture_dashboard.py
+```
+
+It starts the dashboard, drives a headless Firefox through the comparison of
+`tests/fixtures/old.csv` against `new.csv` at version `1.4.2`, the one the terminal capture
+shows, and photographs the result at twice the size. It needs the `web` extra and `firefox` on
+PATH and nothing else: Firefox is driven over its own Marionette protocol, spoken with the
+standard library, so there is no browser-automation package to install or keep in step with the
+browser. Run it whenever the dashboard's look changes, and retake nothing by hand.
+
+`cli-hero.png`, the small capture a page can set beside its headline, comes out of
+`capture_cli.py` with the others: a four-column export that fits a narrow console without a
+cell wrapping.
 
 ## Checks
 
@@ -129,8 +142,8 @@ formatter's rules.
 Everything the style section below asks for is checked by one of these, which is the point
 of having them. Two deliberate exceptions live in `pyproject.toml`: `File(...)` and
 `Form(...)` in a parameter default are how FastAPI declares uploads rather than a mutable
-default by mistake, and `scripts/capture_cli.py` is left out of coverage because covering a
-script that drives a headless browser would mean asserting against a mocked browser.
+default by mistake, and the two `scripts/capture_*.py` are left out of coverage because
+covering a script that drives a headless browser would mean asserting against a mocked browser.
 
 ## Code style
 
@@ -179,8 +192,9 @@ git worktree add ../datasemver-site gh-pages
 
 The captures it shows are not copied there. They are referenced from `main` by absolute URL,
 the same files the READMEs embed, so the page cannot drift into showing output the
-documentation does not. Regenerate them with `python scripts/capture_cli.py` on `main` and
-the site picks them up with no second commit.
+documentation does not. Regenerate them with `python scripts/capture_cli.py` and
+`python scripts/capture_dashboard.py` on `main` and the site picks them up with no second
+commit.
 
 ## Actions and dependencies
 

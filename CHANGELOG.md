@@ -9,6 +9,28 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- The dashboard looks like it was made on purpose. The page opens on a question rather than a
+  grey bar, the bump takes its own colour -- the verdict card is tinted from a corner, the
+  badge and the new version are set large, and a bar under them shows the share of major,
+  minor and patch among the changes -- and a count that moved says by how much beside it
+  (`8 → 10`, `+2 · +25%`). The columns that changed are marked at the edge and the ones that
+  did not step back, a type that changed and a null ratio that fell are coloured, the
+  changelog's headings carry their severity, and "Copy" still puts the plain entry on the
+  clipboard. The two file inputs became drop targets that name what was chosen, which also
+  ends the browser's own wording, in whatever language it is set to, showing through the form;
+  before the first comparison the page explains what major, minor and patch mean instead of
+  being empty. The accent is now the project site's teal rather than blue, the favicon with it.
+  The verdict lands rather than appears: the badge pops in on a spring, the severity bar grows a
+  segment at a time, and the version rolls up from the one it replaces to the one it earns, so a
+  bump is seen happening. Nothing it sends or reads changed, and all of that motion stops under
+  `prefers-reduced-motion`, with the version shown at once.
+- `scripts/capture_dashboard.py` retakes the dashboard images from the real page: it starts the
+  dashboard, drives a headless Firefox over Marionette -- spoken with the standard library, so
+  there is nothing to install -- through the comparison the terminal capture shows, and
+  photographs the result at twice the size, in three crops: the report, the column table with
+  the changelog, and the form beside its verdict. They were taken by hand, which is how they
+  came to show a page two redesigns old. `capture_cli.py` takes a width and a scale per capture now, and
+  writes `cli-hero.png`, a small run that stays readable at half a column.
 - `datasemver dvc --write-version` records each dataset's suggested version in its `.version`
   file, as `diff --write-version` already did. The two places that run in CI were the ones that
   could not close the loop: a pipeline that had just computed the bump left it for a person to

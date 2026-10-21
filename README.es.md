@@ -1027,7 +1027,7 @@ llamados `customers_v1.csv`, `customers_v2.csv` y así sucesivamente.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-report.png" width="880"
-       alt="El panel tras comparar dos versiones de un dataset de clientes: una insignia MAJOR junto a 1.4.2 flecha 2.0.0, indicadores de 40 a 48 filas, 8 a 8 columnas y 6 cambios, y una tabla con cada cambio, su severidad, su regla y su descripción.">
+       alt="El panel tras comparar dos versiones de un dataset de clientes: una insignia roja MAJOR junto a 1.4.2 flecha 2.0.0, una barra con dos cambios major, dos minor y tres patch, indicadores de 8 a 10 filas, 7 a 7 columnas y 7 cambios, y una tabla con cada cambio, su severidad, su regla y su descripción.">
 </p>
 
 <p align="center">

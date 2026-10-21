@@ -4,64 +4,114 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DataSemver dashboard</title>
+    <meta
+      name="description"
+      content="Compare two versions of a dataset and read the semantic version bump they deserve, the changes behind it and the changelog entry."
+    />
+    <meta name="theme-color" content="#f6f8f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0f13" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
     <header class="masthead">
       <div class="masthead-inner">
-        <div class="brand">
-          <!--
-            Two blocks are the two versions; the seam between them is the comparison. It takes
-            its colours from the theme tokens rather than naming any, so it follows the light
-            and dark palettes the rest of the page already switches between.
-          -->
-          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-            <rect x="3" y="7" width="10.5" height="18" rx="2.2" fill="currentColor" opacity="0.82" />
-            <rect x="18.5" y="7" width="10.5" height="18" rx="2.2" fill="currentColor" opacity="0.82" />
-            <rect x="14.9" y="3.5" width="2.2" height="25" rx="1.1" fill="var(--accent)" />
-          </svg>
-          <h1>DataSemver</h1>
+        <div class="masthead-bar">
+          <div class="brand">
+            <!--
+              Two blocks are the two versions; the seam between them is the comparison. It takes
+              its colours from the theme tokens rather than naming any, so it follows the light
+              and dark palettes the rest of the page already switches between.
+            -->
+            <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+              <rect x="3" y="7" width="10.5" height="18" rx="2.2" fill="currentColor" opacity="0.82" />
+              <rect x="18.5" y="7" width="10.5" height="18" rx="2.2" fill="currentColor" opacity="0.82" />
+              <rect x="14.9" y="3.5" width="2.2" height="25" rx="1.1" fill="var(--accent)" />
+            </svg>
+            <span class="wordmark">Data<b>Semver</b></span>
+          </div>
+          <nav class="tabs" role="tablist" aria-label="Views">
+            <button class="tab is-active" role="tab" aria-selected="true" data-view="compare">Compare</button>
+            <button class="tab" role="tab" aria-selected="false" data-view="history">History</button>
+          </nav>
         </div>
-        <p>Compare two versions of a dataset and see the version bump they deserve.</p>
-        <nav class="tabs" role="tablist">
-          <button class="tab is-active" role="tab" data-view="compare">Compare</button>
-          <button class="tab" role="tab" data-view="history">History</button>
-        </nav>
+        <div class="lead">
+          <h1>Which version does this change deserve?</h1>
+          <p>
+            Compare two versions of a dataset. Read the bump they earn, the changes behind it and
+            the changelog entry that explains it.
+          </p>
+        </div>
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <section id="view-compare" class="view">
-        <form id="compare-form" class="card">
-          <div class="field-grid">
-            <label class="field">
-              <span class="field-label">Previous version</span>
+        <form id="compare-form" class="card form-card">
+          <div class="versions">
+            <label class="picker" data-side="old">
               <input type="file" name="old" required />
+              <span class="picker-badge" aria-hidden="true">A</span>
+              <span class="picker-text">
+                <span class="picker-title">Previous version</span>
+                <span class="picker-file" data-empty="Choose or drop a file">Choose or drop a file</span>
+              </span>
             </label>
-            <label class="field">
-              <span class="field-label">New version</span>
+            <span class="versions-seam" aria-hidden="true"></span>
+            <label class="picker" data-side="new">
               <input type="file" name="new" required />
+              <span class="picker-badge" aria-hidden="true">B</span>
+              <span class="picker-text">
+                <span class="picker-title">New version</span>
+                <span class="picker-file" data-empty="Choose or drop a file">Choose or drop a file</span>
+              </span>
             </label>
+          </div>
+
+          <div class="field-grid">
             <label class="field">
               <span class="field-label">Current version</span>
               <input type="text" name="current_version" value="0.0.0" pattern="\d+\.\d+\.\d+" />
             </label>
             <label class="field">
-              <span class="field-label">Rules <span class="muted">(optional YAML)</span></span>
-              <input type="file" name="rules" accept=".yaml,.yml" />
-            </label>
-            <label class="field">
               <span class="field-label">Key <span class="muted">(optional, compares rows)</span></span>
               <input type="text" name="key" placeholder="id, or id,region" />
             </label>
+            <label class="field field-rules">
+              <span class="field-label">Rules <span class="muted">(optional YAML)</span></span>
+              <span class="picker picker-compact">
+                <input type="file" name="rules" accept=".yaml,.yml" />
+                <span class="picker-file" data-empty="Choose a rules file">Choose a rules file</span>
+              </span>
+            </label>
           </div>
+
           <div class="form-footer">
             <p class="hint" id="upload-hint"></p>
             <button type="button" class="button button-quiet" id="save-profile">Save profile</button>
             <button type="submit" class="button">Compare</button>
           </div>
         </form>
+
+        <section id="guide" class="guide" aria-labelledby="guide-title">
+          <h2 id="guide-title">What the bump means</h2>
+          <ul class="guide-list">
+            <li class="guide-item" data-bump="major">
+              <span class="badge" data-bump="major">major</span>
+              <p>Something consumers rely on is gone or means something else: a column removed, a type that no longer fits.</p>
+            </li>
+            <li class="guide-item" data-bump="minor">
+              <span class="badge" data-bump="minor">minor</span>
+              <p>There is more than before and nothing that was there has moved: a column added, more rows.</p>
+            </li>
+            <li class="guide-item" data-bump="patch">
+              <span class="badge" data-bump="patch">patch</span>
+              <p>The same meaning with better data: fewer gaps, a statistic that drifted a little.</p>
+            </li>
+          </ul>
+        </section>
       </section>
 
       <section id="view-history" class="view is-hidden">
@@ -74,13 +124,13 @@
         </div>
       </section>
 
-      <p id="status" class="status is-hidden"></p>
+      <p id="status" class="status is-hidden" role="status"></p>
 
-      <section id="result" class="result is-hidden">
-        <div class="card summary">
+      <section id="result" class="result is-hidden" aria-label="Comparison report">
+        <div class="card summary" id="summary">
           <div class="summary-headline">
-            <span id="bump-badge" class="badge">none</span>
-            <div>
+            <span id="bump-badge" class="badge badge-large">none</span>
+            <div class="summary-title">
               <p class="summary-versions">
                 <span id="version-from"></span>
                 <span class="arrow">&rarr;</span>
@@ -89,10 +139,23 @@
               <p id="summary-sources" class="muted"></p>
             </div>
           </div>
+          <div id="tally" class="tally is-hidden">
+            <div id="tally-bar" class="tally-bar" aria-hidden="true"></div>
+            <ul id="tally-legend" class="tally-legend"></ul>
+          </div>
           <dl class="summary-stats">
-            <div><dt>Rows</dt><dd id="stat-rows"></dd></div>
-            <div><dt>Columns</dt><dd id="stat-columns"></dd></div>
-            <div><dt>Changes</dt><dd id="stat-changes"></dd></div>
+            <div>
+              <dt>Rows</dt>
+              <dd><span id="stat-rows"></span><span id="stat-rows-delta" class="delta"></span></dd>
+            </div>
+            <div>
+              <dt>Columns</dt>
+              <dd><span id="stat-columns"></span><span id="stat-columns-delta" class="delta"></span></dd>
+            </div>
+            <div>
+              <dt>Changes</dt>
+              <dd><span id="stat-changes"></span></dd>
+            </div>
           </dl>
         </div>
 
@@ -142,7 +205,10 @@
 
     <footer class="footer">
       <span>DataSemver <span id="meta-version"></span></span>
-      <a href="/docs">API docs</a>
+      <span class="footer-links">
+        <a href="/docs">API docs</a>
+        <a href="https://github.com/IzanVil/datasemver">GitHub</a>
+      </span>
     </footer>
 
     <script src="./app.js"></script>

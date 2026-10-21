@@ -95,7 +95,7 @@ pip install -e ".[dev]"
 | --- | --- | --- |
 | _(none)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | The library and the `datasemver` command |
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Running the test suite and measuring coverage |
-| `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Reading a [database table](#databases) |
+| `sql` | `sqlalchemy`, `psycopg`, `pymysql` | Reading a [database table](#databases) |
 | `exe` | `pyinstaller` | Building a [standalone executable](#without-python) |
 | `excel` | `openpyxl` | Reading `.xlsx` and `.xlsm` workbooks |
 | `duckdb` | `duckdb` | Profiling a dataset [without loading it](#engines) |
@@ -610,13 +610,15 @@ comment in most shells.
 | Database | URL | Driver |
 | --- | --- | --- |
 | SQLite | `sqlite:///path/to.db#table` | none, it is in the standard library |
-| PostgreSQL | `postgresql://user:pass@host:5432/db#table` | `psycopg2`, in the `sql` extra |
+| PostgreSQL | `postgresql://user:pass@host:5432/db#table` | `psycopg` (v3) in the `sql` extra, or `psycopg2` if that is what is installed |
 | MySQL or MariaDB | `mysql://user:pass@host/db#table` | `pymysql`, in the `sql` extra |
 
-Two spellings are corrected on the way through. `postgres://` lost its alias in SQLAlchemy 2
-and would otherwise fail with "Can't load plugin"; a bare `mysql://` means MySQLdb rather
-than the PyMySQL the extra installs. A driver you name yourself, like
-`postgresql+psycopg://`, is never rewritten.
+Three spellings are corrected on the way through. `postgres://` lost its alias in SQLAlchemy 2
+and would otherwise fail with "Can't load plugin"; a bare `postgresql://` is pointed at
+whichever psycopg can be imported, preferring psycopg (v3), which the extra installs, and
+falling back to psycopg2 so an environment that only has that one keeps working; and a bare
+`mysql://` means MySQLdb rather than the PyMySQL the extra installs. A driver you name
+yourself, like `postgresql+psycopg2://`, is never rewritten.
 
 Passwords never reach the report. The source is rendered into changelog entries, pull request
 comments and `--json` output, so it arrives there as

@@ -31,6 +31,17 @@ This project follows [Semantic Versioning](https://semver.org).
   the changelog, and the form beside its verdict. They were taken by hand, which is how they
   came to show a page two redesigns old. `capture_cli.py` takes a width and a scale per capture now, and
   writes `cli-hero.png`, a small run that stays readable at half a column.
+- Reading a PostgreSQL table works with psycopg (v3), and the `sql` extra now installs it in
+  place of psycopg2-binary. The pin to `postgresql+psycopg2://` that fixed reading on current
+  SQLAlchemy pointed at the driver on its way out: psycopg2 is in maintenance only, SQLAlchemy
+  and the ecosystem default to psycopg, and an environment that had psycopg and not psycopg2
+  still could not use a bare `postgresql://`. The driver is now picked at call time, as the
+  newest psycopg that imports -- not merely one that is on the path, since psycopg without a
+  binary build or libpq is found and fails to load -- so a setup that only has psycopg2 keeps
+  reading without being reinstalled. With neither installed the error names psycopg, the one
+  `pip install "datasemver[sql]"` would have brought. A driver named in the URL is still never
+  rewritten. What changes is the extra on a fresh install: it no longer carries psycopg2, so
+  code that relied on it for that and nothing else needs it listed itself. Closes #24.
 - `datasemver dvc --write-version` records each dataset's suggested version in its `.version`
   file, as `diff --write-version` already did. The two places that run in CI were the ones that
   could not close the loop: a pipeline that had just computed the bump left it for a person to

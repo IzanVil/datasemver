@@ -14,6 +14,7 @@ import pytest
 pytest.importorskip("sqlalchemy")
 
 from datasemver import analyze
+from datasemver.formats import sql as sql_module
 from datasemver.formats.loader import DatasetReadError, load_frame, load_schema
 from datasemver.formats.sql import (
     SqlSourceError,
@@ -227,19 +228,117 @@ def test_an_unsupported_scheme_reaches_the_file_reader():
 # --- the two URLs people write that SQLAlchemy does not accept -----------------------------
 
 
-def test_postgres_is_read_as_postgresql():
-    """Asserted through the error, which names the driver the rewritten URL resolves to.
+@pytest.fixture
+def drivers(monkeypatch):
+    """Say which PostgreSQL drivers are importable, whatever this environment really has.
+
+    CI installs no driver at all and a developer's machine may have either, so a test that
+    asked the real interpreter would pass or fail by where it ran.
+    """
+
+    def installed(*names: str) -> None:
+        monkeypatch.setattr(sql_module, "_importable", lambda module: module in names)
+
+    return installed
+
+
+@pytest.fixture
+def engine_urls(monkeypatch):
+    """Record the URL handed to SQLAlchemy, and fail the way a missing driver does.
+
+    Asserting on the URL is the direct way to see which driver was chosen: the rest of the
+    path is SQLAlchemy's, and a real connection is not something a test here can make.
+    """
+    seen: list[str] = []
+
+    def create_engine(url, *args, **kwargs):
+        seen.append(str(url))
+        raise ModuleNotFoundError("No module named 'psycopg'")
+
+    monkeypatch.setattr("sqlalchemy.create_engine", create_engine)
+    return seen
+
+
+@pytest.mark.parametrize("scheme", ["postgres", "postgresql"])
+@pytest.mark.parametrize(
+    ("installed", "chosen"),
+    [
+        (("psycopg", "psycopg2"), "psycopg"),
+        (("psycopg",), "psycopg"),
+        (("psycopg2",), "psycopg2"),
+        ((), "psycopg"),
+    ],
+    ids=["both", "v3-only", "v2-only", "neither"],
+)
+def test_postgres_is_pointed_at_the_newest_driver_that_is_installed(
+    drivers, scheme, installed, chosen
+):
+    """With neither, the extra's own driver, so the error names what installing it brings."""
+    drivers(*installed)
+
+    url = sql_module._normalised(f"{scheme}://user:secret@host:5432/db")
+
+    assert url == f"postgresql+{chosen}://user:secret@host:5432/db"
+
+
+def test_postgres_is_read_as_postgresql(drivers, engine_urls):
+    """`postgres://` is what people write, and SQLAlchemy 2 no longer knows the alias.
 
     Without the rewrite this fails with "Can't load plugin: sqlalchemy.dialects:postgres",
     which says nothing about the scheme being the thing to change.
-
-    Matched on `psycopg2` specifically, not any psycopg: the sql extra ships psycopg2-binary,
-    and the rewrite pins `postgresql://` to it. A newer SQLAlchemy defaults the scheme to
-    psycopg (v3) instead, which is not installed, so an error naming psycopg rather than
-    psycopg2 is the pin having been lost -- which is what this guards against.
     """
-    with pytest.raises(DatasetReadError, match="psycopg2"):
+    drivers("psycopg")
+
+    with pytest.raises(DatasetReadError, match="psycopg"):
         load_sql("postgres://user:secret@host/db#customers")
+
+    assert engine_urls == ["postgresql+psycopg://user:secret@host/db"]
+
+
+def test_an_environment_with_only_psycopg2_still_reads_postgres(drivers, engine_urls):
+    """What the pin to psycopg2 was for, and what moving the extra must not take away."""
+    drivers("psycopg2")
+
+    with pytest.raises(DatasetReadError):
+        load_sql("postgresql://user:secret@host/db#customers")
+
+    assert engine_urls == ["postgresql+psycopg2://user:secret@host/db"]
+
+
+@pytest.mark.parametrize(
+    "named", ["postgresql+psycopg2", "postgresql+psycopg", "postgresql+asyncpg"]
+)
+def test_a_postgres_driver_the_caller_named_is_left_alone(drivers, named):
+    """Even when it is not the one installed: that is the caller's call, and their error."""
+    drivers("psycopg")
+
+    assert sql_module._normalised(f"{named}://h/d") == f"{named}://h/d"
+
+
+def test_a_driver_is_importable_only_if_importing_it_works():
+    assert sql_module._importable("sqlite3")
+    assert not sql_module._importable("no_such_driver_installed_here")
+
+
+def test_a_driver_that_is_found_but_fails_to_import_is_not_importable(monkeypatch):
+    """psycopg (v3) with neither a binary build nor libpq: on the path, and no use to anyone."""
+
+    def broken(name):
+        raise ImportError("no pq wrapper available")
+
+    monkeypatch.setattr(sql_module.importlib, "import_module", broken)
+
+    assert not sql_module._importable("psycopg")
+
+
+def test_a_psycopg_that_cannot_be_imported_falls_back_to_psycopg2(monkeypatch):
+    def import_module(name):
+        if name == "psycopg":
+            raise ImportError("no pq wrapper available")
+
+    monkeypatch.setattr(sql_module.importlib, "import_module", import_module)
+
+    assert sql_module._postgres_driver() == "psycopg2"
 
 
 def test_bare_mysql_is_pointed_at_the_driver_that_ships():

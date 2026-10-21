@@ -97,7 +97,7 @@ pip install -e ".[dev]"
 | --- | --- | --- |
 | _(ninguno)_ | `pandas`, `pyarrow`, `pydantic`, `pyyaml`, `typer`, `rich` | La librería y el comando `datasemver` |
 | `dev` | `pytest`, `pytest-cov`, `httpx` | Ejecutar los tests y medir la cobertura |
-| `sql` | `sqlalchemy`, `psycopg2`, `pymysql` | Leer una [tabla de base de datos](#bases-de-datos) |
+| `sql` | `sqlalchemy`, `psycopg`, `pymysql` | Leer una [tabla de base de datos](#bases-de-datos) |
 | `exe` | `pyinstaller` | Construir un [ejecutable independiente](#sin-python) |
 | `excel` | `openpyxl` | Leer libros `.xlsx` y `.xlsm` |
 | `duckdb` | `duckdb` | Perfilar un dataset [sin cargarlo](#motores) |
@@ -630,13 +630,15 @@ shells, `#` abre un comentario.
 | Base de datos | URL | Driver |
 | --- | --- | --- |
 | SQLite | `sqlite:///ruta/a.db#tabla` | ninguno, va en la librería estándar |
-| PostgreSQL | `postgresql://usuario:clave@host:5432/bd#tabla` | `psycopg2`, en el extra `sql` |
+| PostgreSQL | `postgresql://usuario:clave@host:5432/bd#tabla` | `psycopg` (v3) en el extra `sql`, o `psycopg2` si es el que hay instalado |
 | MySQL o MariaDB | `mysql://usuario:clave@host/bd#tabla` | `pymysql`, en el extra `sql` |
 
-Dos formas de escribirlo se corrigen por el camino. `postgres://` perdió su alias en
-SQLAlchemy 2 y si no fallaría con «Can't load plugin»; un `mysql://` a secas significa
-MySQLdb y no el PyMySQL que instala el extra. Un driver que indiques tú, como
-`postgresql+psycopg://`, no se reescribe nunca.
+Tres formas de escribirlo se corrigen por el camino. `postgres://` perdió su alias en
+SQLAlchemy 2 y si no fallaría con «Can't load plugin»; un `postgresql://` a secas se dirige al
+psycopg que se pueda importar, con preferencia por psycopg (v3), que es el que instala el
+extra, y con psycopg2 como reserva para que siga funcionando un entorno que solo tenga ese; y
+un `mysql://` a secas significa MySQLdb y no el PyMySQL que instala el extra. Un driver que
+indiques tú, como `postgresql+psycopg2://`, no se reescribe nunca.
 
 Las contraseñas no llegan al informe. El origen se escribe en las entradas de changelog, en
 los comentarios de pull request y en la salida `--json`, así que aparece como

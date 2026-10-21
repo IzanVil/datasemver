@@ -25,10 +25,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script>document.documentElement.classList.add("js");setTimeout(function(){var r=document.documentElement;if(!r.classList.contains("ready"))r.classList.remove("js")},5000)</script>
 <link rel="stylesheet" href="../site.css">
 </head>
 <body>
 
+<div class="topbar">
 <div class="page">
   <nav class="nav">
     <a class="mark" href="./">
@@ -50,33 +52,66 @@
     </ul>
   </nav>
 </div>
+</div>
 
+<div class="hero-wrap">
 <div class="page">
   <header class="hero">
     <div>
       <h1>Tus datos cambiaron.<br><i>¿Qué versión les toca?</i></h1>
       <p>Compara dos versiones de un dataset. Obtén el salto que merecen y la entrada de changelog que lo explica.</p>
+      <ul class="bumps" aria-label="Los tres saltos que puede dar una comparación, desde 1.4.2">
+        <li class="from" style="--i:0">1.4.2</li>
+        <li class="bump patch" style="--i:1"><b>patch</b> 1.4.3</li>
+        <li class="bump minor" style="--i:2"><b>minor</b> 1.5.0</li>
+        <li class="bump major" style="--i:3"><b>major</b> 2.0.0</li>
+      </ul>
       <div class="start">
         <div class="snippet">
           <span><i>$</i> pip install datasemver</span>
-          <button type="button" data-copy="pip install datasemver" aria-live="polite">Copiar</button>
+          <button type="button" data-copy="pip install datasemver" data-done="Copiado" data-fail="Pulsa Ctrl+C" aria-live="polite">Copiar</button>
         </div>
-        <a class="link-out" href="https://github.com/IzanVil/datasemver/blob/main/README.es.md#inicio-rápido">Inicio rápido</a>
+        <a class="go" href="https://github.com/IzanVil/datasemver/blob/main/README.es.md#inicio-rápido">Inicio rápido</a>
       </div>
     </div>
     <div class="shot-hero">
-      <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-diff.png" width="1287" height="1222" fetchpriority="high"
-           alt="Terminal ejecutando datasemver diff sobre dos ficheros CSV. Un panel indica un salto sugerido MAJOR, de 0.0.0 a 1.0.0. Una tabla compara el tipo, la proporción de nulos y la cardinalidad de cada columna, una segunda tabla clasifica siete cambios por severidad, y la entrada de changelog generada cierra la ejecución.">
+      <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-hero.png" width="2086" height="2199" fetchpriority="high"
+           alt="Terminal ejecutando datasemver diff sobre dos exportaciones pequeñas de pedidos. Un panel indica un salto sugerido MAJOR, de 1.4.2 a 2.0.0. Una tabla compara el tipo, la proporción de nulos y la cardinalidad de cada columna, una segunda tabla clasifica cinco cambios por severidad, y la entrada de changelog generada cierra la ejecución.">
     </div>
   </header>
+</div>
+<div class="ticker" aria-hidden="true">
+  <ul class="ticker-track">
+    <li class="major">column_removed</li>
+    <li class="minor">column_added</li>
+    <li class="patch">nulls_fixed</li>
+    <li class="major">type_changed_incompatible</li>
+    <li class="minor">row_count_increased</li>
+    <li class="patch">minor_stat_change</li>
+    <li class="major">column_renamed</li>
+    <li class="minor">row_count_decreased</li>
+    <li class="patch">type_changed_compatible</li>
+    <li class="major">distribution_shift</li>
+    <li class="minor">new_category_added</li>
+    <li class="major">psi_greater_than</li>
+    <li class="minor">category_removed</li>
+    <li class="major">row_count_decrease_greater_than</li>
+    <li class="minor">cardinality_changed</li>
+    <li class="major">null_ratio_increase_greater_than</li>
+    <li class="minor">nulls_introduced</li>
+    <li class="minor">rows_modified</li>
+    <li class="minor">rows_replaced</li>
+    <li class="minor">category_balance_shift</li>
+  </ul>
+</div>
 </div>
 
 <div class="page">
   <dl class="facts">
     <div><dt>Lee</dt><dd>CSV, JSON, Parquet, Feather, Excel, SQL</dd></div>
     <div><dt>Python</dt><dd>3.10 a 3.14</dd></div>
-    <div><dt>Reglas por defecto</dt><dd>20</dd></div>
-    <div><dt>Tests</dt><dd>699 al 99%</dd></div>
+    <div><dt>Reglas por defecto</dt><dd><span data-count="20">20</span></dd></div>
+    <div><dt>Tests</dt><dd><span data-count="747">747</span> al 99%</dd></div>
     <div><dt>Licencia</dt><dd>Apache 2.0</dd></div>
   </dl>
 </div>
@@ -84,7 +119,7 @@
 <div class="page">
 
   <section class="reason">
-    <h2>El código tiene SemVer. Los datos no.</h2>
+    <h2>El código tiene SemVer. <span>Los datos no.</span></h2>
     <p>
       Una columna eliminada, un teléfono que se convirtió en cadena, una distribución que se
       desplazó en silencio. Todo eso rompe a quien está aguas abajo. Y todo eso suele
@@ -96,7 +131,7 @@
     </p>
   </section>
 
-  <section id="decide">
+  <section id="decide" class="band">
     <h2>Cómo decide</h2>
     <p class="say">
       Cada diferencia se contrasta contra una regla, y cada regla lleva una severidad. La
@@ -105,8 +140,8 @@
     </p>
 
     <div class="ladder">
-      <div class="rung">
-        <span class="tag major">major</span>
+      <div class="rung major">
+        <div class="rung-head"><span class="tag">major</span><span class="next">1.4.2 &rarr; <b>2.0.0</b></span></div>
         <div>
           <h3>Las consultas existentes pueden romperse</h3>
           <p>Algo de lo que ya dependen los consumidores ha desaparecido, o ahora significa otra cosa.</p>
@@ -117,8 +152,8 @@
           <li>psi_greater_than</li>
         </ul>
       </div>
-      <div class="rung">
-        <span class="tag minor">minor</span>
+      <div class="rung minor">
+        <div class="rung-head"><span class="tag">minor</span><span class="next">1.4.2 &rarr; <b>1.5.0</b></span></div>
         <div>
           <h3>Información nueva, los contratos se mantienen</h3>
           <p>Hay más de lo que había, y nada de lo que estaba se ha movido.</p>
@@ -129,8 +164,8 @@
           <li>category_balance_shift</li><li>rows_modified</li>
         </ul>
       </div>
-      <div class="rung">
-        <span class="tag patch">patch</span>
+      <div class="rung patch">
+        <div class="rung-head"><span class="tag">patch</span><span class="next">1.4.2 &rarr; <b>1.4.3</b></span></div>
         <div>
           <h3>El mismo significado, mejores datos</h3>
           <p>El dataset dice lo que ya decía, con menos huecos o menos ruido.</p>
@@ -153,7 +188,7 @@
 
   <section>
     <h2>El delimitador se detecta, no se supone</h2>
-    <div class="pair">
+    <div class="pair stack">
       <div>
         <p>
           Esta exportación separa sus campos con punto y coma mientras cada importe lleva
@@ -202,15 +237,18 @@
     </div>
   </section>
 
-  <section>
+  <section class="band">
     <h2>El mismo análisis en el navegador</h2>
     <p class="say">
       El panel es un cliente de la librería, no una copia bifurcada. Llama a la misma función y
       pinta el mismo informe, así que los dos coinciden por construcción.
     </p>
     <div class="full">
-      <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-report.png" width="1049" height="925" loading="lazy"
-           alt="El panel web de DataSemver tras comparar dos versiones de un dataset de clientes. Una insignia MAJOR aparece junto a 1.4.2 a 2.0.0, unos indicadores muestran de 40 a 48 filas, de 8 a 8 columnas y 6 cambios, y una tabla lista cada cambio con su severidad, su regla y su descripción.">
+      <div class="window">
+        <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>127.0.0.1:8000</span></div>
+        <img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-verdict.png" width="2240" height="1256" loading="lazy"
+             alt="El panel web de DataSemver tras comparar dos versiones de un dataset de clientes. Dos selectores de fichero nombran old.csv y new.csv. Debajo, una insignia roja MAJOR aparece junto a 1.4.2 a 2.0.0, una barra reparte los siete cambios en dos major, dos minor y tres patch, y unos indicadores muestran de 8 a 10 filas, de 7 a 7 columnas y 7 cambios.">
+      </div>
       <p>Sube dos ficheros, o elige dos versiones de un directorio que vigile.</p>
     </div>
   </section>
@@ -399,7 +437,7 @@ datasemver diff old.csv new.csv <i>--key</i> id
 datasemver diff old.csv new.csv <i>--current-version</i> 1.4.2 <i>--write-version</i></pre>
   </section>
 
-  <section>
+  <section class="cta">
     <h2>Instalarlo</h2>
     <p class="say">
       Python 3.10 o superior, tipado y sin acceso a red en tiempo de ejecución. Las releases se
@@ -416,7 +454,7 @@ datasemver diff old.csv new.csv <i>--current-version</i> 1.4.2 <i>--write-versio
     <div class="closer">
       <div class="snippet">
         <span><i>$</i> pip install datasemver</span>
-        <button type="button" data-copy="pip install datasemver" aria-live="polite">Copiar</button>
+        <button type="button" data-copy="pip install datasemver" data-done="Copiado" data-fail="Pulsa Ctrl+C" aria-live="polite">Copiar</button>
       </div>
       <a class="go" href="https://pypi.org/project/datasemver/">Verlo en PyPI</a>
     </div>
@@ -440,20 +478,7 @@ datasemver diff old.csv new.csv <i>--current-version</i> 1.4.2 <i>--write-versio
   </footer>
 </div>
 
-<script>
-  for (const button of document.querySelectorAll("[data-copy]")) {
-    button.addEventListener("click", async () => {
-      const label = button.textContent;
-      try {
-        await navigator.clipboard.writeText(button.dataset.copy);
-        button.textContent = "Copiado";
-      } catch {
-        button.textContent = "Pulsa Ctrl+C";
-      }
-      setTimeout(() => { button.textContent = label; }, 1600);
-    });
-  }
-</script>
+<script src="../site.js" defer></script>
 
 </body>
 </html>

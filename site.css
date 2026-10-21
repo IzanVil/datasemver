@@ -2,8 +2,10 @@
    Both modes from one token set: the captures are dark screens, but a page that only
    exists in the dark is a page half the readers meet on the wrong footing.
    Radius scale, locked: containers and buttons 10px, chips 4px, nothing else.
-   Accent, locked: one teal across both modes, used for links and the primary action only.
-   Severity red / amber / blue are semantic, never decorative, and match what the CLI prints. */
+   One teal across both modes. It carries the links and the primary action, and also the one
+   wash of light behind the hero and the bands that set sections apart: a page that spends its
+   colour only on a link reads as a document, which is not what a tool you run should feel like.
+   Severity red / amber / blue are semantic, never decorative: they appear where a bump does. */
 
 :root {
   color-scheme: light dark;
@@ -18,6 +20,10 @@
   --muted: #5c6675;
   --accent: #0e7c5a;
   --accent-ink: #ffffff;
+  --glow: rgba(14, 124, 90, 0.26);
+  --dot: rgba(20, 24, 31, 0.11);
+  --band: #eef5f2;
+  --shot-shadow: 0 1px 0 var(--line), 0 28px 60px -28px rgba(10, 38, 30, 0.5);
 
   --major: #ab2a20;  --major-tint: #fbeceb;
   --minor: #83540a;  --minor-tint: #faf1de;
@@ -30,6 +36,13 @@
   --page: 70rem;
   --r: 10px;
   --r-chip: 4px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --soft: cubic-bezier(0.25, 0.1, 0.35, 1);
+  /* A damped spring, sampled: it overshoots by about an eighth and settles inside a second, so
+     things arrive with some weight rather than stopping dead. */
+  --spring: linear(0, 0.056, 0.192, 0.368, 0.553, 0.724, 0.869, 0.98, 1.057, 1.104, 1.124, 1.125,
+    1.112, 1.092, 1.069, 1.046, 1.026, 1.009, 0.997, 0.99, 0.985, 0.984, 0.985, 0.987, 0.99,
+    0.993, 0.995, 0.998, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -44,6 +57,10 @@
     --muted: #8892a4;
     --accent: #4ecda4;
     --accent-ink: #062018;
+    --glow: rgba(78, 205, 164, 0.22);
+    --dot: rgba(232, 236, 242, 0.1);
+    --band: #0e1a1b;
+    --shot-shadow: 0 1px 0 var(--line), 0 30px 80px -30px rgba(78, 205, 164, 0.28);
 
     --major: #ff7a6b;  --major-tint: #2c1714;
     --minor: #e3b25c;  --minor-tint: #2a2214;
@@ -53,6 +70,8 @@
 
 * { box-sizing: border-box; }
 
+html { scroll-behavior: smooth; }
+
 body {
   margin: 0;
   background: var(--ground);
@@ -61,6 +80,9 @@ body {
   font-size: 16px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  /* The washes of light and the bands run past the window on purpose; none of that should be
+     something a reader can scroll sideways to find. `clip`, not `hidden`, so the bar still sticks. */
+  overflow-x: clip;
 }
 
 .page { max-width: var(--page); margin: 0 auto; padding: 0 clamp(1.1rem, 4vw, 2.5rem); }
@@ -69,11 +91,19 @@ a { color: var(--accent); text-underline-offset: 3px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-chip); }
 code { font-family: var(--mono); font-size: 0.92em; }
 h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+section[id] { scroll-margin-top: 4.5rem; }
 
-/* ---------- navigation: one line, 64px ---------- */
+/* ---------- navigation: one line, 64px, and it stays ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--ground) 82%, transparent);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
 .nav {
   display: flex; align-items: center; gap: 1.5rem;
-  height: 64px; border-bottom: 1px solid var(--line);
+  height: 64px;
 }
 .mark {
   font-weight: 700; font-size: 1rem; letter-spacing: -0.01em;
@@ -100,30 +130,76 @@ h1, h2, h3 { text-wrap: balance; }
 .nav .swap:hover { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 720px) { .nav .hide-sm { display: none; } }
 
-/* ---------- hero: asymmetric split, real capture on the right ---------- */
+/* ---------- hero: a split, with the real capture on the right and light behind it ---------- */
 .hero {
-  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: clamp(1.8rem, 5vw, 4rem); align-items: center;
-  padding: clamp(2.5rem, 6vw, 5rem) 0 clamp(2.2rem, 5vw, 3.5rem);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.28fr);
+  gap: clamp(1.8rem, 4.5vw, 3.5rem); align-items: center;
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(2.4rem, 5vw, 3.6rem);
 }
+.hero-wrap + .page { padding-top: clamp(1.6rem, 3vw, 2.4rem); }
 @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+
+/* One wash of the accent behind the capture, and a field of dots that fades before it reaches
+   the text: the page opens on colour and on texture, and nothing the eye has to read sits on
+   either. They live on a wrapper as wide as the window, which clips them, so a wash that runs to
+   the edge of the screen never becomes something to scroll sideways to find. */
+.hero-wrap { position: relative; isolation: isolate; overflow: hidden; }
+.hero-wrap::before, .hero-wrap::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+}
+.hero-wrap::before {
+  background: radial-gradient(ellipse 46% 50% at 68% 50%, var(--glow), transparent 100%);
+}
+.hero-wrap::after {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 42% 50% at 66% 50%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 42% 50% at 66% 50%, #000 30%, transparent 100%);
+}
+@media (max-width: 900px) {
+  .hero-wrap::before { background: radial-gradient(ellipse 90% 30% at 50% 64%, var(--glow), transparent 100%); }
+  .hero-wrap::after { display: none; }
+}
 
 h1 {
   margin: 0;
-  font-size: clamp(1.85rem, 3.4vw, 2.5rem);
+  font-size: clamp(1.85rem, 3.3vw, 2.4rem);
   line-height: 1.1; letter-spacing: -0.03em; font-weight: 800;
   font-variation-settings: "wdth" 116;
 }
-h1 i { font-style: normal; color: var(--muted); font-variation-settings: "wdth" 94; }
+h1 i { font-style: normal; color: var(--accent); font-variation-settings: "wdth" 94; }
 .hero p {
   margin: 1.2rem 0 0; max-width: 42ch; font-size: 1.08rem; color: var(--ink-soft);
 }
+
+/* The three answers a comparison can give, from the version the examples start at. They are
+   the page's whole argument in one line, and they are the same chips the ladder below uses. */
+.bumps {
+  list-style: none; margin: 1.6rem 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+  font-family: var(--mono); font-size: 0.84rem;
+}
+.bumps .from { color: var(--muted); margin-right: 0.15rem; }
+.bumps .from::after { content: "\2192"; margin-left: 0.5rem; }
+.bump {
+  display: inline-flex; align-items: baseline; gap: 0.5rem;
+  padding: 0.28rem 0.65rem; border-radius: var(--r-chip);
+  color: var(--sev); background: var(--tint);
+  font-variant-numeric: tabular-nums;
+}
+.bump b {
+  font-size: 0.66rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.major { --sev: var(--major); --tint: var(--major-tint); }
+.minor { --sev: var(--minor); --tint: var(--minor-tint); }
+.patch { --sev: var(--patch); --tint: var(--patch-tint); }
 
 .start { display: flex; gap: 0.65rem; flex-wrap: wrap; align-items: center; margin-top: 1.9rem; }
 .snippet {
   display: flex; align-items: center; gap: 0.85rem;
   background: var(--raise); border: 1px solid var(--line-firm); border-radius: var(--r);
   padding: 0.55rem 0.55rem 0.55rem 0.95rem; font-family: var(--mono); font-size: 0.88rem;
+  box-shadow: 0 10px 26px -18px rgba(10, 38, 30, 0.5);
 }
 .snippet i { color: var(--accent); font-style: normal; }
 .snippet button {
@@ -136,20 +212,29 @@ h1 i { font-style: normal; color: var(--muted); font-variation-settings: "wdth" 
 .link-out {
   font-size: 0.9rem; font-weight: 600; text-decoration: none; color: var(--ink);
   border: 1px solid var(--line-firm); border-radius: var(--r); padding: 0.62rem 1rem;
-  transition: border-color 0.18s ease, color 0.18s ease;
+  transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s var(--ease);
 }
-.link-out:hover { border-color: var(--accent); color: var(--accent); }
-.shot-hero img {
+.link-out:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+
+/* A capture is a screen, so it sits on the page the way a screen does: lit, and lifted. */
+.shot-hero img, .pair img, .full img {
   display: block; width: 100%; height: auto; border-radius: var(--r);
-  border: 1px solid var(--line);
+  box-shadow: var(--shot-shadow);
+}
+.shot-hero img { transition: transform 0.5s var(--ease); }
+@media (min-width: 901px) {
+  .shot-hero { margin-right: clamp(-3.5rem, -3vw, 0rem); }
+  .shot-hero:hover img { transform: translateY(-4px); }
 }
 
 /* ---------- fact strip ---------- */
 .facts {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  margin: 0; padding: 0.35rem 1.4rem;
+  background: var(--raise); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: 0 18px 40px -30px rgba(10, 38, 30, 0.45);
 }
-.facts div { padding: 1rem 1rem 1rem 0; }
+.facts div { padding: 0.95rem 1rem 0.95rem 0; }
 .facts dt {
   font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--muted);
@@ -168,31 +253,62 @@ h2 {
 }
 .say { color: var(--muted); margin: 0.7rem 0 0; max-width: var(--read); }
 
-/* the reason: one column, no ornament */
-.reason p { margin: 1rem 0 0; max-width: var(--read); font-size: 1.05rem; color: var(--ink-soft); }
+/* A band sets a section apart by the ground behind it, which runs to the edge of the window
+   while its content stays in the column. */
+.band {
+  background: var(--band);
+  box-shadow: 0 0 0 100vmax var(--band);
+  clip-path: inset(0 -100vmax);
+  border-bottom: 0;
+}
+
+/* the reason: the claim on one side, the argument on the other */
+.reason {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  column-gap: clamp(2rem, 6vw, 5rem); align-items: start;
+}
+.reason h2 {
+  grid-column: 1; grid-row: 1 / span 2;
+  font-size: clamp(1.9rem, 4.2vw, 3rem); line-height: 1.08; letter-spacing: -0.035em;
+  font-weight: 800; font-variation-settings: "wdth" 114;
+}
+.reason h2 span { color: var(--accent); }
+.reason p { grid-column: 2; margin: 0 0 1rem; max-width: var(--read); font-size: 1.08rem; color: var(--ink-soft); }
+.reason p:first-of-type { margin-top: 0.4rem; }
+@media (max-width: 820px) {
+  .reason { display: block; }
+  .reason h2 { margin-bottom: 1.2rem; }
+}
 
 /* severity ladder: ordered, because the order is the rule */
-.ladder { margin-top: 2.1rem; border-top: 1px solid var(--line); }
+.ladder { margin-top: 2.1rem; display: grid; gap: 0.7rem; }
 .rung {
-  display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 1.15fr);
+  display: grid; grid-template-columns: 8rem minmax(0, 1fr) minmax(0, 1.15fr);
   gap: clamp(0.9rem, 2.5vw, 2rem); align-items: start;
-  padding: 1.15rem 0; border-bottom: 1px solid var(--line);
+  padding: 1.15rem 1.2rem 1.15rem 1.1rem;
+  border-radius: var(--r); border: 1px solid var(--line);
+  border-left: 3px solid var(--sev);
+  background: linear-gradient(90deg, var(--tint), var(--raise) 45%);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
+.rung:hover { transform: translateX(3px); box-shadow: 0 14px 30px -22px var(--sev); }
 @media (max-width: 800px) { .rung { grid-template-columns: 1fr; gap: 0.55rem; } }
+.rung-head { display: flex; flex-direction: column; gap: 0.45rem; align-items: flex-start; }
 .tag {
   font-family: var(--mono); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
   text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: var(--r-chip);
-  justify-self: start;
+  justify-self: start; color: var(--sev); background: var(--tint);
 }
-.tag.major { color: var(--major); background: var(--major-tint); }
-.tag.minor { color: var(--minor); background: var(--minor-tint); }
-.tag.patch { color: var(--patch); background: var(--patch-tint); }
+.rung-head .tag { background: var(--sev); color: var(--ground); }
+.next { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.next b { color: var(--ink); font-weight: 600; }
 .rung h3 { margin: 0; font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
 .rung p { margin: 0.3rem 0 0; font-size: 0.9rem; color: var(--muted); }
 .rules { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .rules li {
-  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
-  border: 1px solid var(--line); border-radius: var(--r-chip); padding: 0.15rem 0.42rem;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft);
+  background: var(--raise); border: 1px solid var(--line); border-radius: var(--r-chip);
+  padding: 0.15rem 0.42rem;
 }
 .after-ladder { margin-top: 1.5rem; font-size: 0.92rem; color: var(--muted); max-width: var(--read); }
 
@@ -202,15 +318,33 @@ h2 {
   gap: clamp(1.5rem, 4vw, 3rem); align-items: center; margin-top: 2rem;
 }
 @media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
-.pair img, .full img {
-  display: block; width: 100%; height: auto; border-radius: var(--r);
-  border: 1px solid var(--line);
-}
+/* A capture 104 columns wide is only readable at the width of the column, so it goes under the
+   words instead of beside them. */
+.pair.stack { grid-template-columns: 1fr; align-items: start; }
+.pair.stack > div { max-width: var(--read); }
 .pair p { margin: 0.9rem 0 0; color: var(--ink-soft); font-size: 0.96rem; }
+.pair.stack p:first-child { margin-top: 0; }
 
-/* full-bleed capture */
+/* full-bleed capture, in the window it came from */
 .full { margin-top: 2rem; }
-.full p { margin: 1rem auto 0; color: var(--muted); font-size: 0.92rem; max-width: var(--read); }
+.full p { margin: 1.4rem auto 0; color: var(--muted); font-size: 0.92rem; max-width: var(--read); text-align: center; }
+.window {
+  border-radius: var(--r); overflow: hidden; background: #0f1719;
+  box-shadow: var(--shot-shadow); border: 1px solid var(--line);
+}
+.window-bar {
+  display: flex; align-items: center; gap: 0.45rem; height: 38px; padding: 0 1rem;
+  background: #172026; border-bottom: 1px solid #243038;
+}
+.window-bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+.window-bar i:nth-child(2) { background: #febc2e; }
+.window-bar i:nth-child(3) { background: #28c840; }
+.window-bar span {
+  margin: 0 auto; transform: translateX(-1.1rem);
+  font-family: var(--mono); font-size: 0.72rem; color: #8a9aa5;
+  background: #0f1719; border-radius: var(--r-chip); padding: 0.12rem 0.9rem;
+}
+.window img { box-shadow: none; border-radius: 0; }
 
 /* four surfaces, ruled not carded */
 .surfaces {
@@ -224,6 +358,8 @@ h2 {
 .surfaces h3 { margin: 0 0 0.35rem; font-size: 0.98rem; font-weight: 600; }
 .surfaces p { margin: 0 0 0.55rem; font-size: 0.9rem; color: var(--ink-soft); }
 .surfaces code { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+.surfaces > div { transition: border-color 0.25s var(--ease); }
+.surfaces > div:hover { border-top-color: var(--accent); }
 
 /* measured numbers: ruled like everything else, never carded, and tabular so the
    columns line up under each other the way they do in the terminal. */
@@ -251,19 +387,144 @@ pre {
 pre b { color: var(--muted); font-weight: 400; }
 pre i { color: var(--accent); font-style: normal; }
 
-/* closing action */
+/* closing action: the one place the page asks for something, so it is lit like the hero, and
+   the thing to type sits beside the reasons rather than under them. */
+.cta {
+  position: relative; isolation: isolate;
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  column-gap: clamp(2rem, 6vw, 5rem); align-items: center;
+}
+.cta > * { grid-column: 1; }
+.cta .closer { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; flex-direction: column; align-items: flex-start; gap: 1rem; }
+.cta .snippet { font-size: 1rem; padding: 0.75rem 0.75rem 0.75rem 1.15rem; }
+.cta .go { padding: 0.8rem 1.4rem; }
+@media (max-width: 820px) {
+  .cta { display: block; }
+  .cta .closer { margin-top: 1.8rem; flex-direction: row; align-items: center; }
+}
+.cta::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 50% 46% at 74% 54%, var(--glow), transparent 100%);
+}
+.cta h2 { font-size: clamp(1.7rem, 3.6vw, 2.4rem); letter-spacing: -0.03em; }
 .closer { display: flex; gap: 0.65rem; flex-wrap: wrap; align-items: center; margin-top: 1.8rem; }
 .go {
+  position: relative; overflow: hidden; display: inline-block;
   font-size: 0.92rem; font-weight: 600; text-decoration: none;
   background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent);
   border-radius: var(--r); padding: 0.65rem 1.1rem;
-  transition: filter 0.18s ease;
+  transition: filter 0.18s ease, transform 0.18s var(--ease), box-shadow 0.2s var(--ease);
 }
-.go:hover { filter: brightness(1.07); }
-.go:active { transform: translateY(1px); }
+.go:hover { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 12px 26px -12px var(--accent); }
+.go:active { transform: translateY(1px); box-shadow: none; }
 
 footer { padding: 2.4rem 0 3.2rem; color: var(--muted); font-size: 0.85rem; }
 footer ul { list-style: none; margin: 0 0 1.2rem; padding: 0; display: flex; flex-wrap: wrap; gap: 1.05rem; }
 footer a { color: var(--ink-soft); text-decoration: none; }
 footer a:hover { color: var(--accent); }
 footer p { margin: 0; max-width: var(--read); }
+
+/* ---------- motion ----------
+   Everything below moves `transform`, `translate`, `scale` and `opacity` and nothing that costs
+   a layout, so it stays smooth on a laptop's integrated graphics. */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade { from { opacity: 0; } }
+@keyframes settle { from { translate: 0 28px; scale: 0.985; } }
+
+/* The hero arrives, once, on the spring. */
+.hero h1, .hero p, .bumps li, .start, .shot-hero {
+  animation: rise 0.95s var(--spring) both;
+}
+.hero p { animation-delay: 90ms; }
+.bumps li { animation-delay: calc(180ms + var(--i, 0) * 100ms); }
+.start { animation-delay: 520ms; }
+.shot-hero { animation-delay: 220ms; }
+
+/* Then it keeps a little life. The capture hangs in the light and breathes; the three chips take
+   turns being the answer; the button catches the light every few seconds. None of it asks for
+   attention, and all of it stops for a reader who has asked for less. */
+@keyframes hang { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+.shot-hero img { animation: hang 7s ease-in-out 1.4s infinite; }
+
+@keyframes turn {
+  0%, 40%, 100% { translate: 0 0; box-shadow: 0 0 0 0 transparent; }
+  8%, 28% { translate: 0 -3px; box-shadow: 0 10px 22px -10px var(--sev); }
+}
+.bumps .bump {
+  animation: rise 0.95s var(--spring) both, turn 6.6s ease-in-out infinite;
+  animation-delay: calc(180ms + var(--i, 0) * 100ms), calc(1.6s + (var(--i, 1) - 1) * 2.2s);
+}
+
+@keyframes sheen {
+  0% { transform: translateX(-140%) skewX(-14deg); }
+  55%, 100% { transform: translateX(380%) skewX(-14deg); }
+}
+.go::after {
+  content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  transform: translateX(-140%) skewX(-14deg);
+  animation: sheen 4.2s ease-in-out 1.6s infinite;
+  pointer-events: none;
+}
+
+/* Data cells drifting up through the light: the dot field behind the hero, loosened. */
+.motes { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.motes i {
+  position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s);
+  border-radius: 1px; background: var(--accent); opacity: 0;
+  animation: mote var(--t) ease-in-out var(--d) infinite;
+}
+.motes i:nth-child(3n) { background: var(--ink); }
+@keyframes mote {
+  0% { opacity: 0; translate: 0 16px; }
+  22%, 68% { opacity: var(--a, 0.5); }
+  100% { opacity: 0; translate: 0 -84px; }
+}
+
+/* The rules the tool applies, passing by: the whole catalogue, in the colour of what each one
+   means, on a strip between the headline and the facts. Hover to hold it still. */
+.ticker {
+  position: relative; border-block: 1px solid var(--line); padding: 0.85rem 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+.ticker-track {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem;
+  list-style: none; margin: 0; padding: 0 1rem;
+}
+.ticker li {
+  font-family: var(--mono); font-size: 0.76rem; line-height: 1;
+  padding: 0.38rem 0.65rem; border-radius: var(--r-chip);
+  color: var(--sev); background: var(--tint); white-space: nowrap;
+}
+.ticker-track.is-moving {
+  flex-wrap: nowrap; justify-content: flex-start; gap: 0; width: max-content; padding: 0;
+  animation: ticker 80s linear infinite;
+}
+.ticker-track.is-moving li { margin-right: 0.5rem; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker { to { transform: translateX(-50%); } }
+
+/* Below the hero, things settle into place as they come into view. Hidden only once the script
+   has marked them, and only when the page is told it can run (`js`, set in the head and taken
+   away again if the script never arrives), so a page that fails to load it is still a page. */
+html.js .reveal { opacity: 0; }
+html.js .reveal.in {
+  opacity: 1;
+  animation:
+    fade 0.55s var(--soft) calc(var(--i, 0) * 85ms) both,
+    settle 1s var(--spring) calc(var(--i, 0) * 85ms) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .hero h1, .hero p, .start, .shot-hero, .shot-hero img, .bump, .bumps li,
+  .go::after, .motes i, .ticker-track { animation: none !important; }
+  html.js .reveal { opacity: 1; }
+  .ticker-track li[data-clone] { display: none; }
+  * { transition: none !important; }
+}

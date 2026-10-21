@@ -196,6 +196,7 @@ omit = [
     # images simply are not rebuilt, which is visible immediately. Covering it would mean
     # asserting against a mocked browser, which asserts nothing about the images.
     "scripts/capture_cli.py",
+    "scripts/capture_dashboard.py",
 ]
 
 [tool.coverage.report]

@@ -32,6 +32,7 @@ import datasemver.core.analyzer as analyzer
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ASSETS = REPO_ROOT / "docs" / "assets"
 WIDTH = 104
+HERO_WIDTH = 84
 
 # Two of the captures show a changelog entry, which is dated, so a regeneration on any other
 # day produced two different images from a tool that had not changed -- and buried the one
@@ -90,6 +91,29 @@ SEMICOLON_V2 = """id;cliente;pais;importe;estado;canal
 10;Jorge Pena;ES;1120,00;pagado;tienda
 """
 
+# A deliberately small pair for the capture that sits beside a page's headline. Four columns and
+# one change of each severity, so the whole run fits a narrow console without a cell wrapping or
+# a table being cut: at that width a larger export is a wall of text nobody can read.
+ORDERS_V1 = """order_id,customer,total,coupon
+1001,Marta Ibáñez,48.90,SPRING10
+1002,Kofi Mensah,112.00,
+1003,Aiko Sato,27.50,SPRING10
+1004,,89.99,
+1005,Sara Haddad,64.20,
+1006,Mateo Rossi,150.00,VIP
+"""
+
+ORDERS_V2 = """order_id,customer,total,channel
+1001,Marta Ibáñez,48.90,web
+1002,Kofi Mensah,112.00,app
+1003,Aiko Sato,27.50,web
+1004,Liam Byrne,89.99,store
+1005,Sara Haddad,64.20,web
+1006,Mateo Rossi,150.00,app
+1007,Elif Demir,79.90,web
+1008,Pablo Quiroga,91.25,store
+"""
+
 
 @dataclass(frozen=True)
 class Capture:
@@ -99,6 +123,11 @@ class Capture:
     title: str
     args: list[str]
     cwd: Path | None = None
+    # Columns the console wraps at, and how many pixels the PNG spends on each CSS pixel. A
+    # capture meant for a half-width column is narrow and dense: the terminal is shrunk to the
+    # column, so every column it holds is a column of text that has to stay readable.
+    width: int = WIDTH
+    scale: int = 1
 
 
 class _FrozenDate:
@@ -114,12 +143,23 @@ def main() -> int:
     analyzer.date = _FrozenDate  # type: ignore[assignment, misc]
     with tempfile.TemporaryDirectory() as tmp:
         sales = _write_semicolon_pair(Path(tmp))
+        orders = _write_orders_pair(Path(tmp) / "orders")
         captures = [
             Capture(
                 "cli-diff",
                 "datasemver diff",
                 ["diff", "tests/fixtures/old.csv", "tests/fixtures/new.csv"],
                 REPO_ROOT,
+            ),
+            # The one a page sets beside its headline, at about half the width of the others: a
+            # narrow console, photographed at twice the size, so it stays readable when shrunk.
+            Capture(
+                "cli-hero",
+                "datasemver diff",
+                ["diff", "orders_v1.csv", "orders_v2.csv", "--current-version", "1.4.2"],
+                orders,
+                width=HERO_WIDTH,
+                scale=2,
             ),
             Capture("cli-rules", "datasemver rules", ["rules"], REPO_ROOT),
             Capture(
@@ -142,7 +182,7 @@ def main() -> int:
         else:
             print("dvc is not installed; cli-dvc was left untouched.")
 
-        written = [_record(capture) for capture in captures]
+        written = [(_record(capture), capture.scale) for capture in captures]
 
     rasteriser = _find_rasteriser()
     if rasteriser is None:
@@ -151,8 +191,8 @@ def main() -> int:
         return 0
 
     print(f"\nrasterising with {rasteriser.name}")
-    for svg in written:
-        _rasterise(rasteriser, svg)
+    for svg, scale in written:
+        _rasterise(rasteriser, svg, scale)
     return 0
 
 
@@ -189,6 +229,13 @@ def _build_dvc_repo(root: Path) -> Path | None:
     return root
 
 
+def _write_orders_pair(root: Path) -> Path:
+    root.mkdir()
+    (root / "orders_v1.csv").write_text(ORDERS_V1, encoding="utf-8")
+    (root / "orders_v2.csv").write_text(ORDERS_V2, encoding="utf-8")
+    return root
+
+
 def _write_semicolon_pair(root: Path) -> Path:
     (root / "ventas_v1.csv").write_text(SEMICOLON_V1, encoding="utf-8")
     (root / "ventas_v2.csv").write_text(SEMICOLON_V2, encoding="utf-8")
@@ -197,7 +244,7 @@ def _write_semicolon_pair(root: Path) -> Path:
 
 def _record(capture: Capture) -> Path:
     """Invoke one command through a recording console and export what it rendered."""
-    recorder = Console(record=True, width=WIDTH, force_terminal=True)
+    recorder = Console(record=True, width=capture.width, force_terminal=True)
     original, cli.console = cli.console, recorder
     previous = Path.cwd()
     try:
@@ -237,12 +284,12 @@ def _find_rasteriser() -> Rasteriser | None:
     return None
 
 
-def _rasterise(tool: Rasteriser, svg: Path) -> None:
+def _rasterise(tool: Rasteriser, svg: Path, scale: int = 1) -> None:
     png = svg.with_suffix(".png")
-    width, height = _view_box(svg)
+    width, height = (size * scale for size in _view_box(svg))
 
     if tool.name == "rsvg-convert":
-        subprocess.run([tool.path, "-o", str(png), str(svg)], check=True)
+        subprocess.run([tool.path, "--zoom", str(scale), "-o", str(png), str(svg)], check=True)
     else:
         # Browsers screenshot a page, not a file, so the SVG is framed at its own size.
         wrapper = svg.with_suffix(".html")

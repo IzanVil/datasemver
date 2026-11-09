@@ -125,6 +125,14 @@ This project follows [Semantic Versioning](https://semver.org).
   tolerance, which is what the mean of a text column is: every job of the matrix went red the
   day that release came out, on a change that had touched none of it. The absence of a mean is
   now compared as an absence.
+- The dashboard reads on a phone. The changes table kept its explanation in the last column and
+  the columns table its numbers in the last three, so at 390px both were behind a scrollbar and
+  the first thing a reader saw was a severity and a rule with no reason attached. Below 620px
+  each row is now a small card -- severity and rule, then the sentence; the column and its
+  status, then its type, nulls and cardinality one to a line -- the headings stay for a screen
+  reader, and the changelog wraps instead of running off the edge. Fields are 16px, which stops
+  iOS zooming the page when one is focused, and tabs, buttons and the footer's links reach 44px
+  on a narrow screen or a touch one of any width. Wider than that, nothing moved.
 - The measured numbers are held by tests, so they cannot go stale in silence. The changelog
   states measurements -- `--schema-only` turning 5.4s and 641 MB into 1s and 137 MB, the
   chunked read taking a pair of 60 MB files from 18.1s to 8.5s -- and nothing in CI held any

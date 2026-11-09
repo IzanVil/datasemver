@@ -1111,3 +1111,159 @@ pre {
     width: 100%;
   }
 }
+
+/* --- a phone ---------------------------------------------------------------------------------- */
+
+/* A phone has no room for the two tables as tables: the explanation sits in the last column of the
+   first and the numbers in the last three of the second, and those are the ones that fall off the
+   edge, behind a scrollbar a thumb does not look for. Each row becomes a small card instead -- the
+   severity and the rule on a line with the sentence under them; the column and its status, then its
+   numbers one to a line. The headings are hidden rather than removed and every part says what it is,
+   so a screen reader still reads a table. */
+@media (max-width: 620px) {
+  body {
+    font-size: 16px;
+  }
+
+  .hint,
+  .guide-item p,
+  #summary-sources,
+  td.wrap,
+  .footer {
+    font-size: 1rem;
+  }
+
+  .picker-file,
+  .picker.has-file .picker-file,
+  .tally-legend li {
+    font-size: 0.9rem;
+  }
+
+  /* The entry is prose, and a line that runs off the edge hides half of what it says. */
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .field-label {
+    font-size: 0.9rem;
+  }
+
+  #changes-table thead,
+  #columns-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  #changes-table,
+  #changes-table tbody,
+  #columns-table,
+  #columns-table tbody {
+    display: block;
+  }
+
+  #changes-table tr,
+  #columns-table tr {
+    display: grid;
+    gap: 6px 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #changes-table tr:last-child,
+  #columns-table tr:last-child {
+    border-bottom: 0;
+  }
+
+  #changes-table td,
+  #columns-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    font-size: 1rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #changes-table td.rule,
+  #columns-table td.mono {
+    font-size: 0.94rem;
+  }
+
+  #changes-table tr {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #changes-table td:nth-child(3),
+  #changes-table td:only-child {
+    grid-column: 1 / -1;
+  }
+
+  #columns-table tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-left: 14px;
+  }
+
+  #columns-table td[data-label] {
+    grid-column: 1 / -1;
+  }
+
+  #columns-table td[data-label]::before {
+    content: attr(data-label);
+    display: inline-block;
+    width: 7.5rem;
+    color: var(--muted);
+    font-family: var(--sans);
+  }
+
+  /* The edge that marks a column that changed runs the whole card, not the line with its name. */
+  #columns-table tr[data-status] td:first-child {
+    box-shadow: none;
+  }
+  #columns-table tr[data-status="added"] {
+    box-shadow: inset 3px 0 0 var(--patch);
+  }
+  #columns-table tr[data-status="removed"] {
+    box-shadow: inset 3px 0 0 var(--major);
+  }
+  #columns-table tr[data-status="modified"],
+  #columns-table tr[data-status="renamed"] {
+    box-shadow: inset 3px 0 0 var(--minor);
+  }
+}
+
+/* A thumb needs 44px, and iOS zooms the page into any field set smaller than 16px: both go with
+   the width of a phone and with a touch screen of any width, a tablet included. */
+@media (pointer: coarse), (max-width: 620px) {
+  input[type="text"],
+  select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .tabs {
+    gap: 6px;
+  }
+
+  .tab,
+  .button {
+    min-height: 44px;
+  }
+
+  .footer-links {
+    gap: 8px;
+  }
+
+  .footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 8px;
+  }
+}

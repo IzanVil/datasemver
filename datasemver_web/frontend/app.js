@@ -358,7 +358,11 @@ function renderChanges(classified) {
   dom.changes.textContent = "";
   if (classified.length === 0) {
     dom.changes.append(
-      element("tr", {}, element("td", { colSpan: 3, className: "muted" }, "No changes detected."))
+      element(
+        "tr",
+        { role: "row" },
+        element("td", { role: "cell", colSpan: 3, className: "muted" }, "No changes detected.")
+      )
     );
     return;
   }
@@ -371,14 +375,14 @@ function renderChanges(classified) {
     dom.changes.append(
       element(
         "tr",
-        {},
+        { role: "row" },
         element(
           "td",
-          {},
+          { role: "cell" },
           element("span", { className: "severity", dataset: { severity } }, severity.toUpperCase())
         ),
-        element("td", { className: "mono rule" }, item.rule || "—"),
-        element("td", { className: "wrap" }, item.change.description)
+        element("td", { role: "cell", className: "mono rule" }, item.rule || "—"),
+        element("td", { role: "cell", className: "wrap" }, item.change.description)
       )
     );
   });
@@ -392,23 +396,23 @@ function renderColumns(columns) {
     dom.columns.append(
       element(
         "tr",
-        { dataset: { status: column.status } },
-        element("td", { className: "mono" }, name),
+        { role: "row", dataset: { status: column.status } },
+        element("td", { role: "cell", className: "mono" }, name),
         element(
           "td",
-          {},
+          { role: "cell" },
           element("span", { className: "status-pill", dataset: { status: column.status } }, column.status)
         ),
         element(
           "td",
-          { className: "mono" },
+          { role: "cell", className: "mono", dataset: { label: "Type" } },
           column.dtype_old ?? "—",
           element("span", { className: "pair-arrow" }, "→"),
           element("span", { className: retyped ? "shifted" : "" }, column.dtype_new ?? "—")
         ),
         element(
           "td",
-          {},
+          { role: "cell", dataset: { label: "Nulls" } },
           percent(column.null_ratio_old),
           element("span", { className: "pair-arrow" }, "→"),
           element(
@@ -419,7 +423,7 @@ function renderColumns(columns) {
         ),
         element(
           "td",
-          {},
+          { role: "cell", dataset: { label: "Cardinality" } },
           `${column.cardinality_old ?? "—"}`,
           element("span", { className: "pair-arrow" }, "→"),
           `${column.cardinality_new ?? "—"}`
@@ -486,6 +490,8 @@ function element(tag, properties = {}, ...children) {
   Object.entries(properties).forEach(([key, value]) => {
     if (key === "dataset") {
       Object.assign(node.dataset, value);
+    } else if (key === "role") {
+      node.setAttribute("role", value);
     } else {
       node[key] = value;
     }

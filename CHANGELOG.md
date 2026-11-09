@@ -120,6 +120,11 @@ This project follows [Semantic Versioning](https://semver.org).
   reason instead of repeating it.
 
 ### Patch
+- The suite no longer fails on pytest 9.2. The DuckDB sketch test compared every column's mean
+  with `pytest.approx(..., rel=...)`, and from 9.2 `approx` refuses a `None` once it is given a
+  tolerance, which is what the mean of a text column is: every job of the matrix went red the
+  day that release came out, on a change that had touched none of it. The absence of a mean is
+  now compared as an absence.
 - The measured numbers are held by tests, so they cannot go stale in silence. The changelog
   states measurements -- `--schema-only` turning 5.4s and 641 MB into 1s and 137 MB, the
   chunked read taking a pair of 60 MB files from 18.1s to 8.5s -- and nothing in CI held any

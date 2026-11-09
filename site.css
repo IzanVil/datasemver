@@ -32,7 +32,7 @@
   --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --read: 64ch;
+  --read: 50ch;
   --page: 70rem;
   --r: 10px;
   --r-chip: 4px;
@@ -355,6 +355,7 @@ h2 {
 .surfaces > div { padding: 1.3rem 0; border-top: 1px solid var(--line); }
 /* An odd last item would hang in one column with empty space beside it. */
 .surfaces > div:nth-child(odd):last-child { grid-column: 1 / -1; }
+.surfaces > div:nth-child(odd):last-child p { max-width: var(--read); }
 .surfaces h3 { margin: 0 0 0.35rem; font-size: 0.98rem; font-weight: 600; }
 .surfaces p { margin: 0 0 0.55rem; font-size: 0.9rem; color: var(--ink-soft); }
 .surfaces code { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
@@ -527,4 +528,50 @@ html.js .reveal.in {
   html.js .reveal { opacity: 1; }
   .ticker-track li[data-clone] { display: none; }
   * { transition: none !important; }
+}
+
+/* ---------- fact strip: a row of its own for the long one ---------- */
+/* "CSV, JSON, Parquet, Feather, Excel, SQL" is longer than the rest put together, so it is given
+   more room where there is one row of five, and a row to itself where there is not. */
+@media (min-width: 901px) {
+  .facts:has(> div:nth-child(5)) { grid-template-columns: 1.9fr repeat(4, 1fr); }
+}
+@media (max-width: 900px) {
+  .facts { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); }
+  .facts > div:first-child:nth-last-child(5) { grid-column: 1 / -1; }
+}
+@media (max-width: 620px) {
+  .facts { grid-template-columns: repeat(2, 1fr); }
+  .facts > div:nth-child(3):last-child { grid-column: 1 / -1; }
+}
+
+/* ---------- captures open at full size ---------- */
+.zoom { display: block; border-radius: var(--r); cursor: zoom-in; }
+
+/* ---------- a phone ---------- */
+/* Prose reads at 16px. The chips, the code and the small capitals that label things stay small: they
+   are marks, not sentences. */
+@media (max-width: 620px) {
+  .rung p, .surfaces p, .after-ladder, .pair p, .full p, footer { font-size: 1rem; }
+  .facts dt { font-size: 0.75rem; }
+}
+
+/* A thumb needs 44px, a narrow screen or a touch one of any width. Where a control is small by design
+   the extra is an invisible area around it, so nothing in the bar or the snippet grows; the footer's
+   links have room, so they take it as padding. */
+@media (pointer: coarse), (max-width: 620px) {
+  .mark { min-height: 44px; }
+  .nav a:not(.mark), .snippet button { position: relative; }
+  .nav a:not(.mark)::after { content: ""; position: absolute; inset: -15px -8px; }
+  .nav a.swap::after { inset: -9px -8px; }
+  .snippet button::after { content: ""; position: absolute; inset: -8px; }
+  footer ul { gap: 0 0.2rem; margin-left: -0.6rem; }
+  footer ul a { display: inline-block; padding: 0.95rem 0.6rem; }
+}
+
+/* On the narrowest phones the bar cannot hold the logo and four things besides, and the footer has
+   the second of them (PyPI) as well, so it is the one that steps aside. */
+@media (max-width: 360px) {
+  .nav ul li:nth-last-child(2) { display: none; }
+  .nav { gap: 1rem; }
 }

@@ -170,7 +170,13 @@ def test_the_sketch_estimates_the_grid_and_nothing_else(lognormal):
         assert actual.columns[name].cardinality == column.cardinality, name
         assert actual.columns[name].category_counts == column.category_counts, name
         assert actual.columns[name].null_ratio == column.null_ratio, name
-        assert actual.columns[name].mean == pytest.approx(column.mean, rel=FLOAT_TOLERANCE), name
+        # A text column has no mean, and `approx` refuses `None` once it is given a tolerance:
+        # the absence is compared as an absence.
+        mean = actual.columns[name].mean
+        if column.mean is None:
+            assert mean is None, name
+        else:
+            assert mean == pytest.approx(column.mean, rel=FLOAT_TOLERANCE), name
 
 
 # --- what it reads -------------------------------------------------------------------------

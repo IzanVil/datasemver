@@ -4,7 +4,8 @@
 The captures are the real dashboard: this starts it, drives a headless Firefox through a
 comparison the way a person would -- choosing two files, pressing Compare -- and photographs
 the result. It shows the same two files the terminal capture compares, so both interfaces
-describe the same diff.
+describe the same diff. A fourth capture is the same page at the width of a phone, which is what
+a site shows a phone instead of a desktop screenshot it would have to shrink past reading.
 
     python scripts/capture_dashboard.py
 
@@ -40,6 +41,10 @@ CURRENT_VERSION = "1.4.2"
 # column still reads sharp on a dense screen.
 WIDTH = 1120
 SCALE = 2
+# A phone, in CSS pixels. Firefox will not make a window narrower than 500 even headless, so the
+# phone is a frame of exactly this width inside the wide window: the page in it answers its media
+# queries by the frame's width, which is what they are for.
+PHONE_WIDTH = 390
 # Room left around a photographed card. Less than the 18px between two cards, so a photograph
 # neither opens nor closes on the edge of the card next to the one it is about.
 TOP_MARGIN = 14
@@ -145,8 +150,13 @@ class Marionette:
             rect_height += height - tall
         raise SystemExit(f"could not size the window to {WIDTH}x{height}; it is {width}x{tall}")
 
-    def photograph(self, target: Path) -> None:
-        shot = self.command("WebDriver:TakeScreenshot", full=False)["value"]
+    def photograph(self, target: Path, element: str | None = None) -> None:
+        """Photograph the viewport, or, given a selector, just that element."""
+        parameters: dict[str, Any] = {"full": False}
+        if element is not None:
+            found = self.command("WebDriver:FindElement", using="css selector", value=element)
+            parameters["id"] = next(iter(found["value"].values()))
+        shot = self.command("WebDriver:TakeScreenshot", **parameters)["value"]
         target.write_bytes(base64.b64decode(shot))
 
     def close(self) -> None:
@@ -187,19 +197,7 @@ def _capture(browser: Marionette, url: str) -> None:
     browser.command("WebDriver:Navigate", url=url)
     browser.wait_for("document.getElementById('upload-hint').textContent", "the page to load")
 
-    browser.upload("input[name=old]", FIXTURES / "old.csv")
-    browser.upload("input[name=new]", FIXTURES / "new.csv")
-    browser.script(
-        "document.querySelector('input[name=current_version]').value = arguments[0];",
-        CURRENT_VERSION,
-    )
-    browser.script("document.getElementById('compare-form').requestSubmit();")
-    browser.wait_for(
-        "!document.getElementById('result').classList.contains('is-hidden')", "the report"
-    )
-    # The cards rise on a spring, the severity bar grows a segment at a time and the version rolls
-    # up to its new value; the last of them settles a little before two seconds.
-    time.sleep(2.2)
+    _compare(browser)
 
     # The two files and the verdict they earn, which is the whole story at a height a page can
     # spare: it is the one a site sets in a section, where the full report would be a wall.
@@ -224,6 +222,57 @@ def _capture(browser: Marionette, url: str) -> None:
     _scroll_to(browser, top - TOP_MARGIN)
     browser.photograph(ASSETS / "dashboard-columns.png")
     print("  docs/assets/dashboard-columns.png")
+
+    _capture_phone(browser, url)
+
+
+def _compare(browser: Marionette) -> None:
+    """Choose the two files, press Compare and wait for the report to settle."""
+    browser.upload("input[name=old]", FIXTURES / "old.csv")
+    browser.upload("input[name=new]", FIXTURES / "new.csv")
+    browser.script(
+        "document.querySelector('input[name=current_version]').value = arguments[0];",
+        CURRENT_VERSION,
+    )
+    browser.script("document.getElementById('compare-form').requestSubmit();")
+    browser.wait_for(
+        "!document.getElementById('result').classList.contains('is-hidden')", "the report"
+    )
+    # The cards rise on a spring, the severity bar grows a segment at a time and the version rolls
+    # up to its new value; the last of them settles a little before two seconds.
+    time.sleep(2.2)
+
+
+def _capture_phone(browser: Marionette, url: str) -> None:
+    """The verdict and the changes behind it, as the page lays them out on a phone."""
+    browser.resize(900)
+    browser.command("WebDriver:Navigate", url=url)
+    browser.wait_for("document.getElementById('upload-hint').textContent", "the page to load")
+    # Swap the page for a frame of phone width holding the same page, and work inside it.
+    browser.script(
+        "const frame = document.createElement('iframe');"
+        "frame.src = location.href;"
+        "frame.style.cssText = `display:block;border:0;width:${arguments[0]}px;height:900px`;"
+        "document.body.style.cssText = 'margin:0;padding:0;min-height:0';"
+        "document.body.replaceChildren(frame);",
+        PHONE_WIDTH,
+    )
+    browser.command("WebDriver:SwitchToFrame", id=0)
+    # The frame starts out blank, so the page's own element may not exist yet.
+    browser.wait_for("document.getElementById('upload-hint')?.textContent", "the frame to load")
+    _compare(browser)
+
+    top = _top_of(browser, "#summary")
+    bottom = _bottom_of(browser, "#changes-table")
+    height = bottom - top + TOP_MARGIN + BOTTOM_MARGIN
+    browser.command("WebDriver:SwitchToParentFrame")
+    browser.resize(height)
+    browser.script("document.querySelector('iframe').style.height = `${arguments[0]}px`;", height)
+    browser.command("WebDriver:SwitchToFrame", id=0)
+    _scroll_to(browser, top - TOP_MARGIN)
+    browser.command("WebDriver:SwitchToParentFrame")
+    browser.photograph(ASSETS / "dashboard-phone.png", element="iframe")
+    print("  docs/assets/dashboard-phone.png")
 
 
 def _top_of(browser: Marionette, selector: str, card: bool = False) -> int:

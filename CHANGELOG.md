@@ -120,6 +120,12 @@ This project follows [Semantic Versioning](https://semver.org).
   reason instead of repeating it.
 
 ### Patch
+- `scripts/capture_dashboard.py` also takes the dashboard at the width of a phone,
+  `docs/assets/dashboard-phone.png`: the verdict and the seven changes behind it, as the page
+  now lays them out under 620px. A site can show that to a phone instead of the desktop
+  capture shrunk past reading. Firefox will not make a window narrower than 500px, so the
+  phone is a frame of exactly 390px inside the wide window, and the page answers its media
+  queries by the frame's width.
 - The suite no longer fails on pytest 9.2. The DuckDB sketch test compared every column's mean
   with `pytest.approx(..., rel=...)`, and from 9.2 `approx` refuses a `None` once it is given a
   tolerance, which is what the mean of a text column is: every job of the matrix went red the

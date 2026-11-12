@@ -98,8 +98,9 @@ those the SVGs are still refreshed and the PNGs are left alone. The images are r
 absolute URL and are deliberately kept out of the sdist.
 
 The dashboard images (`dashboard-report.png`, `dashboard-columns.png`, and `dashboard-verdict.png`,
-the form and the verdict it gives, which is the one a site can spare the height for) are the real
-page as well, and are regenerated the same way:
+the form and the verdict it gives, which is the one a site can spare the height for, and
+`dashboard-phone.png`, the verdict and its changes at 390px wide, which a site shows a phone) are
+the real page as well, and are regenerated the same way:
 
 ```bash
 python scripts/capture_dashboard.py

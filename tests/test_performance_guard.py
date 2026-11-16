@@ -184,7 +184,7 @@ def test_refusing_an_expansion_never_holds_the_file(tmp_path, monkeypatch):
     assert compressed < UPLOAD_LIMIT
     assert decompressed > ceiling * 2
 
-    with TestClient(web_app) as client:
+    with TestClient(web_app, base_url="http://localhost") as client:
         tracemalloc.start()
         with bomb.open("rb") as old, bomb.open("rb") as new:
             response = client.post(

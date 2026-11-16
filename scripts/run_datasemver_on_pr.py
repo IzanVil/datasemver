@@ -9,8 +9,11 @@ writes a summary that a workflow can post as a pull request comment.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -60,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(git("rev-parse", "--show-toplevel", text=True).strip())
 
     if not ref_exists(args.base_ref):
-        return finish(args, reports=[], note=f"base ref `{args.base_ref}` is not available")
+        return finish(args, reports=[], note=f"base ref {code(args.base_ref)} is not available")
 
     paths = args.paths or changed_datasets(args.base_ref, args.head_ref)
     if not paths:
@@ -131,7 +134,13 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
             "tree, for a later step to commit. Not written when --fail-on refuses the run."
         ),
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    # Handed to `git` as an argument, a ref that begins with a dash is an option: `--output=`
+    # is a way to make `git diff` write wherever it is told.
+    for name in ("base_ref", "head_ref"):
+        if getattr(args, name).startswith("-"):
+            parser.error(f"--{name.replace('_', '-')} must name a ref, not an option")
+    return args
 
 
 @overload
@@ -182,6 +191,8 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
     new_file = repo_root / path
     if not new_file.exists():
         raise SkippedDataset("removed in this branch")
+    if not _in_checkout(repo_root, new_file):
+        raise SkippedDataset("a link to somewhere else, not a file in this branch")
 
     # A profile committed beside the dataset is read instead of the dataset itself. It is a
     # few hundred bytes against however large the base version is, and pulling that through
@@ -208,6 +219,17 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
         changes=[item for item in payload["classified"] if item["severity"]],
         sidecar=sidecar_note(repo_root, path, recorded, payload["next_version"]),
     )
+
+
+def _in_checkout(repo_root: Path, file: Path) -> bool:
+    """Whether `file` is a file of this checkout rather than a way out of it.
+
+    A branch can commit a symbolic link, and git will check one out as readily as a file. Read
+    here, it would be a dataset made of whatever the link names on the runner, and the report
+    describes what it holds; written to, it would be whatever the link names being overwritten.
+    Neither is something a dataset path is for.
+    """
+    return not file.is_symlink() and file.resolve().is_relative_to(repo_root.resolve())
 
 
 def show_blob(ref: str, path: str) -> bytes | None:
@@ -258,16 +280,16 @@ def sidecar_note(
     written is what the tool can do about it.
     """
     written = written_version(repo_root, path)
-    name = f"`{path}{VERSION_SUFFIX}`"
+    name = code(f"{path}{VERSION_SUFFIX}")
 
     if recorded is None and written is None:
         return f"{name} does not exist, so the comparison started from the default"
     if written is None:
-        return f"{name} was removed in this branch, and recorded {recorded}"
+        return f"{name} was removed in this branch, and recorded {version_text(recorded or '')}"
     if written == recorded:
-        return f"{name} still reads {written}; {suggested} is not recorded yet"
+        return f"{name} still reads {version_text(written)}; {suggested} is not recorded yet"
     if written != suggested:
-        return f"{name} reads {written}, but this branch suggests {suggested}"
+        return f"{name} reads {version_text(written)}, but this branch suggests {suggested}"
     return None
 
 
@@ -284,9 +306,11 @@ def write_sidecars(repo_root: Path, reports: list[DatasetReport]) -> list[str]:
         if written_version(repo_root, report.path) == report.next_version:
             continue
         name = f"{report.path}{VERSION_SUFFIX}"
+        if not _in_checkout(repo_root, repo_root / name) and (repo_root / name).exists():
+            continue
         write_version(repo_root / name, report.next_version)
         report.sidecar = (
-            f"`{name}` was set to {report.next_version} in this run's checkout, and is "
+            f"{code(name)} was set to {report.next_version} in this run's checkout, and is "
             "recorded once a step commits it"
         )
         changed.append(name)
@@ -318,6 +342,55 @@ def run_datasemver(old: Path, new: Path, current_version: str, rules: str | None
         raise SkippedDataset(f"datasemver returned invalid JSON: {error}") from error
 
 
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def code(text: str, table: bool = False) -> str:
+    """Text that came from the branch, as an inline code span that holds it and nothing else.
+
+    A path, a column heading or a version file is chosen by whoever opened the pull request,
+    and the comment is posted under the repository's own bot. Left to be read as Markdown it
+    could be a link, an image, an `@` that notifies a stranger, or a backtick that ends the
+    span it was meant to sit in. Inside a code span none of that is anything but characters,
+    so the only thing to get right is the span itself: control characters become a space, the
+    delimiter is longer than any run of backticks inside, and in a table a pipe is escaped
+    because a table cell ends at one even there.
+    """
+    flat = _CONTROL.sub(" ", text)
+    if table:
+        flat = flat.replace("|", "\\|")
+    longest = max((len(run) for run in re.findall(r"`+", flat)), default=0)
+    delimiter = "`" * (longest + 1)
+    padding = " " if flat.startswith("`") or flat.endswith("`") else ""
+    return f"{delimiter}{padding}{flat}{padding}{delimiter}"
+
+
+_PLAIN_VERSION = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?")
+_PLAIN_SENTENCE = re.compile(r"[A-Za-z ,'-]+")
+
+
+def version_text(text: str) -> str:
+    """A version as it reads, unless what the file holds is not one: then it is only text."""
+    return text if _PLAIN_VERSION.fullmatch(text) else code(text)
+
+
+def reason_text(text: str) -> str:
+    """One of this script's own reasons as it reads; anything with more in it as only text.
+
+    The reasons it words itself are lower-case sentences, which cannot be a link, a mention or
+    markup. What comes back from a failed run carries a path, a column heading or a message
+    out of a library, and goes in a code span like everything else the branch chose.
+    """
+    return text if _PLAIN_SENTENCE.fullmatch(text) else code(text)
+
+
+def fenced(lines: list[str], language: str = "bash") -> list[str]:
+    """Lines as a code block that nothing inside them can close early."""
+    longest = max((len(run) for line in lines for run in re.findall(r"`+", line)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return [f"{fence}{language}", *lines, fence]
+
+
 def render(
     reports: list[DatasetReport],
     skipped: list[tuple[str, str]],
@@ -341,8 +414,8 @@ def render(
     for report in sorted(reports, key=lambda item: (-item.rank, item.path)):
         bump = report.bump or "none"
         lines.append(
-            f"| `{report.path}` | {report.current_version} | **{report.next_version}** | "
-            f"{bump.upper()} | {len(report.changes)} |"
+            f"| {code(report.path, table=True)} | {report.current_version} | "
+            f"**{report.next_version}** | {bump.upper()} | {len(report.changes)} |"
         )
     lines.append("")
 
@@ -353,16 +426,19 @@ def render(
     lines.extend(render_skipped(skipped))
     lines.append("### Reproduce locally")
     lines.append("")
-    lines.append("```bash")
-    lines.append("pip install datasemver")
     example = reports[0]
-    suffix = Path(example.path).suffix
-    lines.append(f"git show origin/main:{example.path} > /tmp/base{suffix}")
-    lines.append(
-        f"datasemver diff /tmp/base{suffix} '{example.path}' "
-        f"--current-version {example.current_version} --output CHANGELOG.md"
+    suffix = dataset_suffix(example.path)
+    base = f"/tmp/base{suffix}"
+    lines.extend(
+        fenced(
+            [
+                "pip install datasemver",
+                f"git show {shlex.quote('origin/main:' + example.path)} > {base}",
+                f"datasemver diff {base} {shlex.quote(example.path)} "
+                f"--current-version {shlex.quote(example.current_version)} --output CHANGELOG.md",
+            ]
+        )
     )
-    lines.append("```")
     lines.append("")
     lines.append(
         "The full changelog entry, every unclassified change and the column-by-column "
@@ -380,13 +456,15 @@ def render_details(report: DatasetReport, top_changes: int) -> list[str]:
         key=lambda item: -SEVERITY_RANK.get(item["severity"], -1),
     )
     lines = [
-        f"<details><summary><code>{report.path}</code> — {len(report.changes)} classified "
-        f"change(s)</summary>",
+        f"<details><summary><code>{html.escape(_CONTROL.sub(' ', report.path))}</code> — "
+        f"{len(report.changes)} classified change(s)</summary>",
         "",
     ]
     for item in ranked[:top_changes]:
         severity = item["severity"].upper()
-        lines.append(f"- **{severity}** (`{item['rule']}`): {item['change']['description']}")
+        rule = code(str(item["rule"]))
+        description = code(str(item["change"]["description"]))
+        lines.append(f"- **{severity}** ({rule}): {description}")
     remaining = len(ranked) - top_changes
     if remaining > 0:
         lines.append(f"- … and {remaining} more")
@@ -406,7 +484,7 @@ def render_sidecars(reports: list[DatasetReport]) -> list[str]:
     if not notes:
         return []
     lines = ["### Version files", ""]
-    lines += [f"- `{report.path}`: {report.sidecar}" for report in notes]
+    lines += [f"- {code(report.path)}: {report.sidecar}" for report in notes]
     lines.append("")
     return lines
 
@@ -415,7 +493,7 @@ def render_skipped(skipped: list[tuple[str, str]]) -> list[str]:
     if not skipped:
         return []
     lines = ["### Skipped", ""]
-    lines += [f"- `{path}`: {reason}" for path, reason in skipped]
+    lines += [f"- {code(path)}: {reason_text(reason)}" for path, reason in skipped]
     lines.append("")
     return lines
 

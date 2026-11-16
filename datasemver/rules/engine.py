@@ -65,6 +65,10 @@ def _load_yaml(text: str) -> Any:
         return yaml.load(text, _NoAliasLoader)
     except yaml.YAMLError as error:
         raise RuleError(f"rules file is not valid YAML: {error}") from error
+    except RecursionError as error:
+        # A document that is nothing but opening brackets is a few hundred kilobytes that ask
+        # the parser for a stack it does not have.
+        raise RuleError("rules file is nested too deeply") from error
 
 
 @dataclass(frozen=True)

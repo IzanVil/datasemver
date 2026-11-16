@@ -457,10 +457,14 @@ def _read_json(path: Path) -> pd.DataFrame:
     if not text:
         return pd.DataFrame()
 
-    records = _parse_json_document(text)
-    if not isinstance(records, list):
-        records = [records]
-    return pd.json_normalize(records, sep=NESTED_SEPARATOR)
+    try:
+        records = _parse_json_document(text)
+        if not isinstance(records, list):
+            records = [records]
+        return pd.json_normalize(records, sep=NESTED_SEPARATOR)
+    except RecursionError as error:
+        # Brackets all the way down are a few kilobytes that ask for a stack no parser has.
+        raise DatasetReadError(f"{path.name} is nested too deeply to read") from error
 
 
 def _parse_json_document(text: str) -> object:

@@ -331,3 +331,11 @@ def test_a_plain_anchor_without_an_alias_is_still_refused(tmp_path):
 def test_malformed_yaml_is_a_rule_error_not_a_raw_yaml_error(tmp_path):
     with pytest.raises(RuleError, match="not valid YAML"):
         rules_from("major: [unterminated\n", tmp_path)
+
+
+def test_a_rules_file_nested_without_end_is_refused_not_crashed(tmp_path):
+    rules = tmp_path / "deep.yaml"
+    rules.write_text("patch:\n  - " + "[" * 100_000 + "]" * 100_000 + "\n", encoding="utf-8")
+
+    with pytest.raises(RuleError, match="nested too deeply"):
+        RuleSet.from_file(rules)

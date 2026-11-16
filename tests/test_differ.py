@@ -275,3 +275,24 @@ def test_repeated_integers_are_not_treated_as_a_key():
     )
 
     assert diff.of_type(ChangeType.DISTRIBUTION_SHIFT) or diff.of_type(ChangeType.MINOR_STAT_CHANGE)
+
+
+def test_a_wholesale_rename_too_wide_to_pair_is_reported_as_removed_and_added(monkeypatch):
+    """Pairing is a product of the two sides, so past a ceiling it is not attempted."""
+    monkeypatch.setattr("datasemver.core.differ.MAX_RENAME_PAIRS", 10)
+    old = pd.DataFrame({f"customer_{i}": [1] for i in range(4)})
+    new = pd.DataFrame({f"customers_{i}": [1] for i in range(4)})
+
+    with pytest.warns(RuntimeWarning, match="too many to pair up"):
+        diff = diff_frames(old, new)
+
+    assert len(diff.of_type(ChangeType.COLUMN_REMOVED)) == 4
+    assert len(diff.of_type(ChangeType.COLUMN_ADDED)) == 4
+    assert diff.of_type(ChangeType.COLUMN_RENAMED) == []
+
+
+def test_a_rename_under_the_ceiling_is_still_found():
+    old = pd.DataFrame({"customer_name": ["ana", "bruno"], "id": [1, 2]})
+    new = pd.DataFrame({"customer_names": ["ana", "bruno"], "id": [1, 2]})
+
+    assert len(diff_frames(old, new).of_type(ChangeType.COLUMN_RENAMED)) == 1

@@ -47,7 +47,9 @@ working on it. Either way the app is addressed as `datasemver_web.backend.main`.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATASEMVER_DATASETS_DIR` | `./datasets` | Directory scanned by the history view |
-| `DATASEMVER_MAX_UPLOAD_MB` | `25` | Size limit applied to every uploaded file, and to what a compressed one becomes |
+| `DATASEMVER_MAX_UPLOAD_MB` | `25` | Size limit applied to every uploaded file, and to what a compressed one becomes (twenty times it, for Parquet, Feather and Excel) |
+| `DATASEMVER_MAX_COLUMNS` | `2000` | Columns a table may have before it is refused; the command line has no such limit |
+| `DATASEMVER_ALLOWED_HOSTS` | *(none)* | Host names the dashboard answers to besides `localhost` and IP addresses, comma separated, or `*` for any. Set it when a reverse proxy serves the dashboard under a name |
 | `DATASEMVER_FRONTEND_DIR` | `datasemver_web/frontend` | Static files served at `/` |
 
 `DATASEMVER_ENGINE` is read by everything that profiles through the library and not here: the

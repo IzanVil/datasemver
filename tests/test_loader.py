@@ -723,3 +723,13 @@ def test_csv_gz_and_plain_csv_produce_same_profile(tmp_path):
 
     diff = diff_schemas(plain_schema, gz_schema)
     assert diff.changes == [], f"schemas differ: {diff.changes}"
+
+
+def test_a_json_file_nested_without_end_is_refused_not_crashed(tmp_path):
+    from datasemver.formats.loader import DatasetReadError, load_frame
+
+    deep = tmp_path / "deep.json"
+    deep.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
+
+    with pytest.raises(DatasetReadError, match="nested too deeply"):
+        load_frame(deep)

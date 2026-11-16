@@ -9,6 +9,19 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- The dashboard stops answering to names it should not. A web page can make a browser talk to
+  `127.0.0.1`, and a hostname it controls that resolves there afterwards could read what the
+  dashboard returns -- the file names, columns and most frequent values of whatever
+  `DATASEMVER_DATASETS_DIR` holds -- which is DNS rebinding. A request is now refused with a 400
+  unless its `Host` is `localhost`, an IP address or a name in the new
+  `DATASEMVER_ALLOWED_HOSTS`; **if you serve the dashboard under a name through a reverse
+  proxy, set that variable to it**, or `*` to turn the check off. Every response also carries a
+  `Content-Security-Policy` that allows the page nothing but itself, `nosniff`, a same-origin
+  frame policy and no referrer, and the API's answers are marked `no-store`. The page renders
+  as it did: three of its captures, retaken under the policy, come out byte for byte as they were.
+- The dashboard refuses a table of more than `DATASEMVER_MAX_COLUMNS` columns, 2,000 by
+  default. A column costs a few milliseconds to profile whatever it holds, so 165 kB of header
+  was a minute of work; the size limit could not see it. The command line has no such limit.
 - The dashboard looks like it was made on purpose. The page opens on a question rather than a
   grey bar, the bump takes its own colour -- the verdict card is tinted from a corner, the
   badge and the new version are set large, and a bar under them shows the share of major,
@@ -120,6 +133,43 @@ This project follows [Semantic Versioning](https://semver.org).
   reason instead of repeating it.
 
 ### Patch
+- A small upload could ask the dashboard for gigabytes. The check that a compressed upload is
+  not larger than it looks covered gzip and nothing else, and Parquet stores a run of equal
+  values as the value and a count: 200 million rows were 850 kB, accepted by every limit and
+  1.6 GB of dataframe once read. Parquet and Feather are now decoded a batch at a time until
+  they are known to be past twenty times the upload limit, and a workbook is measured from the
+  sizes in its zip directory, so finding out costs a batch and not the file. The analysis and
+  the copy of an upload also run off the event loop now, so one slow request no longer holds
+  every other one. A Feather file written as one enormous record batch is still decoded whole
+  before it is measured.
+- Pairing renamed columns no longer grows with the product of the two sides. Every removed
+  column was compared with every added one, with the values of each rebuilt for every pair:
+  2,000 columns renamed wholesale, a 20 kB header, took 82 seconds, and a pull request could
+  hand that to the action. The values are now prepared once and most pairs are ruled out by the
+  two cheap bounds before the name is scored, which gives the same score for every pair that
+  reaches the threshold (a test compares the two over random columns) and takes 5.8 seconds
+  for the same file, nearly all of it profiling. Past 250,000 pairs the pairing is not tried
+  and the columns are reported as removed and added, with a warning.
+- The pull request comment treats what the branch wrote as text. A path, a column heading or a
+  version file went into the comment, posted under the repository's own bot, as Markdown: a
+  link, an image or an `@` mention of a stranger, and in "Reproduce locally" a path with a
+  `;` in it was a command someone would copy. All of it is now inside a code span, the paths
+  in that block are quoted for the shell and the block cannot be closed from inside, a dataset
+  that is a symbolic link out of the checkout is skipped rather than read, a version file that
+  is one is not written through, and a ref that begins with a dash is refused rather than
+  handed to `git` as an option.
+- A rules file or a JSON dataset made of nothing but opening brackets no longer ends in a stack
+  overflow. A few hundred kilobytes of `[` asked the parser for more stack than it has, which
+  reached the command line as a traceback and the dashboard as a 500. Both are now an error
+  that says the file is nested too deeply.
+- The workflows no longer leave the checkout token in `.git/config` for the steps after it,
+  where a test run could read it, and every job has a time limit instead of GitHub's six
+  hours. The `web` extra names floors for `starlette` (1.3.1, the first release clear of
+  CVE-2024-47874, CVE-2025-54121, CVE-2026-54283, CVE-2026-48710 and CVE-2026-54282, the
+  advisories against how it parses an upload and trusts a Host header) and `h11` (0.16.0,
+  CVE-2025-43859); FastAPI alone allowed releases years below them. `SECURITY.md` lists the
+  latest release as the supported one rather than 0.2, and no longer says the library opens no
+  socket, which a database URL contradicts.
 - `scripts/capture_dashboard.py` also takes the dashboard at the width of a phone,
   `docs/assets/dashboard-phone.png`: the verdict and the seven changes behind it, as the page
   now lays them out under 620px. A site can show that to a phone instead of the desktop

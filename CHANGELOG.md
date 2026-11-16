@@ -140,8 +140,13 @@ This project follows [Semantic Versioning](https://semver.org).
   they are known to be past twenty times the upload limit, and a workbook is measured from the
   sizes in its zip directory, so finding out costs a batch and not the file. The analysis and
   the copy of an upload also run off the event loop now, so one slow request no longer holds
-  every other one. A Feather file written as one enormous record batch is still decoded whole
-  before it is measured.
+  every other one.
+- A Feather file written as one enormous record batch is measured without being decoded. The
+  batch is the unit Arrow decodes, so measuring a batch at a time left this one case open: 25 kB
+  of upload that are 800 MB of table. The size of every buffer once decompressed is in the
+  file's own metadata, which `datasemver_web/backend/arrow_ipc.py` now reads -- half a
+  millisecond for that file, and the same total pyarrow reports after decoding, for every
+  compression it writes.
 - Pairing renamed columns no longer grows with the product of the two sides. Every removed
   column was compared with every added one, with the values of each rebuilt for every pair:
   2,000 columns renamed wholesale, a 20 kB header, took 82 seconds, and a pull request could

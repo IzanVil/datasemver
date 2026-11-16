@@ -39,6 +39,7 @@ from datasemver.formats.loader import (
 from datasemver.rules.engine import RuleError
 from datasemver.utils.version import InvalidVersionError
 
+from .arrow_ipc import NotArrowFile, decoded_size
 from .config import ALLOWED_HOSTS_ENV_VAR, MAX_COLUMNS_ENV_VAR, Settings, get_settings
 from .history import DatasetNotFoundError, History, resolve_file, scan_datasets
 
@@ -438,12 +439,24 @@ def _parquet_decodes_past(path: Path, limit: int) -> bool:
 
 
 def _feather_decodes_past(path: Path, limit: int) -> bool:
-    """Decode a Feather file a record batch at a time until it is known to be past `limit`.
+    """Whether a Feather file holds more than `limit` bytes once decoded.
 
-    A batch is the unit it can stop at, so a file written as one enormous batch is decoded
-    whole before it is measured; the writers people use cut batches of a few tens of
-    thousands of rows.
+    Read from the file's own metadata, which says how long every buffer is once decompressed,
+    so nothing is decompressed to find out. Decoding a batch at a time, as Parquet is measured,
+    is not enough here: a batch is the unit Arrow decodes, and a file written as one batch
+    would be gigabytes of table before there was anything to compare with the limit.
     """
+    try:
+        return decoded_size(path, stop_after=limit) > limit
+    except NotArrowFile:
+        # The first Feather format, which has no compression: it is as large as it looks.
+        return False
+    except Exception:  # metadata this cannot follow; measure it the slower way
+        return _feather_batches_decode_past(path, limit)
+
+
+def _feather_batches_decode_past(path: Path, limit: int) -> bool:
+    """Decode a Feather file a record batch at a time until it is known to be past `limit`."""
     try:
         import pyarrow.ipc as ipc
 

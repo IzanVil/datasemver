@@ -960,3 +960,28 @@ def test_an_analysis_does_not_stop_the_server_answering_others(
         worker.join(timeout=30)
 
     assert outcome["response"].status_code == 200
+
+
+def test_a_feather_upload_of_one_enormous_batch_is_refused_without_decoding_it(
+    tmp_path, old_csv, client, tight
+):
+    """Measured a batch at a time, this one was read whole first: it has one batch."""
+    import pyarrow as pa
+    import pyarrow.ipc as ipc
+
+    block = pa.record_batch([pa.array([0] * 1_000_000, type=pa.int64())], names=["value"])
+    table = pa.Table.from_batches([block] * 8).combine_chunks()  # 64 MB, against a 5 MB ceiling
+    bomb = tmp_path / "old.feather"
+    with ipc.new_file(bomb, table.schema, options=ipc.IpcWriteOptions(compression="zstd")) as w:
+        w.write_table(table)
+
+    with ipc.open_file(bomb) as reader:
+        assert reader.num_record_batches == 1
+    monkeypatch_target = "datasemver_web.backend.main._feather_batches_decode_past"
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(monkeypatch_target, lambda *_: pytest.fail("decoded the batch to measure it"))
+        response = upload(client, bomb, old_csv)
+
+    assert bomb.stat().st_size < tight.max_upload_bytes
+    assert response.status_code == 413
+    assert "once decompressed" in response.json()["detail"]

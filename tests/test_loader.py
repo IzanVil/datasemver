@@ -726,10 +726,24 @@ def test_csv_gz_and_plain_csv_produce_same_profile(tmp_path):
 
 
 def test_a_json_file_nested_without_end_is_refused_not_crashed(tmp_path):
+    """Whether the parser or pandas gives up first depends on the Python and the build."""
     from datasemver.formats.loader import DatasetReadError, load_frame
 
     deep = tmp_path / "deep.json"
     deep.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
 
-    with pytest.raises(DatasetReadError, match="nested too deeply"):
+    with pytest.raises(DatasetReadError, match=r"nested too deeply|list of JSON objects"):
         load_frame(deep)
+
+
+@pytest.mark.parametrize(
+    "text", ["[1, 2, 3]", "[[1, 2], [3]]", '["a", "b"]', "42", '[{"a": 1}, 2]']
+)
+def test_json_that_is_not_records_is_refused_by_name_not_by_pandas(tmp_path, text):
+    from datasemver.formats.loader import DatasetReadError, load_frame
+
+    path = tmp_path / "shape.json"
+    path.write_text(text, encoding="utf-8")
+
+    with pytest.raises(DatasetReadError, match=r"shape\.json is not a list of JSON objects"):
+        load_frame(path)

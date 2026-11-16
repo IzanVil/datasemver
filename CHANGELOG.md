@@ -161,7 +161,9 @@ This project follows [Semantic Versioning](https://semver.org).
 - A rules file or a JSON dataset made of nothing but opening brackets no longer ends in a stack
   overflow. A few hundred kilobytes of `[` asked the parser for more stack than it has, which
   reached the command line as a traceback and the dashboard as a 500. Both are now an error
-  that says the file is nested too deeply.
+  that says the file is nested too deeply. JSON that is valid but not a list of objects, such
+  as `[1, 2]` or `42`, is refused by name too, where it used to reach the caller as pandas'
+  own `TypeError`.
 - The workflows no longer leave the checkout token in `.git/config` for the steps after it,
   where a test run could read it, and every job has a time limit instead of GitHub's six
   hours. The `web` extra names floors for `starlette` (1.3.1, the first release clear of

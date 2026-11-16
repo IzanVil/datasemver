@@ -465,6 +465,12 @@ def _read_json(path: Path) -> pd.DataFrame:
     except RecursionError as error:
         # Brackets all the way down are a few kilobytes that ask for a stack no parser has.
         raise DatasetReadError(f"{path.name} is nested too deeply to read") from error
+    except TypeError as error:
+        # Valid JSON that is not records -- `[1, 2]`, `[[1], [2]]`, `42` -- reaches here as
+        # pandas' own complaint about the type of an item, which names no file.
+        raise DatasetReadError(
+            f"{path.name} is not a list of JSON objects, which is what a dataset is"
+        ) from error
 
 
 def _parse_json_document(text: str) -> object:

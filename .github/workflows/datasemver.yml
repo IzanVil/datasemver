@@ -17,6 +17,7 @@ concurrency:
 jobs:
   analyse:
     name: Analyse changed datasets
+    timeout-minutes: 15
     runs-on: ubuntu-latest
 
     steps:

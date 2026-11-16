@@ -21,7 +21,7 @@ pytestmark = pytest.mark.web
 
 @pytest.fixture
 def client():
-    with TestClient(app) as test_client:
+    with TestClient(app, base_url="http://localhost") as test_client:
         yield test_client
 
 
@@ -711,3 +711,252 @@ def test_a_blank_key_is_the_same_as_none(client, old_csv, new_csv):
         )
 
     assert response.status_code == 200
+
+
+# --- what an upload becomes ----------------------------------------------------------------------
+
+
+def _parquet_of_one_value(path, rows):
+    """A Parquet file whose rows are one repeated value, so it is tiny whatever `rows` is."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    block = pa.array([0] * 100_000, type=pa.int64())
+    with pq.ParquetWriter(path, pa.schema([("value", pa.int64())]), compression="zstd") as writer:
+        for _ in range(rows // 100_000):
+            writer.write_table(pa.table({"value": block}), row_group_size=100_000)
+
+
+def test_a_parquet_upload_is_measured_on_what_it_becomes(tmp_path, old_csv, client, tight):
+    """Hundreds of kilobytes of limit, megabytes of table, a few kilobytes of upload."""
+    bomb = tmp_path / "old.parquet"
+    _parquet_of_one_value(bomb, 8_000_000)  # 64 MB decoded, against a 5 MB ceiling
+
+    response = upload(client, bomb, old_csv)
+
+    assert bomb.stat().st_size < tight.max_upload_bytes
+    assert response.status_code == 413
+    assert "once decompressed" in response.json()["detail"]
+
+
+def test_an_ordinary_parquet_file_is_still_read_past_the_upload_limit_once_decoded(
+    tmp_path, old_csv, client, tight
+):
+    """The multiple exists so that a real file, which compresses, is not refused for it."""
+    small = tmp_path / "old.parquet"
+    _parquet_of_one_value(small, 400_000)  # 3.2 MB decoded: past the limit, under the ceiling
+
+    response = upload(client, small, old_csv)
+
+    assert small.stat().st_size < tight.max_upload_bytes
+    assert response.status_code != 413
+
+
+def test_a_feather_upload_is_measured_on_what_it_becomes(tmp_path, old_csv, client, tight):
+    import pyarrow as pa
+    import pyarrow.ipc as ipc
+
+    batch = pa.record_batch([pa.array([0] * 65_536, type=pa.int64())], names=["value"])
+    bomb = tmp_path / "old.feather"
+    options = ipc.IpcWriteOptions(compression="zstd")
+    with ipc.new_file(bomb, batch.schema, options=options) as writer:
+        for _ in range(100):  # 52 MB decoded, against a 5 MB ceiling
+            writer.write_batch(batch)
+
+    response = upload(client, bomb, old_csv)
+
+    assert bomb.stat().st_size < tight.max_upload_bytes
+    assert response.status_code == 413
+    assert "once decompressed" in response.json()["detail"]
+
+
+def test_a_workbook_upload_is_measured_on_what_it_becomes(tmp_path, old_csv, client, tight):
+    import zipfile
+
+    bomb = tmp_path / "old.xlsx"
+    with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", b"<row/>" * 4_000_000)  # 24 MB inflated
+
+    response = upload(client, bomb, old_csv)
+
+    assert bomb.stat().st_size < tight.max_upload_bytes
+    assert response.status_code == 413
+    assert "once decompressed" in response.json()["detail"]
+
+
+# --- who may ask, and what the browser is told to do with the answer -----------------------------
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        None,
+        "localhost",
+        "localhost:8000",
+        "app.localhost",
+        "127.0.0.1:8000",
+        "[::1]:8000",
+        "[::1]",
+        "::1",
+        "192.168.1.20:8000",
+        "LOCALHOST",
+    ],
+)
+def test_the_hosts_a_local_dashboard_answers_to(header):
+    assert main.host_allowed(header)
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "evil.example",
+        "evil.example:8000",
+        "localhost.evil.example",
+        "127.0.0.1.evil.example",
+        "evil.example:80:8000",
+        "[evil",
+        "",
+    ],
+)
+def test_the_hosts_it_refuses_are_names_someone_else_controls(header):
+    # An empty header is a missing one, which is not a browser's.
+    assert main.host_allowed(header) is (header == "")
+
+
+def test_a_rebound_name_is_refused_and_an_asked_for_one_is_not(client, tmp_path, monkeypatch):
+    """DNS rebinding keeps the attacker's name in `Host`, which is what gives it away."""
+    refused = client.get("/api/meta", headers={"Host": "evil.example"})
+    assert refused.status_code == 400
+    assert "DATASEMVER_ALLOWED_HOSTS" in refused.text
+
+    settings = Settings(
+        datasets_dir=tmp_path,
+        max_upload_bytes=1024,
+        frontend_dir=tmp_path,
+        allowed_hosts=frozenset({"dash.internal"}),
+    )
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
+    assert client.get("/api/meta", headers={"Host": "dash.internal:8000"}).status_code == 200
+    assert client.get("/api/meta", headers={"Host": "evil.example"}).status_code == 400
+
+
+def test_the_hosts_variable_is_read_from_the_environment(monkeypatch):
+    from datasemver_web.backend.config import ALLOWED_HOSTS_ENV_VAR, get_settings
+
+    monkeypatch.setenv(ALLOWED_HOSTS_ENV_VAR, " Dash.Internal , ,other.example ")
+    get_settings.cache_clear()
+    try:
+        assert get_settings().allowed_hosts == {"dash.internal", "other.example"}
+    finally:
+        get_settings.cache_clear()
+
+
+def test_every_answer_carries_the_headers_that_stop_the_browser_doing_more(client):
+    page = client.get("/")
+    api = client.get("/api/meta")
+
+    for response in (page, api):
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "SAMEORIGIN"
+        assert response.headers["referrer-policy"] == "no-referrer"
+        policy = response.headers["content-security-policy"]
+        assert "default-src 'none'" in policy
+        assert "frame-ancestors 'self'" in policy
+        assert "unsafe" not in policy
+    assert api.headers["cache-control"] == "no-store"
+    assert "cache-control" not in page.headers or "no-store" not in page.headers["cache-control"]
+
+
+def test_the_api_docs_keep_the_cdn_they_load_from(client):
+    docs = client.get("/docs")
+
+    assert docs.status_code == 200
+    assert "content-security-policy" not in docs.headers
+    assert docs.headers["x-content-type-options"] == "nosniff"
+
+
+# --- how wide a table may be, and whether the server stays up while it is read -------------------
+
+
+def _wide_csv(path, columns):
+    path.write_text(
+        ",".join(f"c{i}" for i in range(columns)) + "\n" + ",".join("1" for _ in range(columns)),
+        encoding="utf-8",
+    )
+
+
+def test_a_table_wider_than_the_limit_is_refused_before_it_is_profiled(
+    tmp_path, old_csv, client, monkeypatch
+):
+    """A few kilobytes of header are thousands of columns, and each one costs milliseconds."""
+    settings = Settings(
+        datasets_dir=tmp_path, max_upload_bytes=1024 * 1024, frontend_dir=tmp_path, max_columns=50
+    )
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
+    wide = tmp_path / "old.csv"
+    _wide_csv(wide, 51)
+
+    response = upload(client, wide, old_csv)
+
+    assert wide.stat().st_size < 1024
+    assert response.status_code == 413
+    detail = response.json()["detail"]
+    assert "51 columns" in detail and "up to 50" in detail
+    assert "DATASEMVER_MAX_COLUMNS" in detail
+
+
+def test_a_table_at_the_limit_is_still_read(tmp_path, client, monkeypatch):
+    settings = Settings(
+        datasets_dir=tmp_path, max_upload_bytes=1024 * 1024, frontend_dir=tmp_path, max_columns=50
+    )
+    monkeypatch.setattr("datasemver_web.backend.main.get_settings", lambda: settings)
+    wide = tmp_path / "old.csv"
+    _wide_csv(wide, 50)
+    other = tmp_path / "new.csv"
+    _wide_csv(other, 50)
+
+    assert upload(client, wide, other).status_code == 200
+
+
+def test_the_column_limit_is_read_from_the_environment(monkeypatch):
+    from datasemver_web.backend.config import MAX_COLUMNS_ENV_VAR, get_settings
+
+    monkeypatch.setenv(MAX_COLUMNS_ENV_VAR, "123")
+    get_settings.cache_clear()
+    try:
+        assert get_settings().max_columns == 123
+    finally:
+        get_settings.cache_clear()
+
+
+def test_an_analysis_does_not_stop_the_server_answering_others(
+    tmp_path, old_csv, new_csv, client, monkeypatch
+):
+    """Work run on the event loop would hold every other request until it finished."""
+    import threading
+
+    started, release = threading.Event(), threading.Event()
+    real = main.run_analysis
+
+    def slow(*args, **kwargs):
+        started.set()
+        assert release.wait(timeout=20)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(main, "run_analysis", slow)
+    outcome = {}
+
+    def post():
+        outcome["response"] = upload(client, old_csv, new_csv)
+
+    worker = threading.Thread(target=post)
+    worker.start()
+    try:
+        assert started.wait(timeout=20)
+        # the analysis is held; a second request still gets its answer
+        assert client.get("/api/meta").status_code == 200
+    finally:
+        release.set()
+        worker.join(timeout=30)
+
+    assert outcome["response"].status_code == 200

@@ -9,6 +9,9 @@ reports for a file that no longer exists.
 from __future__ import annotations
 
 import json
+import pathlib
+import re
+import shlex
 import subprocess
 
 import pytest
@@ -666,3 +669,126 @@ def test_a_value_with_several_lines_uses_the_delimiter_form(tmp_path, monkeypatc
     assert rest[:2] == ["a.csv.version", "b.csv.version"]
     assert rest[2] == delimiter, "closed by the same delimiter that opened it"
     assert last == "max_bump=minor"
+
+
+# --- what a branch gets to put in the comment ------------------------------------------
+#
+# The report is posted under the repository's own bot, and its paths, column headings and
+# version files are chosen by whoever opened the pull request.
+
+
+HOSTILE = (
+    "`](http://evil.example)<img src=x onerror=alert(1)> @everyone [claim](http://evil.example)"
+)
+
+
+def outside_code(markdown: str) -> str:
+    """What is left of a comment once every place Markdown does not look inside is removed."""
+    text = re.sub(r"(`{3,}).*?\1", "", markdown, flags=re.DOTALL)
+    text = re.sub(r"<code>.*?</code>", "", text, flags=re.DOTALL)
+    return re.sub(r"(`+).+?\1", "", text, flags=re.DOTALL)
+
+
+def test_a_backtick_cannot_end_the_span_it_sits_in():
+    assert pr.code("a`b") == "``a`b``"
+    assert pr.code("`x") == "`` `x ``"
+    assert pr.code("a``b`c") == "```a``b`c```"
+
+
+def test_a_newline_cannot_start_a_new_line_of_the_comment():
+    assert "\n" not in pr.code("a\n- injected\nb")
+    assert "\r" not in pr.code("a\rb")
+
+
+def test_a_pipe_does_not_end_a_table_cell():
+    assert pr.code("a|b", table=True) == "`a\\|b`"
+    assert pr.code("a|b") == "`a|b`"
+
+
+def test_what_a_branch_chose_is_never_read_as_markup():
+    report = make_report(f"data/{HOSTILE}.csv", "major", changes=0)
+    report.changes = [
+        {"severity": "major", "rule": "column_removed", "change": {"description": HOSTILE}}
+    ]
+    report.sidecar = pr.sidecar_note(
+        pathlib.Path("/nonexistent"), f"data/{HOSTILE}.csv", HOSTILE, "2.0.0"
+    )
+
+    body = pr.render([report], skipped=[(f"b/{HOSTILE}.csv", HOSTILE)], note=None, top_changes=5)
+    markdown = outside_code(body)
+
+    for dangerous in ("<img", "http://evil.example", "@everyone", "](", "onerror"):
+        assert dangerous not in markdown, dangerous
+
+
+def test_the_reproduce_snippet_hands_a_hostile_path_to_the_shell_as_one_word():
+    path = "data/x.csv; touch pwned #.csv"
+    body = pr.render([make_report(path)], skipped=[], note=None, top_changes=5)
+
+    commands = [line for line in body.splitlines() if line.startswith(("git show", "datasemver"))]
+    show, diff = (shlex.split(command) for command in commands)
+
+    assert show == ["git", "show", f"origin/main:{path}", ">", "/tmp/base.csv"]
+    assert diff[:3] == ["datasemver", "diff", "/tmp/base.csv"]
+    assert diff[3] == path
+    assert "touch" not in diff and "touch" not in show
+
+
+def test_the_reproduce_block_cannot_be_closed_early_by_a_path():
+    path = "data/a\n```\n[claim](http://evil.example)\n```\n.csv"
+    body = pr.render([make_report(path)], skipped=[], note=None, top_changes=5)
+    lines = body.splitlines()
+
+    opening = next(line for line in lines if line.endswith("bash") and set(line[:-4]) == {"`"})
+    fence = opening[:-4]
+
+    assert len(fence) > 3
+    # the block opens once and closes once, with the whole path inside it
+    assert lines.count(fence) == 1
+    assert sum(1 for line in lines if line == fence) == 1
+    assert "http://evil.example" not in outside_code(body)
+
+
+def test_a_ref_cannot_be_an_option_to_git(monkeypatch):
+    with pytest.raises(SystemExit):
+        pr.parse_args(["--base-ref=--output=/tmp/written-by-git"])
+    with pytest.raises(SystemExit):
+        pr.parse_args(["--head-ref=--output=/tmp/written-by-git"])
+
+    monkeypatch.setenv("DATASEMVER_BASE_REF", "--output=/tmp/written-by-git")
+    with pytest.raises(SystemExit):
+        pr.parse_args([])
+
+
+def _link(target, link):
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):  # pragma: no cover - a platform without symlinks
+        pytest.skip("this platform cannot create symbolic links")
+
+
+def test_a_dataset_that_is_a_link_out_of_the_checkout_is_not_read(repo, tmp_path):
+    secret = tmp_path / "secret.csv"
+    secret.write_text("token\nsk-live-0123456789\n", encoding="utf-8")
+    _link(secret, repo / "data" / "stolen.csv")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", "a link")
+
+    _, body = report_of(repo, tmp_path, "--paths", "data/stolen.csv")
+
+    assert "sk-live-0123456789" not in body
+    assert "a link to somewhere else" in body
+
+
+def test_a_version_file_that_is_a_link_out_of_the_checkout_is_not_written_through(repo, tmp_path):
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep me\n", encoding="utf-8")
+    sidecar = repo / "data" / "customers.csv.version"
+    sidecar.unlink()
+    _link(victim, sidecar)
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-qm", "a link where the version file was")
+
+    report_of(repo, tmp_path, "--write-version")
+
+    assert victim.read_text(encoding="utf-8") == "keep me\n"

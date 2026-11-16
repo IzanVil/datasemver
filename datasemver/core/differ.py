@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -15,7 +16,7 @@ from datasemver.core.models import (
     DatasetSchema,
     DiffResult,
 )
-from datasemver.utils.similarity import column_similarity
+from datasemver.utils.similarity import MAX_RENAME_PAIRS, rename_candidates
 from datasemver.utils.statistics import (
     aligned_counts,
     ks_critical_value,
@@ -160,18 +161,20 @@ def _detect_renames(
     config: DiffConfig,
 ) -> dict[str, str]:
     """Pair removed and added columns that look like the same column renamed."""
-    candidates: list[tuple[float, str, str]] = []
-    for old_name in removed:
-        for new_name in added:
-            score = column_similarity(
-                old_name,
-                new_name,
-                old.columns[old_name].categories,
-                new.columns[new_name].categories,
-            )
-            if score >= config.rename_threshold:
-                candidates.append((score, old_name, new_name))
+    if len(removed) * len(added) > MAX_RENAME_PAIRS:
+        warnings.warn(
+            f"{len(removed)} columns were removed and {len(added)} added, too many to pair up "
+            f"as renames: they are reported as removed and added",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return {}
 
+    candidates = rename_candidates(
+        {name: old.columns[name].categories for name in removed},
+        {name: new.columns[name].categories for name in added},
+        config.rename_threshold,
+    )
     candidates.sort(reverse=True)
     renames: dict[str, str] = {}
     taken: set[str] = set()

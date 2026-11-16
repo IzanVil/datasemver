@@ -7,14 +7,17 @@ The dashboard is a client of the library: it uploads or locates two dataset file
 from __future__ import annotations
 
 import gzip
+import ipaddress
 import tempfile
-from collections.abc import Iterator
+import zipfile
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -23,7 +26,10 @@ from datasemver.core.analyzer import DEFAULT_VERSION, analyze_schemas
 from datasemver.core.models import AnalysisReport, Change, DatasetSchema
 from datasemver.core.profile import PROFILE_SUFFIX, Profile, is_profile, read_profile
 from datasemver.core.rows import compare_rows
+from datasemver.formats.excel import EXCEL_EXTENSIONS
 from datasemver.formats.loader import (
+    FEATHER_EXTENSIONS,
+    PARQUET_EXTENSIONS,
     SUPPORTED_EXTENSIONS,
     dataset_suffix,
     describe_source,
@@ -33,7 +39,7 @@ from datasemver.formats.loader import (
 from datasemver.rules.engine import RuleError
 from datasemver.utils.version import InvalidVersionError
 
-from .config import Settings, get_settings
+from .config import ALLOWED_HOSTS_ENV_VAR, MAX_COLUMNS_ENV_VAR, Settings, get_settings
 from .history import DatasetNotFoundError, History, resolve_file, scan_datasets
 
 app = FastAPI(
@@ -41,6 +47,76 @@ app = FastAPI(
     description="Compare two versions of a dataset and see the version bump they deserve.",
     version=__version__,
 )
+
+# The dashboard builds every node it shows from text and loads nothing from anywhere else, so
+# a page that is allowed only itself loses nothing. It may be framed by itself and by nothing
+# else, which is what the capture script does to see it at the width of a phone. `/docs` and
+# `/redoc` are FastAPI's own and pull their scripts from a CDN, which is why they are the one
+# exception.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+    "connect-src 'self'; frame-src 'self'; form-action 'self'; base-uri 'none'; "
+    "frame-ancestors 'self'"
+)
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+API_DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")
+
+
+def host_allowed(header: str | None, extra: frozenset[str] = frozenset()) -> bool:
+    """Whether the `Host` a request names is one this dashboard should answer to.
+
+    A page on any website can make the browser send requests to `127.0.0.1`, and a hostname
+    under its control that resolves there after the page has loaded lets it read the answers
+    too -- the attack is called DNS rebinding, and what gives it away is that the request
+    still names the attacker's host. So `localhost` and every IP address are answered, since
+    nobody can rebind a name that is not one, and any other name only when it was asked for in
+    `DATASEMVER_ALLOWED_HOSTS`. A request with no `Host` at all is not a browser's.
+    """
+    if not header:
+        return True
+    host = header.strip().lower()
+    if host.startswith("["):  # an IPv6 literal, with or without a port: [::1]:8000
+        name = host[1 : host.find("]")] if "]" in host else host
+    elif host.count(":") == 1:
+        name = host.partition(":")[0]
+    else:
+        name = host
+    if "*" in extra or name in extra or name == "localhost" or name.endswith(".localhost"):
+        return True
+    try:
+        ipaddress.ip_address(name)
+    except ValueError:
+        return False
+    return True
+
+
+@app.middleware("http")
+async def guard_the_browser(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """Refuse a request that arrived under a name that is not the dashboard's, and say what
+    the browser may do with every answer: nothing but show it, from here."""
+    if not host_allowed(request.headers.get("host"), get_settings().allowed_hosts):
+        response: Response = PlainTextResponse(
+            f"Invalid host header. To serve the dashboard under that name, set "
+            f"{ALLOWED_HOSTS_ENV_VAR} to it.",
+            status_code=400,
+        )
+    else:
+        response = await call_next(request)
+    response.headers.update(SECURITY_HEADERS)
+    if not request.url.path.startswith(API_DOCS_PATHS):
+        response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+    if request.url.path.startswith("/api/"):
+        # A comparison is the contents of someone's datasets; none of it is for a shared cache.
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
 
 ANALYSIS_ERRORS = (ValueError, RuleError, InvalidVersionError)
 CHUNK_BYTES = 1024 * 1024
@@ -61,6 +137,14 @@ MAX_RULES_BYTES = 256 * 1024
 COMPRESSED_EXTENSIONS = {suffix for suffix in SUPPORTED_EXTENSIONS if suffix.endswith(".gz")}
 UPLOAD_DATASET_EXTENSIONS = SUPPORTED_EXTENSIONS
 UPLOAD_EXTENSIONS = UPLOAD_DATASET_EXTENSIONS | {PROFILE_SUFFIX}
+
+# A gzip file is held to the upload limit once decompressed. The columnar formats and workbooks
+# are already compressed, on purpose and by a lot, so the same ceiling would refuse ordinary
+# files: they are held to a multiple of it instead. Parquet runs three to ten times smaller
+# than the table it holds and a run of equal values far more, which is the point -- 200 million
+# rows of one value is 850 kB of upload, accepted by every limit above and 1.6 GB of dataframe.
+DECODED_FACTOR = 20
+BATCH_ROWS = 64 * 1024
 
 
 class Meta(BaseModel):
@@ -120,7 +204,10 @@ async def diff_uploads(
                 limit=MAX_RULES_BYTES,
             )
 
-        return run_analysis(
+        # Off the event loop: an analysis is seconds of work for a large file, and run where the
+        # server listens it would leave every other request waiting for it.
+        return await run_in_threadpool(
+            run_analysis,
             old_path,
             new_path,
             current_version,
@@ -153,8 +240,12 @@ async def profile_upload(
     settings = get_settings()
     with tempfile.TemporaryDirectory() as directory:
         path = await store_upload(dataset, Path(directory) / "dataset", settings)
-        with as_http_error():
-            schema, _ = _side(path, reported_name(dataset))
+        return await run_in_threadpool(_profile_of, path, reported_name(dataset))
+
+
+def _profile_of(path: Path, name: str) -> Profile:
+    with as_http_error():
+        schema, _ = _side(path, name)
     return Profile(dataset=schema)
 
 
@@ -211,7 +302,7 @@ async def store_upload(
     # moved between the Python versions this supports.
     path = destination.with_name(destination.name + suffix)
     path.parent.mkdir(parents=True, exist_ok=True)
-    written = _copy_within_limit(upload, path, limit)
+    written = await run_in_threadpool(_copy_within_limit, upload, path, limit)
 
     if written > limit:
         raise HTTPException(
@@ -221,11 +312,14 @@ async def store_upload(
     if written == 0:
         raise HTTPException(status_code=400, detail=f"'{upload.filename}' is empty")
 
-    if _expands_past_limit(path, suffix, limit, upload.filename or "file"):
+    ceiling = _decoded_limit(suffix, limit)
+    if await run_in_threadpool(
+        _expands_past_limit, path, suffix, ceiling, upload.filename or "file"
+    ):
         path.unlink(missing_ok=True)
         raise HTTPException(
             status_code=413,
-            detail=f"'{upload.filename}' holds more than {_mb(limit)} MB once decompressed",
+            detail=f"'{upload.filename}' holds more than {_mb(ceiling)} MB once decompressed",
         )
     return path
 
@@ -275,21 +369,41 @@ def _copy_within_limit(upload: UploadFile, path: Path, limit: int) -> int:
     return written
 
 
-def _expands_past_limit(path: Path, suffix: str, limit: int, name: str) -> bool:
-    """Whether a compressed upload becomes more than the limit allows once decompressed.
+def _decoded_limit(suffix: str, limit: int) -> int:
+    """What a file of this format may hold once decompressed or decoded.
 
-    The size the cap counts is the size that arrives, and for a `.gz` that is not the number
-    that decides what reading it costs: ordinary repetitive data compresses about 344:1 and a
-    crafted file reaches roughly 1030:1, so a quarter of a megabyte within every limit the
-    dashboard states can become most of a gigabyte of dataframe.
-
-    Decompressed here under the rule `_copy_within_limit` already follows -- read one chunk
-    past the limit and no further -- so the answer costs one chunk of memory whatever the file
-    claims to hold, and nothing has tried to parse it yet.
+    A gzip file is held to the upload limit itself. The columnar formats and workbooks are
+    compressed by design, so they get `DECODED_FACTOR` times that.
     """
-    if suffix not in COMPRESSED_EXTENSIONS:
-        return False
+    return limit if suffix in COMPRESSED_EXTENSIONS else limit * DECODED_FACTOR
 
+
+def _expands_past_limit(path: Path, suffix: str, limit: int, name: str) -> bool:
+    """Whether an upload becomes more than `limit` bytes once decompressed or decoded.
+
+    The size the cap counts is the size that arrives, and that is not the number that decides
+    what reading the file costs: ordinary repetitive data compresses about 344:1 and a crafted
+    file reaches roughly 1030:1, so a quarter of a megabyte within every limit the dashboard
+    states can become most of a gigabyte of dataframe. Parquet is worse, since a run of equal
+    values is stored as the value and a count: 850 kB of upload holds 200 million rows.
+
+    Every answer is reached under the rule `_copy_within_limit` already follows -- read one
+    step past the limit and no further -- so it costs one chunk, one batch or one directory
+    listing of memory whatever the file claims to hold, and nothing has tried to parse it yet.
+    A file one of these cannot open is left to the reader, which words that failure better.
+    """
+    if suffix in COMPRESSED_EXTENSIONS:
+        return _gzip_expands_past(path, limit, name)
+    if suffix in PARQUET_EXTENSIONS:
+        return _parquet_decodes_past(path, limit)
+    if suffix in FEATHER_EXTENSIONS:
+        return _feather_decodes_past(path, limit)
+    if suffix in EXCEL_EXTENSIONS:
+        return _workbook_expands_past(path, limit)
+    return False
+
+
+def _gzip_expands_past(path: Path, limit: int, name: str) -> bool:
     total = 0
     try:
         with gzip.open(path, "rb") as stream:
@@ -302,6 +416,60 @@ def _expands_past_limit(path: Path, suffix: str, limit: int, name: str) -> bool:
             status_code=400, detail=f"'{name}' could not be decompressed: {error}"
         ) from error
     return False
+
+
+def _parquet_decodes_past(path: Path, limit: int) -> bool:
+    """Decode a Parquet file a batch at a time until it is known to be past `limit`."""
+    try:
+        import pyarrow.parquet as parquet
+
+        total = 0
+        file = parquet.ParquetFile(path)
+        try:
+            for batch in file.iter_batches(batch_size=BATCH_ROWS):
+                total += batch.nbytes
+                if total > limit:
+                    return True
+        finally:
+            file.close()
+    except Exception:  # unreadable here is the reader's to report
+        return False
+    return False
+
+
+def _feather_decodes_past(path: Path, limit: int) -> bool:
+    """Decode a Feather file a record batch at a time until it is known to be past `limit`.
+
+    A batch is the unit it can stop at, so a file written as one enormous batch is decoded
+    whole before it is measured; the writers people use cut batches of a few tens of
+    thousands of rows.
+    """
+    try:
+        import pyarrow.ipc as ipc
+
+        total = 0
+        with ipc.open_file(path) as reader:
+            for index in range(reader.num_record_batches):
+                total += reader.get_batch(index).nbytes
+                if total > limit:
+                    return True
+    except Exception:  # unreadable here is the reader's to report
+        return False
+    return False
+
+
+def _workbook_expands_past(path: Path, limit: int) -> bool:
+    """Whether a workbook's parts add up to more than `limit` once inflated.
+
+    A workbook is a zip archive of XML, and the sizes are in its directory: asking for them
+    inflates nothing. They are the sizes a reader is held to as well, since it stops at what
+    an entry declares.
+    """
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return sum(entry.file_size for entry in archive.infolist()) > limit
+    except (zipfile.BadZipFile, OSError):
+        return False
 
 
 def run_analysis(
@@ -341,7 +509,21 @@ def _side(path: Path, name: str | None) -> tuple[DatasetSchema, Any]:
     if is_profile(path):
         return read_profile(path), None
     frame = load_frame(path)
+    _refuse_a_wide_table(frame.shape[1], name or describe_source(path))
     return schema_from_frame(frame, source=name or describe_source(path)), frame
+
+
+def _refuse_a_wide_table(columns: int, name: str) -> None:
+    """Refuse a table too wide to profile in the time a request should take."""
+    limit = get_settings().max_columns
+    if columns > limit:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"'{name}' has {columns} columns, and the dashboard reads up to {limit} "
+                f"({MAX_COLUMNS_ENV_VAR} raises that). The command line has no such limit."
+            ),
+        )
 
 
 def _row_changes(

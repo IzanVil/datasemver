@@ -461,6 +461,12 @@ def _read_json(path: Path) -> pd.DataFrame:
         records = _parse_json_document(text)
         if not isinstance(records, list):
             records = [records]
+        # Checked here rather than left to pandas, which refuses `[1, 2]` in one version and
+        # returns a frame of it in another.
+        if not all(record is None or isinstance(record, dict) for record in records):
+            raise DatasetReadError(
+                f"{path.name} is not a list of JSON objects, which is what a dataset is"
+            )
         return pd.json_normalize(records, sep=NESTED_SEPARATOR)
     except RecursionError as error:
         # Brackets all the way down are a few kilobytes that ask for a stack no parser has.

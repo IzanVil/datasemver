@@ -951,7 +951,7 @@ jobs:
 | Input | Default | Description |
 | --- | --- | --- |
 | `base-ref` | the pull request's base | Ref holding the previous version of each dataset |
-| `paths` | the datasets that changed | Analyse these instead, space separated |
+| `paths` | the datasets that changed | Analyse these instead, space separated, or one per line for a path with a space in it |
 | `rules` | the bundled rules | Rules file replacing the defaults |
 | `fail-on` | _(unset)_ | Fail the job when the worst bump reaches `patch`, `minor` or `major` |
 | `engine` | `pandas` | `duckdb` or `duckdb-sketch` profile without loading; the extra is installed for you |

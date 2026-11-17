@@ -9,6 +9,11 @@ This project follows [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Minor
+- A comparison says what it did not do. The report carries `diff.notes`, a list of sentences
+  that change no bump, and the command line, the dashboard and the pull request comment show
+  them under the changes. The first is the rename ceiling below: it was a Python warning,
+  which the terminal showed once and the dashboard and the comment never did, so a wholesale
+  rename past it read as a plain removal everywhere it mattered.
 - The dashboard stops answering to names it should not. A web page can make a browser talk to
   `127.0.0.1`, and a hostname it controls that resolves there afterwards could read what the
   dashboard returns -- the file names, columns and most frequent values of whatever
@@ -154,7 +159,19 @@ This project follows [Semantic Versioning](https://semver.org).
   two cheap bounds before the name is scored, which gives the same score for every pair that
   reaches the threshold (a test compares the two over random columns) and takes 5.8 seconds
   for the same file, nearly all of it profiling. Past 250,000 pairs the pairing is not tried
-  and the columns are reported as removed and added, with a warning.
+  and the columns are reported as removed and added, with a note saying so.
+- "Reproduce locally" in the pull request comment reads the base the comparison was made
+  against. It said `git show origin/main:...` whatever the base was, so on a pull request
+  aimed at any other branch, or with `base-ref` set, the commands reproduced a different
+  comparison from the one reported.
+- The action hands `paths` to the script as paths. The input reached the command unquoted, so
+  the shell split it and also expanded it: `*.csv` became whatever the checkout held, which
+  `paths` was never meant to be. Every argument is now passed as one, and `paths` is split
+  here, on whitespace, or one per line when it has several lines -- the way to give a path with
+  a space in it.
+- The tests run the dashboard's test client over `httpx2` where it installs, which is what
+  Starlette now asks for and warns without; the `dev` extra and `requirements/dev.txt` carry it
+  from Python 3.11, and `httpx` still serves 3.10, where `httpx2` does not install.
 - The pull request comment treats what the branch wrote as text. A path, a column heading or a
   version file went into the comment, posted under the repository's own bot, as Markdown: a
   link, an image or an `@` mention of a stranger, and in "Reproduce locally" a path with a

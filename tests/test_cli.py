@@ -63,6 +63,34 @@ def test_writes_the_changelog(old_csv, new_csv, tmp_path):
     assert str(output) in result.stdout.replace("\n", "")
 
 
+def _too_wide_to_pair(tmp_path, monkeypatch):
+    """Two files whose columns were all renamed, with the pairing ceiling lowered under them."""
+    monkeypatch.setattr("datasemver.core.differ.MAX_RENAME_PAIRS", 10)
+    old, new = tmp_path / "old.csv", tmp_path / "new.csv"
+    old.write_text(",".join(f"customer_{i}" for i in range(4)) + "\n1,2,3,4\n", encoding="utf-8")
+    new.write_text(",".join(f"customers_{i}" for i in range(4)) + "\n1,2,3,4\n", encoding="utf-8")
+    return old, new
+
+
+def test_what_the_comparison_did_not_do_is_said(tmp_path, monkeypatch):
+    old, new = _too_wide_to_pair(tmp_path, monkeypatch)
+    result = run("diff", str(old), str(new))
+
+    assert result.exit_code == 0
+    assert "note: 4 columns were removed and 4 added, too many to pair up" in flat(result)
+
+
+def test_the_notes_are_in_the_json_output(tmp_path, monkeypatch):
+    old, new = _too_wide_to_pair(tmp_path, monkeypatch)
+    payload = json.loads(run("diff", str(old), str(new), "--json").stdout)
+
+    assert len(payload["diff"]["notes"]) == 1
+
+
+def test_a_comparison_with_nothing_to_note_prints_no_note(old_csv, new_csv):
+    assert "note:" not in run("diff", str(old_csv), str(new_csv)).stdout
+
+
 def test_custom_rules_change_the_bump(old_csv, new_csv, tmp_path):
     rules = tmp_path / "lenient.yaml"
     rules.write_text("minor:\n  - column_removed\n", encoding="utf-8")

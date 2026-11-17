@@ -185,6 +185,11 @@ class DiffResult(BaseModel):
     new: DatasetSchema
     changes: list[Change] = Field(default_factory=list)
     columns: list[ColumnComparison] = Field(default_factory=list)
+    # What the comparison did not do, in a sentence each. Not changes: nothing here is counted
+    # towards a bump. They are what a reader needs to know to read the changes correctly, such
+    # as that renames were not looked for, and so travel with the report to wherever it is
+    # shown rather than to a terminal's stderr.
+    notes: list[str] = Field(default_factory=list)
 
     def of_type(self, change_type: ChangeType) -> list[Change]:
         return [change for change in self.changes if change.type is change_type]

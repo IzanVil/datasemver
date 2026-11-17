@@ -18,7 +18,9 @@ inputs:
     required: false
     default: ""
   paths:
-    description: Analyse these datasets instead of the ones the branch changed, space separated.
+    description: >-
+      Analyse these datasets instead of the ones the branch changed: space separated, or one
+      per line when a path has a space in it.
     required: false
     default: ""
   rules:
@@ -160,15 +162,28 @@ runs:
         WRITE_VERSION: ${{ inputs.write-version }}
         DATASEMVER_ENGINE: ${{ inputs.engine }}
       run: |
+        # Collected in an array, so every value is one argument whatever it holds. `paths` is
+        # split here rather than left to the shell, which would also expand a `*` in it
+        # against the checkout: one path per line when there is more than one line, since that
+        # is the only way to write a path with a space in it, and on whitespace otherwise.
+        arguments=(--base-ref "$BASE_REF" --output "$REPORT_PATH")
+        arguments+=(--default-version "$DEFAULT_VERSION")
+        if [ -n "$RULES" ]; then arguments+=(--rules "$RULES"); fi
+        if [ -n "$FAIL_ON" ]; then arguments+=(--fail-on "$FAIL_ON"); fi
+        if [ "$WRITE_VERSION" = "true" ]; then arguments+=(--write-version); fi
+        paths=()
+        case "$PATHS" in
+          *$'\n'*)
+            while read -r line; do
+              if [ -n "$line" ]; then paths+=("$line"); fi
+            done <<< "$PATHS"
+            ;;
+          *) read -r -a paths <<< "$PATHS" ;;
+        esac
+        if [ "${#paths[@]}" -gt 0 ]; then arguments+=(--paths "${paths[@]}"); fi
+
         set +e
-        python "$GITHUB_ACTION_PATH/scripts/run_datasemver_on_pr.py" \
-          --base-ref "$BASE_REF" \
-          --output "$REPORT_PATH" \
-          --default-version "$DEFAULT_VERSION" \
-          ${RULES:+--rules "$RULES"} \
-          ${FAIL_ON:+--fail-on "$FAIL_ON"} \
-          ${PATHS:+--paths $PATHS} \
-          $([ "$WRITE_VERSION" = "true" ] && echo --write-version)
+        python "$GITHUB_ACTION_PATH/scripts/run_datasemver_on_pr.py" "${arguments[@]}"
         status=$?
         set -e
         echo "refused=$([ "$status" -eq 0 ] && echo false || echo true)" >> "$GITHUB_OUTPUT"

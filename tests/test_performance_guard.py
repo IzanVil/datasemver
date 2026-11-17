@@ -42,6 +42,7 @@ commands:
 from __future__ import annotations
 
 import gzip
+import importlib.util
 import json
 import tracemalloc
 
@@ -157,7 +158,8 @@ def test_refusing_an_expansion_never_holds_the_file(tmp_path, monkeypatch):
     past the ceiling.
     """
     pytest.importorskip("fastapi")
-    pytest.importorskip("httpx")
+    if importlib.util.find_spec("httpx2") is None:  # the test client's transport, as in test_web
+        pytest.importorskip("httpx")
 
     from fastapi.testclient import TestClient
 

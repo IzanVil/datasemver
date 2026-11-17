@@ -192,3 +192,101 @@ def test_the_action_never_commits_or_pushes(action):
         assert "git commit" not in script, step["name"]
         assert "git push" not in script, step["name"]
         assert "git add" not in script, step["name"]
+
+
+# --- what the analyse step hands the script ------------------------------------------------------
+#
+# Run for real, under bash, with a stand-in for `python` that writes down what it was given:
+# what is being checked is word splitting, and reading the script does not show it.
+
+
+def arguments_given(action, tmp_path, **environment):
+    """Run the analyse step and return the arguments its script was called with."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+
+    if sys.platform == "win32" or shutil.which("bash") is None:
+        pytest.skip("the step is run under bash")
+
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    recorded = tmp_path / "arguments.txt"
+    stand_in = binaries / "python"
+    stand_in.write_text(
+        "#!/bin/sh\nshift\n"
+        'for argument in "$@"; do printf \'%s\\n\' "$argument"; done > "$RECORD"\n',
+        encoding="utf-8",
+    )
+    stand_in.chmod(0o755)
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    (checkout / "decoy.csv").write_text("a\n1\n", encoding="utf-8")
+
+    defaults = {
+        "BASE_REF": "origin/main",
+        "REPORT_PATH": str(tmp_path / "report.md"),
+        "DEFAULT_VERSION": "0.0.0",
+        "FAIL_ON": "",
+        "RULES": "",
+        "PATHS": "",
+        "WRITE_VERSION": "false",
+    }
+    subprocess.run(
+        ["bash", "-eo", "pipefail", "-c", named(action, "analyse")["run"]],
+        cwd=checkout,
+        check=True,
+        env={
+            **defaults,
+            **environment,
+            "PATH": f"{binaries}{os.pathsep}{os.environ['PATH']}",
+            "RECORD": str(recorded),
+            "GITHUB_ACTION_PATH": str(tmp_path),
+            "GITHUB_OUTPUT": str(tmp_path / "output.txt"),
+        },
+    )
+    return recorded.read_text(encoding="utf-8").splitlines()
+
+
+def paths_given(arguments):
+    return arguments[arguments.index("--paths") + 1 :] if "--paths" in arguments else []
+
+
+def test_paths_on_one_line_are_split_on_spaces_as_they_always_were(action, tmp_path):
+    arguments = arguments_given(action, tmp_path, PATHS="data/a.csv  data/b.csv")
+
+    assert paths_given(arguments) == ["data/a.csv", "data/b.csv"]
+
+
+def test_paths_one_per_line_keep_the_spaces_inside_them(action, tmp_path):
+    arguments = arguments_given(
+        action, tmp_path, PATHS="data/monthly sales.csv\n\n  data/b.csv  \n"
+    )
+
+    assert paths_given(arguments) == ["data/monthly sales.csv", "data/b.csv"]
+
+
+def test_a_pattern_in_paths_is_not_expanded_against_the_checkout(action, tmp_path):
+    """`decoy.csv` is in the working directory, which is what `*` would have become."""
+    assert paths_given(arguments_given(action, tmp_path, PATHS="*.csv")) == ["*.csv"]
+    second = tmp_path / "second"
+    second.mkdir()
+    assert paths_given(arguments_given(action, second, PATHS="*\n?")) == ["*", "?"]
+
+
+def test_no_paths_means_no_option_and_the_rest_arrives_whole(action, tmp_path):
+    arguments = arguments_given(
+        action,
+        tmp_path,
+        RULES="rules/my rules.yaml",
+        FAIL_ON="major",
+        WRITE_VERSION="true",
+        BASE_REF="origin/release 1",
+    )
+
+    assert "--paths" not in arguments
+    assert arguments[:2] == ["--base-ref", "origin/release 1"]
+    assert arguments[arguments.index("--rules") + 1] == "rules/my rules.yaml"
+    assert arguments[arguments.index("--fail-on") + 1] == "major"
+    assert "--write-version" in arguments

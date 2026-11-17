@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -60,7 +59,8 @@ def diff_schemas(
 
     removed = [name for name in old.column_names if name not in new.columns]
     added = [name for name in new.column_names if name not in old.columns]
-    renames = _detect_renames(old, new, removed, added, config)
+    notes: list[str] = []
+    renames = _detect_renames(old, new, removed, added, config, notes)
 
     removed = [name for name in removed if name not in renames]
     added = [name for name in added if name not in renames.values()]
@@ -150,7 +150,7 @@ def diff_schemas(
         )
 
     comparisons.sort(key=lambda item: (item.status.value, item.name))
-    return DiffResult(old=old, new=new, changes=changes, columns=comparisons)
+    return DiffResult(old=old, new=new, changes=changes, columns=comparisons, notes=notes)
 
 
 def _detect_renames(
@@ -159,14 +159,18 @@ def _detect_renames(
     removed: list[str],
     added: list[str],
     config: DiffConfig,
+    notes: list[str],
 ) -> dict[str, str]:
-    """Pair removed and added columns that look like the same column renamed."""
+    """Pair removed and added columns that look like the same column renamed.
+
+    When there are too many to pair, that is said in `notes`: a report that lists four hundred
+    columns as removed and four hundred as added reads as a different dataset unless it also
+    says renames were not looked for.
+    """
     if len(removed) * len(added) > MAX_RENAME_PAIRS:
-        warnings.warn(
+        notes.append(
             f"{len(removed)} columns were removed and {len(added)} added, too many to pair up "
-            f"as renames: they are reported as removed and added",
-            RuntimeWarning,
-            stacklevel=2,
+            f"as renames, so a renamed column is reported as one removed and one added"
         )
         return {}
 

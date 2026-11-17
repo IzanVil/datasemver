@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, overload
 
@@ -52,6 +52,7 @@ class DatasetReport:
     bump: str | None
     changes: list[dict]
     sidecar: str | None = None
+    notes: list[str] = field(default_factory=list)
 
     @property
     def rank(self) -> int:
@@ -218,6 +219,7 @@ def analyse(path: str, args: argparse.Namespace, repo_root: Path) -> DatasetRepo
         bump=payload["bump"],
         changes=[item for item in payload["classified"] if item["severity"]],
         sidecar=sidecar_note(repo_root, path, recorded, payload["next_version"]),
+        notes=list(payload.get("diff", {}).get("notes", [])),
     )
 
 
@@ -366,7 +368,7 @@ def code(text: str, table: bool = False) -> str:
 
 
 _PLAIN_VERSION = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?")
-_PLAIN_SENTENCE = re.compile(r"[A-Za-z ,'-]+")
+_PLAIN_SENTENCE = re.compile(r"[A-Za-z0-9 ,'-]+")
 
 
 def version_text(text: str) -> str:
@@ -377,9 +379,10 @@ def version_text(text: str) -> str:
 def reason_text(text: str) -> str:
     """One of this script's own reasons as it reads; anything with more in it as only text.
 
-    The reasons it words itself are lower-case sentences, which cannot be a link, a mention or
-    markup. What comes back from a failed run carries a path, a column heading or a message
-    out of a library, and goes in a code span like everything else the branch chose.
+    The reasons it words itself, and the notes the library words, are sentences of letters and
+    numbers, which cannot be a link, a mention or markup. What comes back from a failed run
+    carries a path, a column heading or a message out of a library, and goes in a code span
+    like everything else the branch chose.
     """
     return text if _PLAIN_SENTENCE.fullmatch(text) else code(text)
 
@@ -396,8 +399,14 @@ def render(
     skipped: list[tuple[str, str]],
     note: str | None,
     top_changes: int,
+    base_ref: str = "origin/main",
 ) -> str:
-    """Render the Markdown posted as a pull request comment."""
+    """Render the Markdown posted as a pull request comment.
+
+    `base_ref` is the ref the comparison was made against, which the commands under
+    "Reproduce locally" have to name too: read from `origin/main` whatever the base was, they
+    reproduced a different comparison for every pull request not aimed at main.
+    """
     lines = [MARKER, "## DataSemver report", ""]
 
     if not reports:
@@ -422,6 +431,7 @@ def render(
     for report in sorted(reports, key=lambda item: (-item.rank, item.path)):
         lines.extend(render_details(report, top_changes))
 
+    lines.extend(render_notes(reports))
     lines.extend(render_sidecars(reports))
     lines.extend(render_skipped(skipped))
     lines.append("### Reproduce locally")
@@ -433,7 +443,7 @@ def render(
         fenced(
             [
                 "pip install datasemver",
-                f"git show {shlex.quote('origin/main:' + example.path)} > {base}",
+                f"git show {shlex.quote(f'{base_ref}:{example.path}')} > {base}",
                 f"datasemver diff {base} {shlex.quote(example.path)} "
                 f"--current-version {shlex.quote(example.current_version)} --output CHANGELOG.md",
             ]
@@ -474,6 +484,17 @@ def render_details(report: DatasetReport, top_changes: int) -> list[str]:
     return lines
 
 
+def render_notes(reports: list[DatasetReport]) -> list[str]:
+    """What a comparison did not do, for the datasets where there is something to say."""
+    noted = [(report.path, note) for report in reports for note in report.notes]
+    if not noted:
+        return []
+    lines = ["### Notes", ""]
+    lines += [f"- {code(path)}: {reason_text(note)}" for path, note in noted]
+    lines.append("")
+    return lines
+
+
 def render_sidecars(reports: list[DatasetReport]) -> list[str]:
     """List the datasets whose version file disagrees with the branch, and nothing else.
 
@@ -507,7 +528,7 @@ def finish(
 ) -> int:
     """Write the report, expose the workflow outputs and return the exit code."""
     skipped = skipped or []
-    body = truncate(render(reports, skipped, note, args.top_changes))
+    body = truncate(render(reports, skipped, note, args.top_changes, args.base_ref))
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

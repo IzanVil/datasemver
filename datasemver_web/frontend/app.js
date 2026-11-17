@@ -18,6 +18,7 @@ const dom = {
   versionFrom: document.getElementById("version-from"),
   versionTo: document.getElementById("version-to"),
   sources: document.getElementById("summary-sources"),
+  notes: document.getElementById("summary-notes"),
   tally: document.getElementById("tally"),
   tallyBar: document.getElementById("tally-bar"),
   tallyLegend: document.getElementById("tally-legend"),
@@ -263,6 +264,10 @@ function renderReport(report) {
   rollVersion(dom.versionTo, report.current_version, report.next_version);
   dom.sources.textContent = `${basename(report.old_source)} → ${basename(report.new_source)}`;
   dom.sources.title = `${report.old_source} → ${report.new_source}`;
+  // What the comparison did not do, which changes how the rest should be read.
+  const notes = report.diff.notes || [];
+  dom.notes.replaceChildren(...notes.map((note) => element("li", { textContent: note })));
+  dom.notes.classList.toggle("is-hidden", notes.length === 0);
 
   const { old: previous, new: current } = report.diff;
   const previousColumns = Object.keys(previous.columns).length;

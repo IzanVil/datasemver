@@ -253,6 +253,8 @@ def _render_report(
 
     console.print(_columns_table(report))
     console.print(_changes_table(report))
+    for note in report.diff.notes:
+        console.print(f"[yellow]note:[/] {escape(note)}")
 
     if sidecar is not None:
         console.print(f"[dim]{report.next_version} written to {sidecar}[/]")

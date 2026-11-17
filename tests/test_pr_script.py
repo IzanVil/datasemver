@@ -429,6 +429,58 @@ def test_the_report_explains_how_to_reproduce_it():
     assert "git show origin/main:data/x.csv" in body
 
 
+def test_the_reproduce_snippet_reads_the_base_the_comparison_used():
+    report = make_report("data/x.csv", changes=1)
+    body = pr.render([report], skipped=[], note=None, top_changes=5, base_ref="origin/release")
+
+    assert "git show origin/release:data/x.csv" in body
+    assert "origin/main" not in body
+
+
+def test_a_run_reproduces_against_the_base_it_was_given(repo, tmp_path):
+    _, body = report_of(repo, tmp_path)
+
+    assert "git show base:data/customers.csv" in body
+
+
+def test_the_notes_of_a_run_reach_the_comment(repo, tmp_path, monkeypatch):
+    """The real payload carries `diff.notes`, and what is in it is what the comment lists."""
+    real = pr.run_datasemver
+
+    def noted(*args):
+        payload = real(*args)
+        payload["diff"]["notes"].append("nothing was paired")
+        return payload
+
+    monkeypatch.setattr(pr, "run_datasemver", noted)
+    _, body = report_of(repo, tmp_path)
+
+    assert "- `data/customers.csv`: nothing was paired" in body
+
+
+def test_what_a_comparison_left_undone_is_noted():
+    report = make_report("data/x.csv")
+    report.notes = ["40 columns were removed and 40 added, too many to pair up as renames"]
+    body = pr.render([report], skipped=[], note=None, top_changes=5)
+
+    assert "### Notes" in body
+    assert "- `data/x.csv`: 40 columns were removed and 40 added, too many" in body
+
+
+def test_a_note_with_markup_in_it_is_only_text():
+    report = make_report("data/x.csv")
+    report.notes = ["see [this](https://example.com) @someone"]
+    body = pr.render([report], skipped=[], note=None, top_changes=5)
+
+    assert "- `data/x.csv`: `see [this](https://example.com) @someone`" in body
+
+
+def test_without_notes_there_is_no_notes_section():
+    body = pr.render([make_report("data/x.csv")], skipped=[], note=None, top_changes=5)
+
+    assert "### Notes" not in body
+
+
 def test_skipped_datasets_are_listed_even_with_no_reports():
     body = pr.render([], skipped=[("a.csv", "why")], note="nothing", top_changes=5)
 

@@ -58,7 +58,11 @@ dev = [
     "pytest>=9.0.3",
     "sqlalchemy>=2.0",  # the SQLite tests need it; no server does  # CVE-2025-71176, tmpdir handling
     "pytest-cov>=4",
+    # The test client's transport. Starlette now wants `httpx2` and warns on `httpx`, but
+    # `httpx2` needs 3.11, and the Starlette floor in the web extra still imports `httpx`:
+    # both are installed where both can be, and `httpx` alone carries 3.10.
     "httpx>=0.27",
+    "httpx2>=2.0; python_version >= '3.11'",
     "ruff>=0.6",
     "mypy>=1.11",
     "types-PyYAML>=6",

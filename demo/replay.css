@@ -1,0 +1,29 @@
+/* Inside the project site the dashboard opens on its report: the page around it already says
+   what the dashboard is, so the introduction and the guide make way. */
+.is-embed .lead,
+.is-embed #guide,
+.is-embed .footer {
+  display: none;
+}
+
+.is-embed .masthead-inner {
+  padding-top: 16px;
+}
+
+.is-embed main {
+  padding-top: 20px;
+  padding-bottom: 24px;
+}
+
+.is-embed #result {
+  order: -1;
+}
+
+.is-embed body::before {
+  height: 20rem;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #2d3c47 #0a0f13;
+}

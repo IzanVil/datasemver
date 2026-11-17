@@ -1,0 +1,1 @@
+{"version":"0.8.2","supported_extensions":[".arrow",".csv",".csv.gz",".feather",".json",".jsonl",".ndjson",".parquet",".pq",".tsv",".tsv.gz",".xlsm",".xlsx"],"profile_suffix":".profile.json","datasets_dir":"datasets","max_upload_mb":25.0,"default_version":"0.0.0"}

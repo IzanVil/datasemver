@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,476 +9,576 @@
 <link rel="canonical" href="https://izanvil.github.io/datasemver/es/">
 <link rel="alternate" hreflang="en" href="https://izanvil.github.io/datasemver/">
 <link rel="alternate" hreflang="es" href="https://izanvil.github.io/datasemver/es/">
+<link rel="alternate" hreflang="x-default" href="https://izanvil.github.io/datasemver/">
 <meta property="og:title" content="DataSemver, versionado semántico para datasets">
-<meta property="og:description" content="Tus datos han cambiado. DataSemver te dice si eso es un patch, un minor o una versión que rompe.">
+<meta property="og:description" content="Tus datos han cambiado. DataSemver te dice si eso es un patch, un minor o una versión que rompe, y escribe la entrada del changelog.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://izanvil.github.io/datasemver/es/">
 <meta property="og:site_name" content="DataSemver">
 <meta property="og:locale" content="es_ES">
-<meta property="og:image" content="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-diff.png">
-<meta property="og:image:width" content="1287">
-<meta property="og:image:height" content="1222">
-<meta property="og:image:alt" content="Terminal con un salto MAJOR de 0.0.0 a 1.0.0 y la tabla de cada columna que cambió.">
+<meta property="og:image" content="https://izanvil.github.io/datasemver/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Una terminal que propone un salto MAJOR de 1.4.2 a 2.0.0, con las columnas y las reglas que lo deciden.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#fbfbfc" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b0e14" media="(prefers-color-scheme: dark)">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<script>document.documentElement.classList.add("js");setTimeout(function(){var r=document.documentElement;if(!r.classList.contains("ready"))r.classList.remove("js")},5000)</script>
+<meta name="theme-color" content="#0a0d14">
+<link rel="preload" href="../fonts/outfit.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../site.css">
+<script>document.documentElement.classList.replace("no-js","js");if(!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("m-enter");setTimeout(function(){document.documentElement.classList.add("m-go")},1400)}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"DataSemver","applicationCategory":"DeveloperApplication","operatingSystem":"Linux, macOS, Windows","softwareVersion":"0.8.2","inLanguage":"es","license":"https://www.apache.org/licenses/LICENSE-2.0","url":"https://izanvil.github.io/datasemver/es/","downloadUrl":"https://pypi.org/project/datasemver/","codeRepository":"https://github.com/IzanVil/datasemver","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"author":{"@type":"Person","name":"Izan Vilchez","url":"https://github.com/IzanVil"}}</script>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-to" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></g></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></symbol>
+</svg>
+<a class="skip" href="#main">Saltar al contenido</a>
 
-<div class="topbar">
-<div class="page">
-  <nav class="nav">
-    <a class="mark" href="./">
-      <svg class="mark-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-        <rect x="3" y="7" width="10.5" height="18" rx="2.2" fill="currentColor" opacity="0.86"/>
-        <rect x="18.5" y="7" width="10.5" height="18" rx="2.2" fill="currentColor" opacity="0.86"/>
-        <rect x="14.9" y="3.5" width="2.2" height="25" rx="1.1" fill="var(--accent)"/>
-      </svg>
-      <span>Data<b>Semver</b></span>
+<header class="nav" id="nav">
+  <div class="wrap nav__bar">
+    <a class="mark" href="./" aria-label="DataSemver, inicio">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="11.5" fill="none" stroke="currentColor" stroke-width="3" opacity="0.28"/><path d="M16 4.5a11.5 11.5 0 0 1 9.96 17.25" fill="none" style="stroke: var(--accent)" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg>
+      <span>DataSemver</span>
     </a>
-    <ul>
-      <li class="hide-sm"><a href="#decide">Cómo decide</a></li>
-      <li class="hide-sm"><a href="#measures">Qué mide</a></li>
-      <li class="hide-sm"><a href="#engines">Motores</a></li>
-      <li class="hide-sm"><a href="#surfaces">Cómo usarlo</a></li>
-      <li><a href="https://github.com/IzanVil/datasemver">GitHub</a></li>
-      <li><a href="https://pypi.org/project/datasemver/">PyPI</a></li>
-      <li><a class="swap" href="../" hreflang="en">EN</a></li>
+    <ul class="nav__links">
+      <li><a href="#decide">Cómo decide</a></li>
+      <li><a href="#measure">Qué mide</a></li>
+      <li class="wide"><a href="#formats">Formatos</a></li>
+      <li class="wide"><a href="#engines">Motores</a></li>
+      <li><button type="button" aria-expanded="false" aria-controls="mega" data-mega>Formas de usarlo <svg aria-hidden="true"><use href="#i-chev"/></svg></button></li>
     </ul>
-  </nav>
-</div>
-</div>
-
-<div class="hero-wrap">
-<div class="page">
-  <header class="hero">
-    <div>
-      <h1>Tus datos cambiaron.<br><i>¿Qué versión les toca?</i></h1>
-      <p>Compara dos versiones de un dataset. Obtén el salto que merecen y la entrada de changelog que lo explica.</p>
-      <ul class="bumps" aria-label="Los tres saltos que puede dar una comparación, desde 1.4.2">
-        <li class="from" style="--i:0">1.4.2</li>
-        <li class="bump patch" style="--i:1"><b>patch</b> 1.4.3</li>
-        <li class="bump minor" style="--i:2"><b>minor</b> 1.5.0</li>
-        <li class="bump major" style="--i:3"><b>major</b> 2.0.0</li>
+    <div class="nav__end">
+      <a class="nav__lang" href="../" hreflang="en" lang="en" aria-label="Read in English">EN</a>
+      <a class="nav__icon" href="https://github.com/IzanVil/datasemver" aria-label="Código en GitHub"><svg aria-hidden="true"><use href="#i-gh"/></svg></a>
+      <a class="btn" href="#install">Instalarlo</a>
+      <button class="nav__icon nav__menu" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Abrir el menú" data-menu><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+    </div>
+  </div>
+  <div class="mega" id="mega">
+    <div class="wrap mega__inner">
+      <div class="mega__intro">
+        <p class="h4">Siete formas de usarlo, un informe</p>
+        <p>Todas llaman a la misma función, así que la respuesta nunca depende de dónde preguntes.</p>
+      </div>
+      <ul class="mega__list">
+        <li><a href="#way-cli"><strong>Línea de comandos</strong><span>Una tabla para personas, JSON para scripts</span></a></li>
+        <li><a href="#way-python"><strong>Librería de Python</strong><span>Dos rutas, o dos perfiles en memoria</span></a></li>
+        <li><a href="#dashboard"><strong>Panel web</strong><span>El mismo informe en el navegador</span></a></li>
+        <li><a href="#way-action"><strong>GitHub Action</strong><span>El salto en cada pull request</span></a></li>
+        <li><a href="#way-dvc"><strong>DVC</strong><span>Lo que cambió entre dos revisiones</span></a></li>
+        <li><a href="#way-sql"><strong>Tablas de bases de datos</strong><span>SQLite, PostgreSQL y MySQL</span></a></li>
+        <li><a href="#way-binary"><strong>Ejecutable autónomo</strong><span>Para máquinas sin Python</span></a></li>
       </ul>
-      <div class="start">
-        <div class="snippet">
-          <span><i>$</i> pip install datasemver</span>
-          <button type="button" data-copy="pip install datasemver" data-done="Copiado" data-fail="Pulsa Ctrl+C" aria-live="polite">Copiar</button>
-        </div>
-        <a class="go" href="https://github.com/IzanVil/datasemver/blob/main/README.es.md#inicio-rápido">Inicio rápido</a>
-      </div>
     </div>
-    <div class="shot-hero">
-      <a class="zoom" href="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-hero.png" target="_blank" rel="noopener"><img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-hero.png" width="2086" height="2199" fetchpriority="high"
-           alt="Terminal ejecutando datasemver diff sobre dos exportaciones pequeñas de pedidos. Un panel indica un salto sugerido MAJOR, de 1.4.2 a 2.0.0. Una tabla compara el tipo, la proporción de nulos y la cardinalidad de cada columna, una segunda tabla clasifica cinco cambios por severidad, y la entrada de changelog generada cierra la ejecución."></a>
-    </div>
-  </header>
-</div>
-<div class="ticker" aria-hidden="true">
-  <ul class="ticker-track">
-    <li class="major">column_removed</li>
-    <li class="minor">column_added</li>
-    <li class="patch">nulls_fixed</li>
-    <li class="major">type_changed_incompatible</li>
-    <li class="minor">row_count_increased</li>
-    <li class="patch">minor_stat_change</li>
-    <li class="major">column_renamed</li>
-    <li class="minor">row_count_decreased</li>
-    <li class="patch">type_changed_compatible</li>
-    <li class="major">distribution_shift</li>
-    <li class="minor">new_category_added</li>
-    <li class="major">psi_greater_than</li>
-    <li class="minor">category_removed</li>
-    <li class="major">row_count_decrease_greater_than</li>
-    <li class="minor">cardinality_changed</li>
-    <li class="major">null_ratio_increase_greater_than</li>
-    <li class="minor">nulls_introduced</li>
-    <li class="minor">rows_modified</li>
-    <li class="minor">rows_replaced</li>
-    <li class="minor">category_balance_shift</li>
+  </div>
+</header>
+
+<div class="sheet" id="sheet">
+  <ul>
+    <li><a href="#decide">Cómo decide</a></li>
+    <li><a href="#measure">Qué mide</a></li>
+    <li><a href="#formats">Formatos</a></li>
+    <li><a href="#engines">Motores</a></li>
+    <li><a href="#ways">Formas de usarlo</a></li>
+    <li><a href="#faq">Preguntas</a></li>
+    <li><a href="../" hreflang="en" lang="en">Read in English</a></li>
   </ul>
-</div>
-</div>
-
-<div class="page">
-  <dl class="facts">
-    <div><dt>Lee</dt><dd>CSV, JSON, Parquet, Feather, Excel, SQL</dd></div>
-    <div><dt>Python</dt><dd>3.10 a 3.14</dd></div>
-    <div><dt>Reglas por defecto</dt><dd><span data-count="20">20</span></dd></div>
-    <div><dt>Tests</dt><dd><span data-count="747">747</span> al 99%</dd></div>
-    <div><dt>Licencia</dt><dd>Apache 2.0</dd></div>
-  </dl>
+  <div class="actions">
+    <a class="btn" href="#install">Instalarlo</a>
+    <a class="btn btn--quiet" href="https://github.com/IzanVil/datasemver">Ver el código</a>
+  </div>
 </div>
 
-<div class="page">
+<main id="main">
 
-  <section class="reason">
-    <h2>El código tiene SemVer. <span>Los datos no.</span></h2>
-    <p>
-      Una columna eliminada, un teléfono que se convirtió en cadena, una distribución que se
-      desplazó en silencio. Todo eso rompe a quien está aguas abajo. Y todo eso suele
-      publicarse como «se actualizó el dataset».
-    </p>
-    <p>
-      DataSemver hace ese impacto explícito y revisable, para que publicar un dataset se pueda
-      discutir como se discute publicar una librería.
-    </p>
-  </section>
-
-  <section id="decide" class="band">
-    <h2>Cómo decide</h2>
-    <p class="say">
-      Cada diferencia se contrasta contra una regla, y cada regla lleva una severidad. La
-      severidad más alta encontrada se convierte en el salto, y por eso el orden de abajo es
-      el argumento entero y no una forma de agrupar tres tarjetas.
-    </p>
-
-    <div class="ladder">
-      <div class="rung major">
-        <div class="rung-head"><span class="tag">major</span><span class="next">1.4.2 &rarr; <b>2.0.0</b></span></div>
-        <div>
-          <h3>Las consultas existentes pueden romperse</h3>
-          <p>Algo de lo que ya dependen los consumidores ha desaparecido, o ahora significa otra cosa.</p>
-        </div>
-        <ul class="rules">
-          <li>column_removed</li><li>type_changed_incompatible</li>
-          <li>column_renamed</li><li>distribution_shift</li>
-          <li>psi_greater_than</li>
-        </ul>
-      </div>
-      <div class="rung minor">
-        <div class="rung-head"><span class="tag">minor</span><span class="next">1.4.2 &rarr; <b>1.5.0</b></span></div>
-        <div>
-          <h3>Información nueva, los contratos se mantienen</h3>
-          <p>Hay más de lo que había, y nada de lo que estaba se ha movido.</p>
-        </div>
-        <ul class="rules">
-          <li>column_added</li><li>row_count_increased</li>
-          <li>new_category_added</li><li>cardinality_changed</li>
-          <li>category_balance_shift</li><li>rows_modified</li>
-        </ul>
-      </div>
-      <div class="rung patch">
-        <div class="rung-head"><span class="tag">patch</span><span class="next">1.4.2 &rarr; <b>1.4.3</b></span></div>
-        <div>
-          <h3>El mismo significado, mejores datos</h3>
-          <p>El dataset dice lo que ya decía, con menos huecos o menos ruido.</p>
-        </div>
-        <ul class="rules">
-          <li>nulls_fixed</li><li>minor_stat_change</li><li>type_changed_compatible</li>
-        </ul>
-      </div>
-    </div>
-
-    <p class="after-ladder">
-      La severidad es de tu fichero de reglas, no del cambio en sí. Las reglas por defecto son
-      una opinión; a su lado viajan
-      <a href="https://github.com/IzanVil/datasemver/blob/main/examples">perfiles estricto y permisivo</a>,
-      y el <a href="https://github.com/IzanVil/datasemver/blob/main/docs/rules.md">catálogo de reglas</a>
-      (en inglés) lista cada regla, métrica y umbral. Lo que ninguna regla cubre se reporta
-      como no clasificado y nunca infla el resultado.
-    </p>
-  </section>
-
-  <section>
-    <h2>El delimitador se detecta, no se supone</h2>
-    <div class="pair stack">
-      <div>
-        <p>
-          Esta exportación separa sus campos con punto y coma mientras cada importe lleva
-          además una coma. La coma nunca llega a la cabecera, así que gana el punto y coma y el
-          fichero se carga como cinco columnas en lugar de una.
+<section class="hero" aria-labelledby="hero-h" data-enter>
+  <div class="wrap">
+    <div class="grid hero__grid">
+      <div class="hero__text">
+        <p class="hero__eyebrow" data-up style="--u: 0">
+          <span>Código abierto</span><span class="dot" aria-hidden="true"></span><span>Apache 2.0</span><span class="dot" aria-hidden="true"></span><span>v0.8.2</span>
         </p>
-        <p>
-          Se reconocen coma, punto y coma, tabulador y barra vertical. Define
-          <code>DATASEMVER_CSV_DELIMITER</code> para saltarte la detección por completo.
-        </p>
+        <h1 id="hero-h"><span class="ln" style="--l: 0"><span>Versionado semántico</span></span><span class="ln" style="--l: 1"><span>para datasets</span></span></h1>
+        <p class="lead" data-up style="--u: 1">Compara dos versiones de un dataset. DataSemver mide cada cambio con sus reglas, nombra el salto de versión que merece y escribe la entrada del changelog que explica por qué.</p>
+        <div class="actions" data-up style="--u: 2">
+          <button class="btn btn--cmd" type="button" data-copy="pip install datasemver" aria-label="Copiar el comando de instalación: pip install datasemver">
+            <span><span class="prompt">$ </span>pip install datasemver</span>
+            <svg class="when-idle" aria-hidden="true"><use href="#i-copy"/></svg><svg class="when-done" aria-hidden="true"><use href="#i-check"/></svg>
+          </button>
+          <a class="btn btn--tonal" href="#dashboard">Abrir la demo <svg class="arrow" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        </div>
+        <dl class="hero__facts" data-up style="--u: 3">
+          <dt>20 reglas</dt><dd>deciden major, minor o patch, y cada una es tuya</dd>
+          <dt>6 formatos</dt><dd>CSV, JSON, Parquet, Feather, Excel y SQL, un solo comando</dd>
+        </dl>
       </div>
-      <a class="zoom" href="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-delimiter.png" target="_blank" rel="noopener"><img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/cli-delimiter.png" width="1287" height="881" loading="lazy"
-           alt="Terminal ejecutando datasemver diff sobre dos CSV separados por punto y coma. Las columnas se dividen correctamente en id, cliente, pais, importe y estado, se reporta una columna canal añadida, y la ejecución termina con un salto MINOR de 1.4.2 a 1.5.0."></a>
-    </div>
-  </section>
-
-  <section id="reads">
-    <h2>Qué lee</h2>
-    <p class="say">
-      Un solo comando venga como venga el dataset, porque el formato rara vez es lo que se está
-      comparando. Un perfil guardado cuenta como dataset en cualquiera de los dos lados, así que
-      una comparación puede correr con la versión anterior ya desaparecida.
-    </p>
-
-    <div class="surfaces">
-      <div>
-        <h3>Texto</h3>
-        <p>CSV y TSV, comprimidos o no, con el delimitador detectado. JSON como array de objetos, y JSON Lines.</p>
-        <code>.csv .tsv .csv.gz .tsv.gz .json .jsonl .ndjson</code>
-      </div>
-      <div>
-        <h3>Arrow en disco</h3>
-        <p>Parquet y Feather declaran el tipo de cada columna, así que no se infiere nada: un código postal sigue siendo texto en vez de convertirse en un entero sin el cero inicial.</p>
-        <code>.parquet .pq .feather .arrow</code>
-      </div>
-      <div>
-        <h3>Libros de Excel</h3>
-        <p>Una hoja tras <code>#</code>, o la primera cuando no se nombra ninguna. Necesita el extra <code>excel</code>.</p>
-        <code>quarterly.xlsx#Q3</code>
-      </div>
-      <div>
-        <h3>Tablas de base de datos</h3>
-        <p>Una URL de conexión con la tabla tras <code>#</code>. La contraseña no llega nunca al informe, a los logs ni al nombre de un fichero.</p>
-        <code>sqlite:///snapshots.db#customers</code>
+      <div class="hero__media">
+        <div class="hero__panel">
+          <canvas data-grain aria-hidden="true"></canvas>
+          <img class="hero__shot" src="../img/terminal-diff.webp" srcset="../img/terminal-diff-1x.webp 833w, ../img/terminal-diff.webp 1666w" sizes="(max-width: 640px) 560px, 700px" width="833" height="1034" alt="Una terminal que ejecuta datasemver diff sobre dos versiones de un fichero de pedidos en la 1.4.2. Propone un salto MAJOR a la 2.0.0: se eliminó la columna coupon, se añadió channel, las filas pasaron de 6 a 8 y los nulos de customer bajaron a cero. Debajo, la entrada del changelog.">
+        </div>
+        <div class="float" aria-hidden="true">
+          <p class="float__top"><span class="float__label">Lo decide</span><span class="float__ver">1.4.2 <svg class="to"><use href="#i-to"/></svg> <strong>2.0.0</strong></span></p>
+          <p class="float__rule"><span>column_removed</span><span class="sev sev--major">major</span></p>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section class="band">
-    <h2>El mismo análisis en el navegador</h2>
-    <p class="say">
-      El panel es un cliente de la librería, no una copia bifurcada. Llama a la misma función y
-      pinta el mismo informe, así que los dos coinciden por construcción.
-    </p>
-    <div class="full">
-      <div class="window">
-        <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>127.0.0.1:8000</span></div>
-        <a class="zoom" href="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-verdict.png" target="_blank" rel="noopener"><picture><source media="(max-width: 620px)" srcset="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-phone.png" width="780" height="2221"><img src="https://raw.githubusercontent.com/IzanVil/datasemver/main/docs/assets/dashboard-verdict.png" width="2240" height="1256" loading="lazy"
-             alt="El panel web de DataSemver tras comparar old.csv y new.csv, dos versiones de un dataset de clientes. Una insignia roja MAJOR aparece junto a 1.4.2 a 2.0.0, una barra reparte los siete cambios en dos major, dos minor y tres patch, y unos indicadores muestran de 8 a 10 filas, de 7 a 7 columnas y 7 cambios."></picture></a>
+<section class="sec" id="dashboard" aria-labelledby="dashboard-h">
+  <div class="wrap">
+    <div class="head">
+      <div class="head__text">
+        <p class="label">Panel web</p>
+        <h2 id="dashboard-h">El mismo informe, en el navegador</h2>
       </div>
-      <p>Sube dos ficheros, o elige dos versiones de un directorio que vigile.</p>
-    </div>
-  </section>
-
-  <section id="measures">
-    <h2>Compara distribuciones, no solo esquemas</h2>
-    <p class="say">
-      Una media es un punto de una distribución, y una columna puede reconstruirse a su
-      alrededor sin moverla. Tres cambios que rompen a cualquier consumidor aguas abajo, y que
-      una comparación de esquemas y promedios reporta como nada en absoluto:
-    </p>
-
-    <div class="surfaces">
-      <div>
-        <h3>Una forma, no un centro</h3>
-        <p>La dispersión se multiplica por cuarenta y la media no se mueve. Se mide con un estadístico de Kolmogorov-Smirnov sobre una rejilla de cuantiles guardada.</p>
-        <code>std 0.998 &rarr; 39.96</code>
-      </div>
-      <div>
-        <h3>Un balance, no un conjunto</h3>
-        <p>Una etiqueta pasa de equilibrada a una entre cien con ambos valores todavía presentes, así que el conjunto de categorías no cambia. Se mide con el Population Stability Index.</p>
-        <code>'ok' 50.3% &rarr; 99.0%</code>
-      </div>
-      <div>
-        <h3>Una ventana en el tiempo</h3>
-        <p>Una columna de fecha se compara por dónde se sitúa de verdad, así que un export que se ha deslizado o que ahora cubre medio periodo es un cambio y no un silencio.</p>
-        <code>2020-01-01 &rarr; 2026-01-01</code>
+      <div class="head__side">
+        <p>Llama a la misma función que la línea de comandos, así que los dos coinciden por construcción. Este es el panel de verdad, reproduciendo una comparación grabada contra su backend.</p>
+        <a class="btn btn--quiet" href="../demo/">Abrir la demo a pantalla completa <svg class="arrow" aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
     </div>
-
-    <p class="after-ladder">
-      Ambas se pesan contra lo que la muestra puede sostener. Un estadístico KS no tiene una
-      lectura fija: con cuatro filas contra cinco, añadir una sola mueve la distribución un
-      quinto, así que un desplazamiento tiene que superar el valor crítico para esos tamaños
-      además del umbral configurado. Con un puñado de filas no se reporta nada, porque no hay
-      nada que reportar. Y con <code>--key</code> las filas se emparejan en lugar de resumirse:
-      una versión donde se ha reescrito un tercio de ellas con valores de la misma distribución
-      tiene el mismo perfil que la anterior, y es un dataset distinto para quien haga un join.
-    </p>
-  </section>
-
-  <section id="engines">
-    <h2>Perfila un fichero mayor que la memoria</h2>
-    <p class="say">
-      El motor por defecto carga el dataset en un dataframe, que es lo más rápido hasta que el
-      dataset deja de caber. <code>--engine duckdb</code> agrega sobre el fichero en su lugar, y
-      <code>duckdb-sketch</code> estima la rejilla de cuantiles en vez de calcularla &mdash; el
-      único número que cuesta una pasada entera.
-    </p>
-
-    <div class="scroll-x" tabindex="0" role="region" aria-label="Comparativa de motores">
-      <table class="bench">
-        <thead>
-          <tr>
-            <th scope="col">Motor</th>
-            <th scope="col">Parquet, 380 MB</th>
-            <th scope="col">CSV, 1,21 GB</th>
-            <th scope="col">Responde</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th scope="row">pandas</th>
-            <td>21,4 s &middot; 3190 MB</td>
-            <td>49,9 s &middot; 3311 MB</td>
-            <td class="note">la referencia</td>
-          </tr>
-          <tr>
-            <th scope="row">duckdb</th>
-            <td>16,1 s &middot; 1736 MB</td>
-            <td>20,9 s &middot; 2856 MB</td>
-            <td class="note">idéntico, hasta el redondeo del float</td>
-          </tr>
-          <tr>
-            <th scope="row">duckdb-sketch</th>
-            <td>3,1 s &middot; 1246 MB</td>
-            <td>7,9 s &middot; 1952 MB</td>
-            <td class="note">rejilla de cuantiles estimada</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="app">
+      <div class="app__bar" aria-hidden="true">
+        <span class="app__url"><svg><use href="#i-lock"/></svg>127.0.0.1:8000</span>
+        <span class="app__note">Reproduce una ejecución grabada</span>
+      </div>
+      <iframe src="../demo/?embed" title="El panel de DataSemver, reproduciendo una comparación grabada (en inglés)" loading="lazy"></iframe>
     </div>
+  </div>
+</section>
 
-    <p class="after-ladder">
-      Medido sobre 16 millones de filas y siete columnas, en pico de memoria residente del
-      proceso. El sketch es un motor con nombre propio y no un atajo automático, porque deja de
-      interpolar entre valores en entradas pequeñas: sobre ocho filas responde 1 donde el otro
-      camino responde 1,35, así que diverge más justo donde el resultado es más fácil de
-      comprobar a mano. Fija <code>DATASEMVER_DUCKDB_MEMORY_LIMIT</code> y el techo es tuyo; lo
-      que no quepa se vuelca a disco en lugar de fallar.
-    </p>
+<section class="sec" id="decide" aria-labelledby="decide-h">
+  <div class="wrap grid decide">
+    <div class="decide__text">
+      <p class="label">Cómo decide</p>
+      <h2 id="decide-h">El cambio más fuerte fija la versión</h2>
+      <p>Cada diferencia se compara con una regla, y cada regla lleva una severidad. La más alta que aparezca se convierte en el salto; las demás llegan igualmente al changelog.</p>
+      <p>La severidad vive en tu fichero de reglas, con perfiles estricto y permisivo junto a los de serie. Un cambio que ninguna regla cubre sale como no clasificado y nunca sube el salto.</p>
+      <a class="link-row" href="https://github.com/IzanVil/datasemver/blob/main/docs/rules.md">Leer el catálogo de reglas <svg class="arrow" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="lanes" data-loop role="group" aria-label="La comparación de la terminal de arriba, pasando por las reglas">
+      <div class="node">
+        <p class="node__label">Dos versiones</p>
+        <p class="node__body">orders_v1.csv<br>orders_v2.csv<br>en la 1.4.2</p>
+      </div>
+      <div class="wire" aria-hidden="true"></div>
+      <div class="node node--core">
+        <p class="node__label">Reglas</p>
+        <strong>20</strong>
+        <p class="node__body">5 coinciden</p>
+      </div>
+      <svg class="fan" viewBox="0 0 100 300" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 150 C 50 150, 50 50, 100 50"/>
+        <path d="M0 150 L 100 150"/>
+        <path d="M0 150 C 50 150, 50 250, 100 250"/>
+        <path class="pulse" d="M0 150 C 50 150, 50 50, 100 50"/>
+        <path class="pulse" d="M0 150 L 100 150"/>
+        <path class="pulse" d="M0 150 C 50 150, 50 250, 100 250"/>
+      </svg>
+      <ul class="lane-list">
+        <li class="lane lane--win">
+          <span class="sev sev--major">major</span>
+          <span class="lane__ver">1.4.2 <svg class="to" aria-hidden="true"><use href="#i-to"/></svg><span class="sr">a</span> <b>2.0.0</b></span>
+          <span class="lane__rules">column_removed</span>
+        </li>
+        <li class="lane">
+          <span class="sev sev--minor">minor</span>
+          <span class="lane__ver">1.4.2 <svg class="to" aria-hidden="true"><use href="#i-to"/></svg><span class="sr">a</span> <b>1.5.0</b></span>
+          <span class="lane__rules">column_added, row_count_increased</span>
+        </li>
+        <li class="lane">
+          <span class="sev sev--patch">patch</span>
+          <span class="lane__ver">1.4.2 <svg class="to" aria-hidden="true"><use href="#i-to"/></svg><span class="sr">a</span> <b>1.4.3</b></span>
+          <span class="lane__rules">nulls_fixed, minor_stat_change</span>
+        </li>
+      </ul>
+      <p class="lanes__verdict"><span>Gana la severidad más alta</span><strong>propone <b>2.0.0</b></strong></p>
+    </div>
+  </div>
+</section>
 
-<pre><b># la mitad de memoria, las mismas respuestas</b>
-datasemver diff old.parquet new.parquet <i>--engine</i> duckdb
+<section class="sec" id="measure" aria-labelledby="measure-h">
+  <div class="wrap">
+    <div class="head">
+      <div class="head__text">
+        <p class="label">Qué mide</p>
+        <h2 id="measure-h">Distribuciones, no solo esquemas</h2>
+      </div>
+      <div class="head__side">
+        <p>Una columna puede reconstruirse alrededor de su media sin moverla. Estos cambios rompen a todo el que va detrás, y una comparación de esquemas y medias no ve ninguno.</p>
+      </div>
+    </div>
+    <div class="tour">
+      <div class="tabs" role="tablist" aria-label="Cambios que mide">
+        <span class="tabs__ink" aria-hidden="true"></span>
+        <button class="tab" role="tab" id="tab-shape" aria-controls="panel-shape" aria-selected="true">Una forma</button>
+        <button class="tab" role="tab" id="tab-balance" aria-controls="panel-balance" aria-selected="false" tabindex="-1">Un reparto</button>
+        <button class="tab" role="tab" id="tab-time" aria-controls="panel-time" aria-selected="false" tabindex="-1">Una ventana de tiempo</button>
+        <button class="tab" role="tab" id="tab-rows" aria-controls="panel-rows" aria-selected="false" tabindex="-1">Filas, por clave</button>
+      </div>
+      <div class="panel" role="tabpanel" id="panel-shape" aria-labelledby="tab-shape">
+        <div class="panel__text">
+          <h3>La dispersión crece cuarenta veces y la media no se mueve</h3>
+          <p>Se mide con un estadístico de Kolmogórov-Smirnov sobre una rejilla de cuantiles que guarda el perfil, así que el fichero antiguo no tiene por qué estar.</p>
+          <div class="chips"><span class="chip chip--rule">distribution_shift <span class="sev sev--major">major</span></span></div>
+        </div>
+        <figure class="panel__fig"><svg viewBox="0 0 560 280" role="img" aria-labelledby="fig-shape-t">
+            <title id="fig-shape-t">Dos distribuciones con la misma media: la versión uno, un pico estrecho con desviación típica 0,998; la dos, extendida con 39,96.</title>
+            <line class="fig-axis" x1="20" y1="236" x2="540" y2="236"/>
+            <path class="fig-new" d="M20.0 235.4 L22.0 235.4 L24.0 235.3 L26.0 235.3 L28.0 235.2 L30.0 235.2 L32.0 235.1 L34.0 235.0 L36.0 234.9 L38.0 234.9 L40.0 234.8 L42.0 234.7 L44.0 234.6 L46.0 234.5 L48.0 234.3 L50.0 234.2 L52.0 234.1 L54.0 233.9 L56.0 233.8 L58.0 233.6 L60.0 233.5 L62.0 233.3 L64.0 233.1 L66.0 232.9 L68.0 232.7 L70.0 232.5 L72.0 232.2 L74.0 232.0 L76.0 231.7 L78.0 231.4 L80.0 231.1 L82.0 230.8 L84.0 230.5 L86.0 230.1 L88.0 229.7 L90.0 229.4 L92.0 229.0 L94.0 228.5 L96.0 228.1 L98.0 227.6 L100.0 227.1 L102.0 226.6 L104.0 226.1 L106.0 225.5 L108.0 224.9 L110.0 224.3 L112.0 223.7 L114.0 223.0 L116.0 222.4 L118.0 221.6 L120.0 220.9 L122.0 220.1 L124.0 219.3 L126.0 218.5 L128.0 217.6 L130.0 216.8 L132.0 215.8 L134.0 214.9 L136.0 213.9 L138.0 212.9 L140.0 211.9 L142.0 210.8 L144.0 209.7 L146.0 208.5 L148.0 207.4 L150.0 206.2 L152.0 204.9 L154.0 203.7 L156.0 202.4 L158.0 201.1 L160.0 199.7 L162.0 198.3 L164.0 196.9 L166.0 195.5 L168.0 194.0 L170.0 192.6 L172.0 191.1 L174.0 189.5 L176.0 188.0 L178.0 186.4 L180.0 184.8 L182.0 183.2 L184.0 181.6 L186.0 179.9 L188.0 178.3 L190.0 176.6 L192.0 174.9 L194.0 173.2 L196.0 171.5 L198.0 169.8 L200.0 168.1 L202.0 166.4 L204.0 164.7 L206.0 163.0 L208.0 161.4 L210.0 159.7 L212.0 158.0 L214.0 156.4 L216.0 154.7 L218.0 153.1 L220.0 151.5 L222.0 149.9 L224.0 148.4 L226.0 146.9 L228.0 145.4 L230.0 143.9 L232.0 142.5 L234.0 141.1 L236.0 139.8 L238.0 138.4 L240.0 137.2 L242.0 136.0 L244.0 134.8 L246.0 133.7 L248.0 132.6 L250.0 131.6 L252.0 130.7 L254.0 129.8 L256.0 128.9 L258.0 128.2 L260.0 127.5 L262.0 126.8 L264.0 126.2 L266.0 125.7 L268.0 125.3 L270.0 124.9 L272.0 124.6 L274.0 124.3 L276.0 124.1 L278.0 124.0 L280.0 124.0 L282.0 124.0 L284.0 124.1 L286.0 124.3 L288.0 124.6 L290.0 124.9 L292.0 125.3 L294.0 125.7 L296.0 126.2 L298.0 126.8 L300.0 127.5 L302.0 128.2 L304.0 128.9 L306.0 129.8 L308.0 130.7 L310.0 131.6 L312.0 132.6 L314.0 133.7 L316.0 134.8 L318.0 136.0 L320.0 137.2 L322.0 138.4 L324.0 139.8 L326.0 141.1 L328.0 142.5 L330.0 143.9 L332.0 145.4 L334.0 146.9 L336.0 148.4 L338.0 149.9 L340.0 151.5 L342.0 153.1 L344.0 154.7 L346.0 156.4 L348.0 158.0 L350.0 159.7 L352.0 161.4 L354.0 163.0 L356.0 164.7 L358.0 166.4 L360.0 168.1 L362.0 169.8 L364.0 171.5 L366.0 173.2 L368.0 174.9 L370.0 176.6 L372.0 178.3 L374.0 179.9 L376.0 181.6 L378.0 183.2 L380.0 184.8 L382.0 186.4 L384.0 188.0 L386.0 189.5 L388.0 191.1 L390.0 192.6 L392.0 194.0 L394.0 195.5 L396.0 196.9 L398.0 198.3 L400.0 199.7 L402.0 201.1 L404.0 202.4 L406.0 203.7 L408.0 204.9 L410.0 206.2 L412.0 207.4 L414.0 208.5 L416.0 209.7 L418.0 210.8 L420.0 211.9 L422.0 212.9 L424.0 213.9 L426.0 214.9 L428.0 215.8 L430.0 216.8 L432.0 217.6 L434.0 218.5 L436.0 219.3 L438.0 220.1 L440.0 220.9 L442.0 221.6 L444.0 222.4 L446.0 223.0 L448.0 223.7 L450.0 224.3 L452.0 224.9 L454.0 225.5 L456.0 226.1 L458.0 226.6 L460.0 227.1 L462.0 227.6 L464.0 228.1 L466.0 228.5 L468.0 229.0 L470.0 229.4 L472.0 229.7 L474.0 230.1 L476.0 230.5 L478.0 230.8 L480.0 231.1 L482.0 231.4 L484.0 231.7 L486.0 232.0 L488.0 232.2 L490.0 232.5 L492.0 232.7 L494.0 232.9 L496.0 233.1 L498.0 233.3 L500.0 233.5 L502.0 233.6 L504.0 233.8 L506.0 233.9 L508.0 234.1 L510.0 234.2 L512.0 234.3 L514.0 234.5 L516.0 234.6 L518.0 234.7 L520.0 234.8 L522.0 234.9 L524.0 234.9 L526.0 235.0 L528.0 235.1 L530.0 235.2 L532.0 235.2 L534.0 235.3 L536.0 235.3 L538.0 235.4 L540.0 235.4 L540 236 L20 236 Z"/>
+            <path class="fig-old" d="M20.0 236.0 L270.0 236.0 L270.2 236.0 L270.4 236.0 L270.5 236.0 L270.7 236.0 L270.9 236.0 L271.0 236.0 L271.2 236.0 L271.4 236.0 L271.5 236.0 L271.7 236.0 L271.8 236.0 L272.0 235.9 L272.2 235.9 L272.3 235.9 L272.5 235.8 L272.7 235.8 L272.8 235.7 L273.0 235.6 L273.2 235.4 L273.3 235.2 L273.5 235.0 L273.7 234.7 L273.8 234.3 L274.0 233.8 L274.2 233.2 L274.3 232.5 L274.5 231.5 L274.7 230.4 L274.8 229.0 L275.0 227.4 L275.2 225.4 L275.3 223.1 L275.5 220.4 L275.7 217.3 L275.8 213.6 L276.0 209.5 L276.2 204.8 L276.3 199.5 L276.5 193.6 L276.7 187.1 L276.8 180.0 L277.0 172.4 L277.2 164.1 L277.3 155.4 L277.5 146.3 L277.7 136.8 L277.8 127.0 L278.0 117.1 L278.2 107.2 L278.3 97.5 L278.5 88.1 L278.7 79.1 L278.8 70.7 L279.0 63.0 L279.2 56.3 L279.3 50.6 L279.5 46.0 L279.7 42.7 L279.8 40.7 L280.0 40.0 L280.2 40.7 L280.3 42.7 L280.5 46.0 L280.7 50.6 L280.8 56.3 L281.0 63.0 L281.2 70.7 L281.3 79.1 L281.5 88.1 L281.7 97.5 L281.8 107.2 L282.0 117.1 L282.2 127.0 L282.3 136.8 L282.5 146.3 L282.7 155.4 L282.8 164.1 L283.0 172.4 L283.2 180.0 L283.3 187.1 L283.5 193.6 L283.7 199.5 L283.8 204.8 L284.0 209.5 L284.2 213.6 L284.3 217.3 L284.5 220.4 L284.7 223.1 L284.8 225.4 L285.0 227.4 L285.2 229.0 L285.3 230.4 L285.5 231.5 L285.7 232.5 L285.8 233.2 L286.0 233.8 L286.2 234.3 L286.3 234.7 L286.5 235.0 L286.7 235.2 L286.8 235.4 L287.0 235.6 L287.2 235.7 L287.3 235.8 L287.5 235.8 L287.7 235.9 L287.8 235.9 L288.0 235.9 L288.2 236.0 L288.3 236.0 L288.5 236.0 L288.6 236.0 L288.8 236.0 L289.0 236.0 L289.1 236.0 L289.3 236.0 L289.5 236.0 L289.6 236.0 L289.8 236.0 L290.0 236.0 L540.0 236.0"/>
+            <line class="fig-mean" x1="280" y1="236" x2="280" y2="20"/>
+            <text class="fig-text" x="290" y="34">v1 · std 0.998</text>
+            <text class="fig-text fig-text--ink" x="372" y="144">v2 · std 39.96</text>
+            <text class="fig-text" x="280" y="262" text-anchor="middle">la media, igual</text>
+          </svg></figure>
+      </div>
+      <div class="panel" role="tabpanel" id="panel-balance" aria-labelledby="tab-balance" hidden>
+        <div class="panel__text">
+          <h3>Las dos etiquetas siguen ahí, en otra proporción</h3>
+          <p>El conjunto de categorías no cambia, así que contar valores distintos no ve nada. Se mide con el índice de estabilidad de la población (PSI).</p>
+          <div class="chips"><span class="chip chip--rule">psi_greater_than: 0.25 <span class="sev sev--major">major</span></span></div>
+        </div>
+        <figure class="panel__fig"><svg viewBox="0 0 560 230" role="img" aria-labelledby="fig-balance-t">
+            <title id="fig-balance-t">La proporción de la etiqueta ok pasa del 50,3 al 99,0 por ciento, y ko del 49,7 al 1,0, con las dos etiquetas aún presentes.</title>
+            <text class="fig-text" x="0" y="66">v1</text><rect class="fig-bar-old" x="92" y="40" width="225.3" height="40" rx="4"/><rect class="fig-bar-old-2" x="320.3" y="40" width="219.7" height="40" rx="4"/>
+            <text class="fig-text fig-text--ink" x="106" y="66">ok 50.3%</text>
+            <text class="fig-text" x="334.3" y="66">ko 49.7%</text>
+            <text class="fig-text" x="0" y="166">v2</text><rect class="fig-bar-new" x="92" y="140" width="443.5" height="40" rx="4"/><rect class="fig-bar-new-2" x="538.5" y="140" width="2.0" height="40" rx="4"/>
+            <text class="fig-text" x="106" y="166" style="fill: var(--accent-ink)">ok 99.0%</text>
+            <text class="fig-text" x="540" y="206" text-anchor="end">ko 1.0%</text>
+          </svg></figure>
+      </div>
+      <div class="panel" role="tabpanel" id="panel-time" aria-labelledby="tab-time" hidden>
+        <div class="panel__text">
+          <h3>Los mismos mil días, seis años después</h3>
+          <p>Una columna de fechas se compara por dónde cae de verdad, así que un export que se desplazó, o que ahora cubre la mitad del periodo, es un cambio y no un silencio.</p>
+          <div class="chips"><span class="chip chip--rule">distribution_shift <span class="sev sev--major">major</span></span></div>
+        </div>
+        <figure class="panel__fig"><svg viewBox="0 0 560 210" role="img" aria-labelledby="fig-time-t">
+            <title id="fig-time-t">La versión uno cubre mil días desde enero de 2020; la dos, los mismos mil días desde enero de 2026.</title>
+            <line class="fig-grid" x1="92.0" y1="16" x2="92.0" y2="176"/><text class="fig-text" x="92.0" y="200" text-anchor="middle">2020</text><line class="fig-grid" x1="181.6" y1="16" x2="181.6" y2="176"/><text class="fig-text" x="181.6" y="200" text-anchor="middle">22</text><line class="fig-grid" x1="271.2" y1="16" x2="271.2" y2="176"/><text class="fig-text" x="271.2" y="200" text-anchor="middle">24</text><line class="fig-grid" x1="360.8" y1="16" x2="360.8" y2="176"/><text class="fig-text" x="360.8" y="200" text-anchor="middle">2026</text><line class="fig-grid" x1="450.4" y1="16" x2="450.4" y2="176"/><text class="fig-text" x="450.4" y="200" text-anchor="middle">28</text><line class="fig-grid" x1="540.0" y1="16" x2="540.0" y2="176"/><text class="fig-text" x="540.0" y="200" text-anchor="middle">30</text>
+            <text class="fig-text" x="0" y="66">v1</text>
+            <rect class="fig-bar-old" x="92.0" y="40" width="122.5" height="40" rx="4"/>
+            <text class="fig-text" x="0" y="136">v2</text>
+            <rect class="fig-bar-new" x="360.8" y="110" width="122.5" height="40" rx="4"/>
+          </svg></figure>
+      </div>
+      <div class="panel" role="tabpanel" id="panel-rows" aria-labelledby="tab-rows" hidden>
+        <div class="panel__text">
+          <h3>Un tercio de las filas reescrito, el perfil casi quieto</h3>
+          <p>Con <code>--key</code>, las filas se emparejan en vez de resumirse. Valores sacados de la misma distribución mantienen la forma de la columna, y son otro dataset para quien hace joins contra él.</p>
+          <div class="chips"><span class="chip chip--rule">rows_modified <span class="sev sev--minor">minor</span></span></div>
+        </div>
+        <figure class="panel__fig"><svg viewBox="0 0 560 230" role="img" aria-labelledby="fig-rows-t">
+            <title id="fig-rows-t">Trescientas filas emparejadas por id, cien de ellas reescritas.</title>
+            <path class="fig-cell" d="M28 10h14v14h-14zM100 10h14v14h-14zM118 10h14v14h-14zM154 10h14v14h-14zM172 10h14v14h-14zM190 10h14v14h-14zM208 10h14v14h-14zM226 10h14v14h-14zM262 10h14v14h-14zM298 10h14v14h-14zM352 10h14v14h-14zM370 10h14v14h-14zM424 10h14v14h-14zM442 10h14v14h-14zM478 10h14v14h-14zM514 10h14v14h-14zM532 10h14v14h-14zM28 28h14v14h-14zM64 28h14v14h-14zM100 28h14v14h-14zM118 28h14v14h-14zM136 28h14v14h-14zM154 28h14v14h-14zM172 28h14v14h-14zM190 28h14v14h-14zM208 28h14v14h-14zM262 28h14v14h-14zM316 28h14v14h-14zM352 28h14v14h-14zM388 28h14v14h-14zM406 28h14v14h-14zM460 28h14v14h-14zM478 28h14v14h-14zM496 28h14v14h-14zM514 28h14v14h-14zM532 28h14v14h-14zM10 46h14v14h-14zM28 46h14v14h-14zM46 46h14v14h-14zM82 46h14v14h-14zM100 46h14v14h-14zM118 46h14v14h-14zM136 46h14v14h-14zM154 46h14v14h-14zM190 46h14v14h-14zM208 46h14v14h-14zM280 46h14v14h-14zM298 46h14v14h-14zM316 46h14v14h-14zM334 46h14v14h-14zM388 46h14v14h-14zM406 46h14v14h-14zM424 46h14v14h-14zM442 46h14v14h-14zM496 46h14v14h-14zM514 46h14v14h-14zM532 46h14v14h-14zM10 64h14v14h-14zM28 64h14v14h-14zM46 64h14v14h-14zM64 64h14v14h-14zM172 64h14v14h-14zM244 64h14v14h-14zM280 64h14v14h-14zM298 64h14v14h-14zM334 64h14v14h-14zM352 64h14v14h-14zM370 64h14v14h-14zM388 64h14v14h-14zM406 64h14v14h-14zM424 64h14v14h-14zM460 64h14v14h-14zM478 64h14v14h-14zM514 64h14v14h-14zM28 82h14v14h-14zM46 82h14v14h-14zM100 82h14v14h-14zM118 82h14v14h-14zM136 82h14v14h-14zM154 82h14v14h-14zM172 82h14v14h-14zM226 82h14v14h-14zM244 82h14v14h-14zM262 82h14v14h-14zM280 82h14v14h-14zM298 82h14v14h-14zM316 82h14v14h-14zM334 82h14v14h-14zM352 82h14v14h-14zM370 82h14v14h-14zM388 82h14v14h-14zM460 82h14v14h-14zM478 82h14v14h-14zM496 82h14v14h-14zM514 82h14v14h-14zM532 82h14v14h-14zM28 100h14v14h-14zM46 100h14v14h-14zM64 100h14v14h-14zM82 100h14v14h-14zM118 100h14v14h-14zM136 100h14v14h-14zM154 100h14v14h-14zM172 100h14v14h-14zM190 100h14v14h-14zM226 100h14v14h-14zM244 100h14v14h-14zM262 100h14v14h-14zM280 100h14v14h-14zM298 100h14v14h-14zM334 100h14v14h-14zM352 100h14v14h-14zM370 100h14v14h-14zM388 100h14v14h-14zM424 100h14v14h-14zM478 100h14v14h-14zM496 100h14v14h-14zM514 100h14v14h-14zM532 100h14v14h-14zM46 118h14v14h-14zM64 118h14v14h-14zM82 118h14v14h-14zM100 118h14v14h-14zM118 118h14v14h-14zM136 118h14v14h-14zM154 118h14v14h-14zM172 118h14v14h-14zM190 118h14v14h-14zM208 118h14v14h-14zM226 118h14v14h-14zM244 118h14v14h-14zM280 118h14v14h-14zM316 118h14v14h-14zM334 118h14v14h-14zM370 118h14v14h-14zM388 118h14v14h-14zM424 118h14v14h-14zM460 118h14v14h-14zM478 118h14v14h-14zM496 118h14v14h-14zM532 118h14v14h-14zM10 136h14v14h-14zM28 136h14v14h-14zM46 136h14v14h-14zM64 136h14v14h-14zM82 136h14v14h-14zM100 136h14v14h-14zM136 136h14v14h-14zM154 136h14v14h-14zM172 136h14v14h-14zM190 136h14v14h-14zM208 136h14v14h-14zM226 136h14v14h-14zM244 136h14v14h-14zM262 136h14v14h-14zM298 136h14v14h-14zM316 136h14v14h-14zM352 136h14v14h-14zM370 136h14v14h-14zM406 136h14v14h-14zM460 136h14v14h-14zM478 136h14v14h-14zM532 136h14v14h-14zM10 154h14v14h-14zM28 154h14v14h-14zM46 154h14v14h-14zM82 154h14v14h-14zM118 154h14v14h-14zM136 154h14v14h-14zM172 154h14v14h-14zM226 154h14v14h-14zM244 154h14v14h-14zM262 154h14v14h-14zM316 154h14v14h-14zM334 154h14v14h-14zM352 154h14v14h-14zM388 154h14v14h-14zM442 154h14v14h-14zM496 154h14v14h-14zM514 154h14v14h-14zM532 154h14v14h-14zM28 172h14v14h-14zM64 172h14v14h-14zM82 172h14v14h-14zM136 172h14v14h-14zM154 172h14v14h-14zM190 172h14v14h-14zM208 172h14v14h-14zM226 172h14v14h-14zM244 172h14v14h-14zM280 172h14v14h-14zM316 172h14v14h-14zM334 172h14v14h-14zM370 172h14v14h-14zM388 172h14v14h-14zM406 172h14v14h-14zM424 172h14v14h-14zM460 172h14v14h-14zM496 172h14v14h-14zM514 172h14v14h-14z"/>
+            <path class="fig-cell fig-cell--hit" d="M10 10h14v14h-14zM46 10h14v14h-14zM64 10h14v14h-14zM82 10h14v14h-14zM136 10h14v14h-14zM244 10h14v14h-14zM280 10h14v14h-14zM316 10h14v14h-14zM334 10h14v14h-14zM388 10h14v14h-14zM406 10h14v14h-14zM460 10h14v14h-14zM496 10h14v14h-14zM10 28h14v14h-14zM46 28h14v14h-14zM82 28h14v14h-14zM226 28h14v14h-14zM244 28h14v14h-14zM280 28h14v14h-14zM298 28h14v14h-14zM334 28h14v14h-14zM370 28h14v14h-14zM424 28h14v14h-14zM442 28h14v14h-14zM64 46h14v14h-14zM172 46h14v14h-14zM226 46h14v14h-14zM244 46h14v14h-14zM262 46h14v14h-14zM352 46h14v14h-14zM370 46h14v14h-14zM460 46h14v14h-14zM478 46h14v14h-14zM82 64h14v14h-14zM100 64h14v14h-14zM118 64h14v14h-14zM136 64h14v14h-14zM154 64h14v14h-14zM190 64h14v14h-14zM208 64h14v14h-14zM226 64h14v14h-14zM262 64h14v14h-14zM316 64h14v14h-14zM442 64h14v14h-14zM496 64h14v14h-14zM532 64h14v14h-14zM10 82h14v14h-14zM64 82h14v14h-14zM82 82h14v14h-14zM190 82h14v14h-14zM208 82h14v14h-14zM406 82h14v14h-14zM424 82h14v14h-14zM442 82h14v14h-14zM10 100h14v14h-14zM100 100h14v14h-14zM208 100h14v14h-14zM316 100h14v14h-14zM406 100h14v14h-14zM442 100h14v14h-14zM460 100h14v14h-14zM10 118h14v14h-14zM28 118h14v14h-14zM262 118h14v14h-14zM298 118h14v14h-14zM352 118h14v14h-14zM406 118h14v14h-14zM442 118h14v14h-14zM514 118h14v14h-14zM118 136h14v14h-14zM280 136h14v14h-14zM334 136h14v14h-14zM388 136h14v14h-14zM424 136h14v14h-14zM442 136h14v14h-14zM496 136h14v14h-14zM514 136h14v14h-14zM64 154h14v14h-14zM100 154h14v14h-14zM154 154h14v14h-14zM190 154h14v14h-14zM208 154h14v14h-14zM280 154h14v14h-14zM298 154h14v14h-14zM370 154h14v14h-14zM406 154h14v14h-14zM424 154h14v14h-14zM460 154h14v14h-14zM478 154h14v14h-14zM10 172h14v14h-14zM46 172h14v14h-14zM100 172h14v14h-14zM118 172h14v14h-14zM172 172h14v14h-14zM262 172h14v14h-14zM298 172h14v14h-14zM352 172h14v14h-14zM442 172h14v14h-14zM478 172h14v14h-14zM532 172h14v14h-14z"/>
+            <text class="fig-text" x="10" y="218">300 filas emparejadas por id · 100 reescritas</text>
+          </svg></figure>
+      </div>
+    </div>
+    <p class="measure-note">Cada desplazamiento se pesa contra lo que la muestra puede sostener: tiene que superar el valor crítico para esos tamaños además de tu umbral. Con un puñado de filas no se informa de nada, porque no hay nada que informar.</p>
+  </div>
+</section>
 
-<b># un tercio más, con la rejilla de cuantiles estimada</b>
-datasemver profile huge.csv <i>--engine</i> duckdb-sketch</pre>
-  </section>
+<section class="sec" id="formats" aria-labelledby="formats-h">
+  <div class="wrap">
+    <div class="head">
+      <div class="head__text">
+        <p class="label">Formatos</p>
+        <h2 id="formats-h">Un comando, llegue como llegue el dato</h2>
+      </div>
+      <div class="head__side">
+        <p>El formato rara vez es lo que se compara. Un perfil guardado cuenta como dataset en cualquiera de los dos lados, así que se puede comparar con la versión anterior ya desaparecida.</p>
+      </div>
+    </div>
+  </div>
+  <div class="marquee-wrap" data-marquee>
+    <div class="marquee">
+      <div class="marquee__track">
+        <ul class="marquee__group">
+          <li>.csv</li><li>.parquet</li><li>.json</li><li>.feather</li><li>.xlsx</li><li>sqlite://</li><li>.tsv.gz</li><li>.jsonl</li><li>.arrow</li><li>postgresql://</li><li>.ndjson</li><li>mysql://</li><li>.csv.gz</li><li>.profile.json</li>
+        </ul>
+        <ul class="marquee__group" aria-hidden="true">
+          <li>.csv</li><li>.parquet</li><li>.json</li><li>.feather</li><li>.xlsx</li><li>sqlite://</li><li>.tsv.gz</li><li>.jsonl</li><li>.arrow</li><li>postgresql://</li><li>.ndjson</li><li>mysql://</li><li>.csv.gz</li><li>.profile.json</li>
+        </ul>
+      </div>
+    </div>
+    <button class="pause" type="button" aria-pressed="false" aria-label="Pausar la lista de formatos en movimiento" data-pause>
+      <svg class="bars-icon" aria-hidden="true"><use href="#i-pause"/></svg><svg class="play" aria-hidden="true"><use href="#i-play"/></svg>
+    </button>
+  </div>
+  <div class="wrap">
+    <div class="cards">
+      <article class="card">
+        <p class="card__kicker">Texto</p>
+        <h3>El separador se detecta, no se supone</h3>
+        <p>CSV y TSV, comprimidos o no, con el separador sacado de la cabecera: coma, punto y coma, tabulador o barra. JSON en arrays y JSON Lines.</p>
+        <p class="code-line"><code>ventas.csv</code> <code>events.jsonl</code></p>
+      </article>
+      <article class="card">
+        <p class="card__kicker">Arrow en disco</p>
+        <h3>Tipos leídos, nunca adivinados</h3>
+        <p>Parquet y Feather declaran el tipo de cada columna, así que un código postal sigue siendo texto y conserva su cero inicial.</p>
+        <p class="code-line"><code>.parquet</code> <code>.feather</code> <code>.arrow</code></p>
+      </article>
+      <article class="card">
+        <p class="card__kicker">Libros de Excel</p>
+        <h3>Una hoja por su nombre</h3>
+        <p>La hoja después de <code>#</code>, o la primera si no se nombra ninguna. Necesita el extra <code>excel</code>.</p>
+        <p class="code-line"><code>trimestral.xlsx#T3</code></p>
+      </article>
+      <article class="card">
+        <p class="card__kicker">Bases de datos</p>
+        <h3>Una tabla por URL</h3>
+        <p>Una URL de conexión con la tabla después de <code>#</code>. La contraseña nunca llega al informe, a los logs ni a un nombre de fichero.</p>
+        <p class="code-line"><code>sqlite:///app.db#customers</code></p>
+      </article>
+    </div>
+  </div>
+</section>
 
-  <section id="profiles">
-    <h2>El perfil sobrevive a los datos</h2>
-    <p class="say">
-      Una comparación lee un perfil: las columnas, sus tipos, sus ratios de nulos, una rejilla
-      de cuantiles y los conteos por categoría. Es lo bastante pequeño para guardarlo junto al
-      dataset, y entonces la versión anterior no hay que descargarla nunca &mdash; ni que exista.
-    </p>
+<section class="sec" id="engines" aria-labelledby="engines-h">
+  <div class="wrap">
+    <div class="head">
+      <div class="head__text">
+        <p class="label">Motores</p>
+        <h2 id="engines-h">Perfila un fichero mayor que la memoria</h2>
+      </div>
+      <div class="head__side">
+        <p>El motor por defecto carga un dataframe. <code>--engine duckdb</code> agrega sobre el fichero, y <code>duckdb-sketch</code> además estima la rejilla de cuantiles, el único número que cuesta una pasada completa.</p>
+      </div>
+    </div>
+    <div class="bento">
+      <article class="card" data-chart>
+        <div class="card__top">
+          <h3>16 millones de filas, siete columnas</h3>
+          <div class="seg" role="group" aria-label="Medida">
+            <button type="button" aria-pressed="true" data-metric="time">Tiempo</button>
+            <button type="button" aria-pressed="false" data-metric="memory">Memoria máxima</button>
+          </div>
+        </div>
+        <div class="chart">
+          <div class="chart__group">
+            <p>Parquet, 380 MB</p>
+            <div class="bar"><span class="bar__name">pandas</span><span class="bar__track"><span class="bar__fill" data-time="21.4" data-memory="3190"></span><span class="bar__value">21,4 s</span></span></div>
+            <div class="bar bar--duck"><span class="bar__name">duckdb</span><span class="bar__track"><span class="bar__fill" data-time="16.1" data-memory="1736"></span><span class="bar__value">16,1 s</span></span></div>
+            <div class="bar bar--sketch"><span class="bar__name">duckdb-sketch</span><span class="bar__track"><span class="bar__fill" data-time="3.1" data-memory="1246"></span><span class="bar__value">3,1 s</span></span></div>
+          </div>
+          <div class="chart__group">
+            <p>CSV, 1,21 GB</p>
+            <div class="bar"><span class="bar__name">pandas</span><span class="bar__track"><span class="bar__fill" data-time="49.9" data-memory="3311"></span><span class="bar__value">49,9 s</span></span></div>
+            <div class="bar bar--duck"><span class="bar__name">duckdb</span><span class="bar__track"><span class="bar__fill" data-time="20.9" data-memory="2856"></span><span class="bar__value">20,9 s</span></span></div>
+            <div class="bar bar--sketch"><span class="bar__name">duckdb-sketch</span><span class="bar__track"><span class="bar__fill" data-time="7.9" data-memory="1952"></span><span class="bar__value">7,9 s</span></span></div>
+          </div>
+        </div>
+        <p class="fine">Tiempo real y memoria residente máxima de todo el proceso, perfilando el mismo fichero con cada motor.</p>
+      </article>
+      <article class="card">
+        <h3>El mismo informe, salvo redondeo</h3>
+        <p>duckdb responde lo mismo que pandas. El sketch tiene nombre propio y nunca es un atajo automático: con ocho filas responde 1 donde el cálculo exacto da 1,35, justo donde un resultado es más fácil de comprobar a mano.</p>
+      </article>
+      <article class="card">
+        <h3>Un techo que pones tú</h3>
+        <p>Define <code>DATASEMVER_DUCKDB_MEMORY_LIMIT</code> y lo que no quepa se vuelca a disco en lugar de fallar.</p>
+<pre class="code"><span class="c"># la mitad de memoria, las mismas respuestas</span>
+datasemver diff old.parquet new.parquet \
+  <span class="k">--engine duckdb</span></pre>
+      </article>
+    </div>
+  </div>
+</section>
 
-    <dl class="facts">
-      <div><dt>Dataset</dt><dd>63,6 MB</dd></div>
-      <div><dt>Su perfil</dt><dd>2,9 KB</dd></div>
-      <div><dt>Ratio</dt><dd>21.916:1</dd></div>
+<section class="sec statement" id="profile" aria-labelledby="profile-h">
+  <div class="wrap">
+    <p class="label">Perfiles</p>
+    <h2 id="profile-h">El perfil sobrevive a los datos</h2>
+    <div class="figures" data-counters>
+      <div><p class="fig-num" data-roll>63,6<span class="unit">MB</span></p><p class="fig-cap">el dataset</p></div>
+      <div><p class="fig-num" data-roll>2,9<span class="unit">KB</span></p><p class="fig-cap">su perfil</p></div>
+      <div><p class="fig-num" data-roll>21.916<span class="unit">:1</span></p><p class="fig-cap">más pequeño</p></div>
+    </div>
+    <div class="statement__body">
+      <div>
+        <p>Una comparación lee un perfil: las columnas, sus tipos, su proporción de nulos, una rejilla de cuantiles y los recuentos por categoría. Cabe de sobra junto al dataset en el repositorio, y entonces la versión anterior no hace falta descargarla, ni siquiera que exista.</p>
+        <p>El pie de un Parquet puede sustituir a la lectura completa con <code>--schema-only</code>; cualquier comparación contra ese perfil avisa de que no se revisó ninguna distribución.</p>
+      </div>
+<pre class="code"><span class="c"># escríbelo una vez, junto a los datos</span>
+datasemver profile v3.parquet
+
+<span class="c"># compara contra él después, sin el fichero</span>
+datasemver diff v3<span class="k">.profile.json</span> v4.parquet</pre>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="ways" aria-labelledby="ways-h">
+  <div class="wrap">
+    <div class="grid ways">
+      <div class="ways__side">
+        <p class="label">Formas de usarlo</p>
+        <h2 id="ways-h">Siete formas de usarlo, un informe</h2>
+        <div class="hub" data-loop>
+          <svg viewBox="0 0 520 520" aria-hidden="true">
+        <defs><radialGradient id="core-fill"><stop offset="0" style="stop-color: var(--accent)" stop-opacity="0.22"/><stop offset="1" style="stop-color: var(--surface)"/></radialGradient></defs>
+        <circle class="orbit" cx="260" cy="260" r="196"/>
+        <g data-way="cli"><line class="spoke" x1="260.0" y1="90.0" x2="260.0" y2="180.0"/><line class="spark" style="--i: 0" x1="260.0" y1="90.0" x2="260.0" y2="180.0"/><g class="hub__node"><rect x="232.1" y="44.0" width="55.8" height="40" rx="6"/><text x="260.0" y="64.0">CLI</text></g></g>
+        <g data-way="python"><line class="spoke" x1="383.5" y1="161.5" x2="322.5" y2="210.1"/><line class="spark" style="--i: 1" x1="383.5" y1="161.5" x2="322.5" y2="210.1"/><g class="hub__node"><rect x="372.4" y="117.8" width="81.6" height="40" rx="6"/><text x="413.2" y="137.8">Python</text></g></g>
+        <g data-way="dashboard"><line class="spoke" x1="391.5" y1="290.0" x2="338.0" y2="277.8"/><line class="spark" style="--i: 2" x1="391.5" y1="290.0" x2="338.0" y2="277.8"/><g class="hub__node"><rect x="397.4" y="283.6" width="107.4" height="40" rx="6"/><text x="451.1" y="303.6">Dashboard</text></g></g>
+        <g data-way="action"><line class="spoke" x1="332.8" y1="411.2" x2="294.7" y2="332.1"/><line class="spark" style="--i: 3" x1="332.8" y1="411.2" x2="294.7" y2="332.1"/><g class="hub__node"><rect x="304.2" y="416.6" width="81.6" height="40" rx="6"/><text x="345.0" y="436.6">Action</text></g></g>
+        <g data-way="dvc"><line class="spoke" x1="187.2" y1="411.2" x2="225.3" y2="332.1"/><line class="spark" style="--i: 4" x1="187.2" y1="411.2" x2="225.3" y2="332.1"/><g class="hub__node"><rect x="147.1" y="416.6" width="55.8" height="40" rx="6"/><text x="175.0" y="436.6">DVC</text></g></g>
+        <g data-way="sql"><line class="spoke" x1="102.7" y1="295.9" x2="182.0" y2="277.8"/><line class="spark" style="--i: 5" x1="102.7" y1="295.9" x2="182.0" y2="277.8"/><g class="hub__node"><rect x="41.0" y="283.6" width="55.8" height="40" rx="6"/><text x="68.9" y="303.6">SQL</text></g></g>
+        <g data-way="binary"><line class="spoke" x1="136.5" y1="161.5" x2="197.5" y2="210.1"/><line class="spark" style="--i: 6" x1="136.5" y1="161.5" x2="197.5" y2="210.1"/><g class="hub__node"><rect x="61.7" y="117.8" width="90.2" height="40" rx="6"/><text x="106.8" y="137.8">Binario</text></g></g>
+        <g class="hub__core"><circle cx="260" cy="260" r="74"/><text x="260" y="252">un informe</text><text class="sub" x="260" y="276">la misma función</text></g>
+        </svg>
+        </div>
+      </div>
+      <ul class="way-list">
+        <li class="way" id="way-cli" data-way="cli"><div class="way__top"><h3>Línea de comandos</h3><code>datasemver diff old.csv new.csv</code></div><p>Hecha con typer y rich. Añade <code>--json</code> cuando la respuesta la lee un script y no una persona.</p></li>
+        <li class="way" id="way-python" data-way="python"><div class="way__top"><h3>Librería de Python</h3><code>from datasemver import analyze</code></div><p>Dos rutas, o dos perfiles que ya tienes en memoria cuando los datos vienen de una consulta.</p></li>
+        <li class="way" data-way="dashboard"><div class="way__top"><h3>Panel web</h3><code>pip install "datasemver[web]"</code></div><p>Una herramienta local sin autenticación ni límite de peticiones: déjala en la interfaz de loopback.</p></li>
+        <li class="way" id="way-action" data-way="action"><div class="way__top"><h3>GitHub Action</h3><code>uses: IzanVil/datasemver@v0.8.2</code></div><p>Publica el salto en cada pull request, reescribiendo un único comentario. Pasado tu umbral rechaza el merge, después de explicar por qué.</p></li>
+        <li class="way" id="way-dvc" data-way="dvc"><div class="way__top"><h3>DVC</h3><code>datasemver dvc --rev HEAD~1</code></div><p>Compara los datasets que DVC marca como cambiados entre dos revisiones, desde la versión registrada junto a cada uno.</p></li>
+        <li class="way" id="way-sql" data-way="sql"><div class="way__top"><h3>Tablas de bases de datos</h3><code>postgresql://…/db#customers</code></div><p>SQLite no necesita driver; PostgreSQL y MySQL usan el extra <code>sql</code>.</p></li>
+        <li class="way" id="way-binary" data-way="binary"><div class="way__top"><h3>Ejecutable autónomo</h3><code>linux · windows · macos</code></div><p>Un ejecutable por plataforma con su propio Python, bases de datos y libros de Excel incluidos.</p></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="install" aria-labelledby="install-h">
+  <div class="wrap grid install">
+    <div class="install__text">
+      <p class="label">Instalación</p>
+      <h2 id="install-h">En un script de release en cinco líneas</h2>
+      <p>Python 3.10 a 3.14, con tipos y sin acceso a la red en ejecución. Las versiones se publican desde CI con Trusted Publishing y procedencia firmada, así que no existe ningún token de larga duración.</p>
+      <dl class="extras">
+        <dt><code>sql</code></dt><dd>Tablas de PostgreSQL y MySQL</dd>
+        <dt><code>excel</code></dt><dd>Libros de Excel, hoja a hoja</dd>
+        <dt><code>duckdb</code></dt><dd>Los dos motores para ficheros grandes</dd>
+        <dt><code>web</code></dt><dd>El panel web</dd>
+      </dl>
+      <div class="actions">
+        <button class="btn btn--cmd" type="button" data-copy="pip install datasemver" aria-label="Copiar el comando de instalación: pip install datasemver">
+          <span><span class="prompt">$ </span>pip install datasemver</span>
+          <svg class="when-idle" aria-hidden="true"><use href="#i-copy"/></svg><svg class="when-done" aria-hidden="true"><use href="#i-check"/></svg>
+        </button>
+        <a class="btn btn--quiet" href="https://pypi.org/project/datasemver/">Verlo en PyPI <svg class="arrow" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+    <div class="term">
+      <div class="term__bar">
+        <span>release.sh</span>
+        <button class="btn btn--tonal" type="button" data-copy-from="recipes" aria-label="Copiar los cinco comandos">
+          <svg class="when-idle" aria-hidden="true"><use href="#i-copy"/></svg><svg class="when-done" aria-hidden="true"><use href="#i-check"/></svg><span>Copiar</span>
+        </button>
+      </div>
+<pre class="code" id="recipes"><span class="c"># lee el salto desde un script</span>
+BUMP=$(datasemver diff old.csv new.csv <span class="k">--json</span> | jq -r '.bump')
+
+<span class="c"># añade la entrada al principio de tu changelog</span>
+datasemver diff old.csv new.csv <span class="k">--output CHANGELOG.md</span> \
+  --current-version "$(cat VERSION)"
+
+<span class="c"># rechaza un cambio que rompe</span>
+datasemver diff old.csv new.csv <span class="k">--fail-on major</span>
+
+<span class="c"># qué filas cambiaron, no solo si cambió la forma</span>
+datasemver diff old.csv new.csv <span class="k">--key id</span>
+
+<span class="c"># guarda la versión que ha calculado</span>
+datasemver diff old.csv new.csv <span class="k">--write-version</span> \
+  --current-version 1.4.2</pre>
+      <p class="exits"><span><b>0</b> sin problemas</span><span><b>1</b> rechazado</span><span><b>2</b> no pudo ejecutarse</span></p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <div class="head">
+      <div class="head__text">
+        <p class="label">Preguntas</p>
+        <h2 id="faq-h">Antes de la primera ejecución</h2>
+      </div>
+    </div>
+    <dl class="faq">
+      <div><dt>¿Necesito el fichero anterior?</dt><dd>No. Un perfil guardado cuenta como dataset en cualquiera de los dos lados, así que la versión anterior puede ser un fichero de 3 KB junto a los datos.</dd></div>
+      <div><dt>¿Puedo decidir qué cuenta como major?</dt><dd>Sí. La severidad vive en un fichero de reglas YAML que pasas con <code>--rules</code>; los perfiles estricto y permisivo vienen junto a los de serie.</dd></div>
+      <div><dt>¿Qué pasa con un cambio que ninguna regla cubre?</dt><dd>Sale como no clasificado, para que lo veas, y nunca sube el salto.</dd></div>
+      <div><dt>¿Mis datos salen de la máquina?</dt><dd>No. DataSemver no hace ninguna petición de red en ejecución, y el panel web está pensado para quedarse en la interfaz de loopback.</dd></div>
+      <div><dt>¿Qué tamaño de fichero puede leer?</dt><dd>Mayor que la memoria, con <code>--engine duckdb</code>. Pon un límite de memoria y lo que no quepa se vuelca a disco.</dd></div>
+      <div><dt>¿Y en una máquina sin Python?</dt><dd>Cada versión trae un ejecutable por plataforma con su propio Python, bases de datos y libros de Excel incluidos.</dd></div>
     </dl>
+  </div>
+</section>
 
-<pre><b># escríbelo una vez, junto a los datos</b>
-datasemver profile customers_v3.parquet
-
-<b># compara contra él más adelante, con el fichero ya desaparecido</b>
-datasemver diff customers_v3.profile.json customers_v4.parquet
-
-<b># desde el footer del Parquet: un seek en vez de un escaneo</b>
-datasemver profile customers_v3.parquet <i>--schema-only</i></pre>
-
-    <p class="after-ladder">
-      El footer de un Parquet ya guarda el esquema y, por columna, los nulos y el valor más
-      pequeño y el más grande &mdash; toda la entrada que lee una comparación a nivel de
-      esquema. Lo que no puede dar es la rejilla de cuantiles ni los conteos por categoría, así
-      que un perfil escrito desde ahí lo registra, y cualquier comparación contra él dice que no
-      se comprobó ninguna distribución. Sin eso, el informe se leería igual que uno donde nada
-      se movió.
-    </p>
-  </section>
-
-  <section id="surfaces">
-    <h2>Siete formas de usarlo, un informe</h2>
-    <div class="surfaces">
-      <div>
-        <h3>Línea de comandos</h3>
-        <p>Construida sobre typer y rich. Añade <code>--json</code> cuando quien lee la respuesta es un script y no una persona.</p>
-        <code>datasemver diff old.csv new.csv</code>
-      </div>
-      <div>
-        <h3>Tablas de base de datos</h3>
-        <p>Una URL de conexión con la tabla tras <code>#</code>. SQLite no necesita driver; PostgreSQL y MySQL usan el extra <code>sql</code>.</p>
-        <code>sqlite:///snapshots.db#clientes</code>
-      </div>
-      <div>
-        <h3>Librería de Python</h3>
-        <p>Dos rutas, o dos perfiles que ya tengas en memoria cuando los datos vienen de una consulta al almacén.</p>
-        <code>from datasemver import analyze</code>
-      </div>
-      <div>
-        <h3>Panel web</h3>
-        <p>Una herramienta local, sin autenticación y sin límite de peticiones. Mantenla en la interfaz de loopback.</p>
-        <code>pip install "datasemver[web]"</code>
-      </div>
-      <div>
-        <h3>GitHub Action</h3>
-        <p>Analiza los datasets que toca un pull request y publica el salto sugerido, reescribiendo el mismo comentario en cada push. Define un umbral y rechaza el merge &mdash; después de comentar, para que el rechazo llegue con su motivo.</p>
-        <code>uses: IzanVil/datasemver@v0.8.2</code>
-      </div>
-      <div>
-        <h3>DVC</h3>
-        <p>Compara los datasets que DVC reporta como cambiados entre dos revisiones, continuando cada uno desde la versión registrada a su lado en vez de empezar de cero.</p>
-        <code>datasemver dvc --rev HEAD~1</code>
-      </div>
-      <div>
-        <h3>Binario independiente</h3>
-        <p>Un ejecutable por plataforma que trae su propio Python, para máquinas donde instalarlo no es una opción. El soporte de bases de datos y libros de Excel va dentro.</p>
-        <code>linux &middot; windows &middot; macos arm64 y x86_64</code>
-      </div>
+<section class="sec close" aria-labelledby="close-h">
+  <div class="wrap">
+    <h2 class="close__type" id="close-h">Versiona tus datos como <em>tu código.</em></h2>
+    <p class="lead">Una instalación, dos ficheros y una respuesta que puedes poner en una pull request.</p>
+    <div class="actions">
+      <button class="btn btn--cmd" type="button" data-copy="pip install datasemver" aria-label="Copiar el comando de instalación: pip install datasemver">
+        <span><span class="prompt">$ </span>pip install datasemver</span>
+        <svg class="when-idle" aria-hidden="true"><use href="#i-copy"/></svg><svg class="when-done" aria-hidden="true"><use href="#i-check"/></svg>
+      </button>
+      <a class="btn btn--quiet" href="https://github.com/IzanVil/datasemver/blob/main/README.es.md#inicio-r%C3%A1pido">Leer el inicio rápido <svg class="arrow" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
+  </div>
+</section>
 
-<pre><b># leer el salto desde un script de release</b>
-BUMP=$(datasemver diff old.csv new.csv <i>--json</i> | jq -r '.bump')
+</main>
 
-<b># anteponer la entrada de changelog a un fichero que tú mantienes</b>
-datasemver diff old.csv new.csv <i>--current-version</i> "$(cat VERSION)" <i>--output</i> CHANGELOG.md
-
-<b># rechazar un cambio que rompe: 0 salió limpio, 1 fue rechazado, 2 no pudo ejecutarse</b>
-datasemver diff old.csv new.csv <i>--fail-on</i> major
-
-<b># qué filas cambiaron, no solo si cambió la forma</b>
-datasemver diff old.csv new.csv <i>--key</i> id
-
-<b># registra la versión que ha calculado, en vez de teclearla otra vez</b>
-datasemver diff old.csv new.csv <i>--current-version</i> 1.4.2 <i>--write-version</i></pre>
-  </section>
-
-  <section class="cta">
-    <h2>Instalarlo</h2>
-    <p class="say">
-      Python 3.10 o superior, tipado y sin acceso a red en tiempo de ejecución. Las releases se
-      publican desde CI mediante Trusted Publishing con procedencia firmada, así que no existe
-      ningún token de larga duración. Los extras se piden: <code>sql</code> para bases de datos,
-      <code>excel</code> para libros, <code>duckdb</code> para los motores, <code>web</code>
-      para el panel.
-    </p>
-    <p class="say">
-      ¿Sin Python en la máquina? Cada release lleva además un único ejecutable por plataforma
-      que trae el suyo, con bases de datos y libros de Excel incluidos &mdash;
-      <a href="https://github.com/IzanVil/datasemver/releases/latest">en la última release</a>.
-    </p>
-    <div class="closer">
-      <div class="snippet">
-        <span><i>$</i> pip install datasemver</span>
-        <button type="button" data-copy="pip install datasemver" data-done="Copiado" data-fail="Pulsa Ctrl+C" aria-live="polite">Copiar</button>
+<footer class="foot">
+  <div class="wrap">
+    <div class="grid foot__cols">
+      <div class="foot__brand">
+        <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="11.5" fill="none" stroke="currentColor" stroke-width="3" opacity="0.28"/><path d="M16 4.5a11.5 11.5 0 0 1 9.96 17.25" fill="none" style="stroke: var(--accent)" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg><span>DataSemver</span></a>
+        <p>Versionado semántico para datasets, de la línea de comandos a la pull request.</p>
       </div>
-      <a class="go" href="https://pypi.org/project/datasemver/">Verlo en PyPI</a>
+      <nav class="foot__col" aria-labelledby="f-project">
+        <h2 id="f-project">Proyecto</h2>
+        <ul>
+          <li><a href="https://github.com/IzanVil/datasemver">Código</a></li>
+          <li><a href="https://pypi.org/project/datasemver/">PyPI</a></li>
+          <li><a href="https://github.com/IzanVil/datasemver/releases/latest">Última versión</a></li>
+          <li><a href="https://github.com/IzanVil/datasemver/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </nav>
+      <nav class="foot__col" aria-labelledby="f-docs">
+        <h2 id="f-docs">Documentación</h2>
+        <ul>
+          <li><a href="https://github.com/IzanVil/datasemver/blob/main/README.es.md">README en español</a></li>
+          <li><a href="https://github.com/IzanVil/datasemver/blob/main/docs/tutorial.es.md">Tutorial</a></li>
+          <li><a href="https://github.com/IzanVil/datasemver/blob/main/docs/rules.md">Catálogo de reglas</a></li>
+          <li><a href="../demo/">Demo del panel</a></li>
+        </ul>
+      </nav>
+      <nav class="foot__col" aria-labelledby="f-help">
+        <h2 id="f-help">Ayuda</h2>
+        <ul>
+          <li><a href="https://github.com/IzanVil/datasemver/issues">Issues</a></li>
+          <li><a href="https://github.com/IzanVil/datasemver/blob/main/.github/CONTRIBUTING.md">Contribuir</a></li>
+          <li><a href="https://github.com/IzanVil/datasemver/blob/main/.github/SECURITY.md">Seguridad</a></li>
+          <li><a href="../" hreflang="en" lang="en">English</a></li>
+        </ul>
+      </nav>
     </div>
-  </section>
-
-</div>
-
-<div class="page">
-  <footer>
-    <ul>
-      <li><a href="https://github.com/IzanVil/datasemver">Código</a></li>
-      <li><a href="https://pypi.org/project/datasemver/">PyPI</a></li>
-      <li><a href="https://github.com/IzanVil/datasemver/blob/main/docs/rules.md">Catálogo de reglas</a></li>
-      <li><a href="https://github.com/IzanVil/datasemver/blob/main/CHANGELOG.md">Changelog</a></li>
-      <li><a href="https://github.com/IzanVil/datasemver/blob/main/.github/CONTRIBUTING.md">Contribuir</a></li>
-      <li><a href="https://github.com/IzanVil/datasemver/blob/main/.github/SECURITY.md">Seguridad</a></li>
-      <li><a href="https://github.com/IzanVil/datasemver/issues">Issues</a></li>
-      <li><a href="../" hreflang="en">English</a></li>
-    </ul>
-    <p>Código abierto bajo la <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>. Hecho por <a href="https://github.com/IzanVil">Izan Vilchez</a>.</p>
-  </footer>
-</div>
+    <p class="foot__line">Código abierto bajo la <a class="link" href="https://www.apache.org/licenses/LICENSE-2.0">licencia Apache 2.0</a>. Hecho por <a class="link" href="https://github.com/IzanVil">Izan Vilchez</a>. Tipografías Outfit y DM Mono, bajo la SIL Open Font License.</p>
+  </div>
+</footer>
 
 <script src="../site.js" defer></script>
-
 </body>
 </html>

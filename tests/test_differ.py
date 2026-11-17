@@ -283,9 +283,10 @@ def test_a_wholesale_rename_too_wide_to_pair_is_reported_as_removed_and_added(mo
     old = pd.DataFrame({f"customer_{i}": [1] for i in range(4)})
     new = pd.DataFrame({f"customers_{i}": [1] for i in range(4)})
 
-    with pytest.warns(RuntimeWarning, match="too many to pair up"):
-        diff = diff_frames(old, new)
+    diff = diff_frames(old, new)
 
+    assert len(diff.notes) == 1
+    assert "4 columns were removed and 4 added, too many to pair up" in diff.notes[0]
     assert len(diff.of_type(ChangeType.COLUMN_REMOVED)) == 4
     assert len(diff.of_type(ChangeType.COLUMN_ADDED)) == 4
     assert diff.of_type(ChangeType.COLUMN_RENAMED) == []
@@ -295,4 +296,7 @@ def test_a_rename_under_the_ceiling_is_still_found():
     old = pd.DataFrame({"customer_name": ["ana", "bruno"], "id": [1, 2]})
     new = pd.DataFrame({"customer_names": ["ana", "bruno"], "id": [1, 2]})
 
-    assert len(diff_frames(old, new).of_type(ChangeType.COLUMN_RENAMED)) == 1
+    diff = diff_frames(old, new)
+
+    assert len(diff.of_type(ChangeType.COLUMN_RENAMED)) == 1
+    assert diff.notes == []

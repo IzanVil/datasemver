@@ -488,6 +488,22 @@ button:focus-visible {
   font-size: 0.85rem;
 }
 
+/* What the comparison did not do. Set apart from the sources above it, since it changes how
+   the changes below should be read. */
+.notes {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  list-style: none;
+  border-left: 3px solid var(--minor, #e0b341);
+  background: color-mix(in srgb, var(--minor, #e0b341) 10%, transparent);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.notes li + li {
+  margin-top: 6px;
+}
+
 /* --- the guide shown before there is a report ------------------------------------------------ */
 
 .guide h2 {

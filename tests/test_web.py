@@ -1,11 +1,15 @@
 import gzip
+import importlib.util
 import io
 import tracemalloc
 
 import pytest
 
 pytest.importorskip("fastapi")
-pytest.importorskip("httpx")
+# The test client's transport: `httpx2` where Starlette can use it, `httpx` on 3.10, where
+# `httpx2` does not install.
+if importlib.util.find_spec("httpx2") is None:
+    pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient
 
@@ -100,6 +104,19 @@ def test_diff_uploads_returns_the_report(client, old_csv, new_csv):
     assert payload["diff"]["new"]["row_count"] == 10
     rules = {item["rule"] for item in payload["classified"]}
     assert {"column_removed", "type_changed_incompatible"} <= rules
+
+
+def test_the_report_carries_what_the_comparison_did_not_do(client, tmp_path, monkeypatch):
+    """The dashboard draws its notes from here, so the API is where they have to arrive."""
+    monkeypatch.setattr("datasemver.core.differ.MAX_RENAME_PAIRS", 10)
+    old, new = tmp_path / "old.csv", tmp_path / "new.csv"
+    old.write_text(",".join(f"customer_{i}" for i in range(4)) + "\n1,2,3,4\n", encoding="utf-8")
+    new.write_text(",".join(f"customers_{i}" for i in range(4)) + "\n1,2,3,4\n", encoding="utf-8")
+
+    notes = upload(client, old, new).json()["diff"]["notes"]
+
+    assert len(notes) == 1
+    assert "too many to pair up as renames" in notes[0]
 
 
 def test_diff_uploads_accepts_json_and_parquet(client, old_json, new_json, old_parquet):
